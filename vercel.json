@@ -1,0 +1,47 @@
+{
+    "rewrites": [
+        {
+            "has": [
+                {
+                    "type": "host",
+                    "value": "swiftmove.com"
+                }
+            ],
+            "source": "/(.*)",
+            "destination": "/swiftmove/$1"
+        },
+        {
+            "has": [
+                {
+                    "type": "host",
+                    "value": "swiftmove.com"
+                }
+            ],
+            "source": "/",
+            "destination": "/swiftmove"
+        },
+        {
+            "source": "/((?!_build|assets|favicon\\.ico|robots\\.txt|.*\\.[a-z]{2,4}$).*)",
+            "destination": "/index.html"
+        }
+    ],
+    "headers": [
+        {
+            "source": "/(.*)",
+            "headers": [
+                {
+                    "key": "X-Content-Type-Options",
+                    "value": "nosniff"
+                },
+                {
+                    "key": "X-Frame-Options",
+                    "value": "SAMEORIGIN"
+                },
+                {
+                    "key": "X-XSS-Protection",
+                    "value": "1; mode=block"
+                }
+            ]
+        }
+    ]
+}
