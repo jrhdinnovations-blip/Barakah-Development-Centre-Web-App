@@ -1,30 +1,50 @@
-# Welcome to your Lovable project
+# Barakah Development Centre Web App
 
-This project was built with [Lovable](https://lovable.dev).
+A modern web application for the Barakah Development Centre ecosystem, featuring community/humanitarian services, learning and development programs, enterprise dispatching, and case management.
 
-## Build with Lovable
+## Tech Stack
+- **Framework**: TanStack Start (SSR)
+- **Library**: React
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **Database / Backend**: Supabase
+- **Hosting**: Vercel / Cloudflare
 
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
+## Getting Started
 
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
+### Prerequisites
+Make sure you have Node.js (v18+) and npm/bun installed.
 
-## Development
+### Installation
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+1. Clone the repository:
+   ```sh
+   git clone <repository-url>
+   cd Barakah-Development-Centre-Web-App
+   ```
 
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
-```
+2. Install dependencies:
+   ```sh
+   npm install
+   # or
+   bun install
+   ```
 
-## Built with
+3. Configure environment variables:
+   Create a `.env` file in the root directory and add your Supabase credentials:
+   ```env
+   VITE_SUPABASE_URL=your-supabase-url
+   VITE_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
+   VITE_GOOGLE_MAPS_API_KEY=your-google-maps-api-key
+   ```
 
-- TanStack Start
-- TypeScript
-- React
-- Tailwind CSS
-# Barakah-Development-Centre
+4. Start the development server:
+   ```sh
+   npm run dev
+   # or
+   bun dev
+   ```
+
+## Development and Deployment
+- To build the project: `npm run build`
+- To preview the build locally: `npm run preview`
