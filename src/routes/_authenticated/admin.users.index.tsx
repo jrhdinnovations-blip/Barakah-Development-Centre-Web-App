@@ -81,6 +81,11 @@ const ROLE_CONFIG: Record<string, { label: string; color: string; icon: any }> =
     color: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
     icon: Radio,
   },
+  dispatcher: {
+    label: "Dispatcher",
+    color: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
+    icon: Radio,
+  },
 };
 
 function AllUsersPage() {
