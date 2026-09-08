@@ -261,7 +261,7 @@ function OrderHistoryPage() {
                             <div className="flex justify-between items-start">
                                 <div>
                                     <h3 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-                                        <Package className="h-5 w-5 text-blue-500" /> Swift Move Logistics
+                                        <Package className="h-5 w-5 text-blue-500" /> SwiftMove Logistics & Express Hire
                                     </h3>
                                     <p className="text-[11px] text-slate-400 mt-0.5">Express Courier & Vehicle Rental Platform</p>
                                 </div>
@@ -318,7 +318,7 @@ function OrderHistoryPage() {
                             </div>
 
                             <div className="text-[10px] text-center text-slate-500 pt-2">
-                                Thank you for choosing Swift Move. For support, contact help@swiftmove.com
+                                Thank you for choosing SwiftMove. For support, contact help@swiftmove.com
                             </div>
                         </div>
 

@@ -6,8 +6,8 @@ import { getSharedRide } from "@/lib/swift.functions";
 export const Route = createFileRoute("/share/$token")({
   head: () => ({
     meta: [
-      { title: "Follow this Swift Move trip — live trip sharing" },
-      { name: "description", content: "Follow a Swift Move trip in near real time with a secure share link." },
+      { title: "Follow this SwiftMove trip — live trip sharing" },
+      { name: "description", content: "Follow a SwiftMove trip in near real time with a secure share link." },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -44,7 +44,7 @@ function ShareTrip() {
             <Car className="h-5 w-5 text-swift" />
           </span>
           <div>
-            <h1 className="text-lg font-bold text-foreground">Swift Move — live trip</h1>
+            <h1 className="text-lg font-bold text-foreground">SwiftMove — live trip</h1>
             <p className="text-xs capitalize text-muted-foreground">{String(r.status).replace(/_/g, " ")}</p>
           </div>
         </div>
@@ -81,7 +81,7 @@ function ShareTrip() {
           </p>
         )}
         <p className="mt-4 text-center text-xs text-muted-foreground">
-          Shared securely via Swift Move · Barakah Development Centre
+          Shared securely via SwiftMove · Barakah Development Centre
         </p>
       </div>
     </div>

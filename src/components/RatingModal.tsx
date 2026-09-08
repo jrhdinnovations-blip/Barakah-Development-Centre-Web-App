@@ -28,7 +28,7 @@ export function RatingModal({ deliveryId, isOpen, onClose, onSuccess }: RatingMo
                 .update({
                     rating,
                     review_text: review,
-                })
+                } as any)
                 .eq('id', deliveryId);
 
             if (error) throw error;

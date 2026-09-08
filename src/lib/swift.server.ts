@@ -49,7 +49,7 @@ export async function swiftLegalEntityId(supabase: any) {
   const { data } = await supabase
     .from("legal_entities")
     .select("id")
-    .eq("name", "Swift Move")
+    .eq("name", "SwiftMove")
     .maybeSingle();
   return data?.id ?? null;
 }
@@ -237,7 +237,7 @@ export async function settleRidePayment(admin: any, opts: {
       _user_id: ride.customer_id,
       _type: "ride_payment",
       _title: "Ride payment confirmed",
-      _body: "Thanks for riding with Swift Move. You can rate your driver now.",
+      _body: "Thanks for riding with SwiftMove. You can rate your driver now.",
       _link: "/my-swift-move",
     });
   }

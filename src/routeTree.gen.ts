@@ -29,10 +29,10 @@ import { Route as TravelRouteImport } from './routes/travel'
 import { Route as TravelAndPilgrimageRouteImport } from './routes/travel-and-pilgrimage'
 import { Route as VolunteerRouteImport } from './routes/volunteer'
 import { Route as WhatWeDoRouteImport } from './routes/what-we-do'
-import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthenticatedSplatRouteImport } from './routes/_authenticated/$'
 import { Route as AuthenticatedApplyRouteImport } from './routes/_authenticated/apply'
 import { Route as AuthenticatedCartRouteImport } from './routes/_authenticated/cart'
-import { Route as AuthenticatedDriveRouteImport } from './routes/_authenticated/drive'
+import { Route as AuthenticatedDispatcherRouteImport } from './routes/_authenticated/dispatcher'
 import { Route as AuthenticatedDriverDispatchRouteImport } from './routes/_authenticated/driver-dispatch'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 import { Route as AuthenticatedMyBarakahRouteImport } from './routes/_authenticated/my-barakah'
@@ -42,14 +42,28 @@ import { Route as AuthenticatedMyPaymentsRouteImport } from './routes/_authentic
 import { Route as AuthenticatedMySupportRouteImport } from './routes/_authenticated/my-support'
 import { Route as AuthenticatedMySwiftMoveRouteImport } from './routes/_authenticated/my-swift-move'
 import { Route as AuthenticatedMyVehicleHiresRouteImport } from './routes/_authenticated/my-vehicle-hires'
-import { Route as AuthenticatedStaffRouteImport } from './routes/_authenticated/staff'
 import { Route as AuthenticatedStaffSecurityRouteImport } from './routes/_authenticated/staff-security'
 import { Route as LearnSlugRouteImport } from './routes/learn.$slug'
 import { Route as ShareTokenRouteImport } from './routes/share.$token'
 import { Route as TravelSlugRouteImport } from './routes/travel.$slug'
+import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
+import { Route as AuthenticatedAdminDispatcherRouteImport } from './routes/_authenticated/admin.dispatcher'
+import { Route as AuthenticatedAdminEmailsRouteImport } from './routes/_authenticated/admin.emails'
+import { Route as AuthenticatedAdminSwiftMoveRouteImport } from './routes/_authenticated/admin.swift-move'
+import { Route as AuthenticatedDriveIndexRouteImport } from './routes/_authenticated/drive.index'
 import { Route as AuthenticatedDriveWalletRouteImport } from './routes/_authenticated/drive.wallet'
+import { Route as AuthenticatedStaffIndexRouteImport } from './routes/_authenticated/staff.index'
+import { Route as AuthenticatedStaffAddRouteImport } from './routes/_authenticated/staff.add'
 import { Route as AuthenticatedSwiftMoveNewRouteImport } from './routes/_authenticated/swift-move.new'
 import { Route as ApiPublicPaystackWebhookRouteImport } from './routes/api/public/paystack-webhook'
+import { Route as AuthenticatedAdminRidersIndexRouteImport } from './routes/_authenticated/admin.riders.index'
+import { Route as AuthenticatedAdminRidersAddRouteImport } from './routes/_authenticated/admin.riders.add'
+import { Route as AuthenticatedAdminStaffIndexRouteImport } from './routes/_authenticated/admin.staff.index'
+import { Route as AuthenticatedAdminStaffAddRouteImport } from './routes/_authenticated/admin.staff.add'
+import { Route as AuthenticatedAdminUsersIndexRouteImport } from './routes/_authenticated/admin.users.index'
+import { Route as AuthenticatedAdminUsersCreateRouteImport } from './routes/_authenticated/admin.users.create'
+import { Route as AuthenticatedAdminUsersPermissionsRouteImport } from './routes/_authenticated/admin.users.permissions'
+import { Route as AuthenticatedAdminUsersRolesRouteImport } from './routes/_authenticated/admin.users.roles'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -152,9 +166,9 @@ const WhatWeDoRoute = WhatWeDoRouteImport.update({
   path: '/what-we-do',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
+const AuthenticatedSplatRoute = AuthenticatedSplatRouteImport.update({
+  id: '/$',
+  path: '/$',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedApplyRoute = AuthenticatedApplyRouteImport.update({
@@ -167,9 +181,9 @@ const AuthenticatedCartRoute = AuthenticatedCartRouteImport.update({
   path: '/cart',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedDriveRoute = AuthenticatedDriveRouteImport.update({
-  id: '/drive',
-  path: '/drive',
+const AuthenticatedDispatcherRoute = AuthenticatedDispatcherRouteImport.update({
+  id: '/dispatcher',
+  path: '/dispatcher',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedDriverDispatchRoute =
@@ -220,11 +234,6 @@ const AuthenticatedMyVehicleHiresRoute =
     path: '/my-vehicle-hires',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedStaffRoute = AuthenticatedStaffRouteImport.update({
-  id: '/staff',
-  path: '/staff',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedStaffSecurityRoute =
   AuthenticatedStaffSecurityRouteImport.update({
     id: '/staff-security',
@@ -246,12 +255,50 @@ const TravelSlugRoute = TravelSlugRouteImport.update({
   path: '/$slug',
   getParentRoute: () => TravelRoute,
 } as any)
+const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAdminDispatcherRoute =
+  AuthenticatedAdminDispatcherRouteImport.update({
+    id: '/admin/dispatcher',
+    path: '/admin/dispatcher',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdminEmailsRoute =
+  AuthenticatedAdminEmailsRouteImport.update({
+    id: '/admin/emails',
+    path: '/admin/emails',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdminSwiftMoveRoute =
+  AuthenticatedAdminSwiftMoveRouteImport.update({
+    id: '/admin/swift-move',
+    path: '/admin/swift-move',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedDriveIndexRoute = AuthenticatedDriveIndexRouteImport.update({
+  id: '/drive/',
+  path: '/drive/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedDriveWalletRoute =
   AuthenticatedDriveWalletRouteImport.update({
-    id: '/wallet',
-    path: '/wallet',
-    getParentRoute: () => AuthenticatedDriveRoute,
+    id: '/drive/wallet',
+    path: '/drive/wallet',
+    getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedStaffIndexRoute = AuthenticatedStaffIndexRouteImport.update({
+  id: '/staff/',
+  path: '/staff/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedStaffAddRoute = AuthenticatedStaffAddRouteImport.update({
+  id: '/staff/add',
+  path: '/staff/add',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedSwiftMoveNewRoute =
   AuthenticatedSwiftMoveNewRouteImport.update({
     id: '/swift-move/new',
@@ -263,6 +310,54 @@ const ApiPublicPaystackWebhookRoute =
     id: '/api/public/paystack-webhook',
     path: '/api/public/paystack-webhook',
     getParentRoute: () => rootRouteImport,
+  } as any)
+const AuthenticatedAdminRidersIndexRoute =
+  AuthenticatedAdminRidersIndexRouteImport.update({
+    id: '/admin/riders/',
+    path: '/admin/riders/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdminRidersAddRoute =
+  AuthenticatedAdminRidersAddRouteImport.update({
+    id: '/admin/riders/add',
+    path: '/admin/riders/add',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdminStaffIndexRoute =
+  AuthenticatedAdminStaffIndexRouteImport.update({
+    id: '/admin/staff/',
+    path: '/admin/staff/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdminStaffAddRoute =
+  AuthenticatedAdminStaffAddRouteImport.update({
+    id: '/admin/staff/add',
+    path: '/admin/staff/add',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdminUsersIndexRoute =
+  AuthenticatedAdminUsersIndexRouteImport.update({
+    id: '/admin/users/',
+    path: '/admin/users/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdminUsersCreateRoute =
+  AuthenticatedAdminUsersCreateRouteImport.update({
+    id: '/admin/users/create',
+    path: '/admin/users/create',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdminUsersPermissionsRoute =
+  AuthenticatedAdminUsersPermissionsRouteImport.update({
+    id: '/admin/users/permissions',
+    path: '/admin/users/permissions',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdminUsersRolesRoute =
+  AuthenticatedAdminUsersRolesRouteImport.update({
+    id: '/admin/users/roles',
+    path: '/admin/users/roles',
+    getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -285,10 +380,10 @@ export interface FileRoutesByFullPath {
   '/travel-and-pilgrimage': typeof TravelAndPilgrimageRoute
   '/volunteer': typeof VolunteerRoute
   '/what-we-do': typeof WhatWeDoRoute
-  '/admin': typeof AuthenticatedAdminRoute
+  '/$': typeof AuthenticatedSplatRoute
   '/apply': typeof AuthenticatedApplyRoute
   '/cart': typeof AuthenticatedCartRoute
-  '/drive': typeof AuthenticatedDriveRouteWithChildren
+  '/dispatcher': typeof AuthenticatedDispatcherRoute
   '/driver-dispatch': typeof AuthenticatedDriverDispatchRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/my-barakah': typeof AuthenticatedMyBarakahRoute
@@ -298,14 +393,28 @@ export interface FileRoutesByFullPath {
   '/my-support': typeof AuthenticatedMySupportRoute
   '/my-swift-move': typeof AuthenticatedMySwiftMoveRoute
   '/my-vehicle-hires': typeof AuthenticatedMyVehicleHiresRoute
-  '/staff': typeof AuthenticatedStaffRoute
   '/staff-security': typeof AuthenticatedStaffSecurityRoute
   '/learn/$slug': typeof LearnSlugRoute
   '/share/$token': typeof ShareTokenRoute
   '/travel/$slug': typeof TravelSlugRoute
+  '/admin/dispatcher': typeof AuthenticatedAdminDispatcherRoute
+  '/admin/emails': typeof AuthenticatedAdminEmailsRoute
+  '/admin/swift-move': typeof AuthenticatedAdminSwiftMoveRoute
   '/drive/wallet': typeof AuthenticatedDriveWalletRoute
+  '/staff/add': typeof AuthenticatedStaffAddRoute
   '/swift-move/new': typeof AuthenticatedSwiftMoveNewRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
+  '/admin/': typeof AuthenticatedAdminIndexRoute
+  '/drive/': typeof AuthenticatedDriveIndexRoute
+  '/staff/': typeof AuthenticatedStaffIndexRoute
+  '/admin/riders/add': typeof AuthenticatedAdminRidersAddRoute
+  '/admin/staff/add': typeof AuthenticatedAdminStaffAddRoute
+  '/admin/users/create': typeof AuthenticatedAdminUsersCreateRoute
+  '/admin/users/permissions': typeof AuthenticatedAdminUsersPermissionsRoute
+  '/admin/users/roles': typeof AuthenticatedAdminUsersRolesRoute
+  '/admin/riders/': typeof AuthenticatedAdminRidersIndexRoute
+  '/admin/staff/': typeof AuthenticatedAdminStaffIndexRoute
+  '/admin/users/': typeof AuthenticatedAdminUsersIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -327,10 +436,10 @@ export interface FileRoutesByTo {
   '/travel-and-pilgrimage': typeof TravelAndPilgrimageRoute
   '/volunteer': typeof VolunteerRoute
   '/what-we-do': typeof WhatWeDoRoute
-  '/admin': typeof AuthenticatedAdminRoute
+  '/$': typeof AuthenticatedSplatRoute
   '/apply': typeof AuthenticatedApplyRoute
   '/cart': typeof AuthenticatedCartRoute
-  '/drive': typeof AuthenticatedDriveRouteWithChildren
+  '/dispatcher': typeof AuthenticatedDispatcherRoute
   '/driver-dispatch': typeof AuthenticatedDriverDispatchRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/my-barakah': typeof AuthenticatedMyBarakahRoute
@@ -340,14 +449,28 @@ export interface FileRoutesByTo {
   '/my-support': typeof AuthenticatedMySupportRoute
   '/my-swift-move': typeof AuthenticatedMySwiftMoveRoute
   '/my-vehicle-hires': typeof AuthenticatedMyVehicleHiresRoute
-  '/staff': typeof AuthenticatedStaffRoute
   '/staff-security': typeof AuthenticatedStaffSecurityRoute
   '/learn/$slug': typeof LearnSlugRoute
   '/share/$token': typeof ShareTokenRoute
   '/travel/$slug': typeof TravelSlugRoute
+  '/admin/dispatcher': typeof AuthenticatedAdminDispatcherRoute
+  '/admin/emails': typeof AuthenticatedAdminEmailsRoute
+  '/admin/swift-move': typeof AuthenticatedAdminSwiftMoveRoute
   '/drive/wallet': typeof AuthenticatedDriveWalletRoute
+  '/staff/add': typeof AuthenticatedStaffAddRoute
   '/swift-move/new': typeof AuthenticatedSwiftMoveNewRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
+  '/admin': typeof AuthenticatedAdminIndexRoute
+  '/drive': typeof AuthenticatedDriveIndexRoute
+  '/staff': typeof AuthenticatedStaffIndexRoute
+  '/admin/riders/add': typeof AuthenticatedAdminRidersAddRoute
+  '/admin/staff/add': typeof AuthenticatedAdminStaffAddRoute
+  '/admin/users/create': typeof AuthenticatedAdminUsersCreateRoute
+  '/admin/users/permissions': typeof AuthenticatedAdminUsersPermissionsRoute
+  '/admin/users/roles': typeof AuthenticatedAdminUsersRolesRoute
+  '/admin/riders': typeof AuthenticatedAdminRidersIndexRoute
+  '/admin/staff': typeof AuthenticatedAdminStaffIndexRoute
+  '/admin/users': typeof AuthenticatedAdminUsersIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -371,10 +494,10 @@ export interface FileRoutesById {
   '/travel-and-pilgrimage': typeof TravelAndPilgrimageRoute
   '/volunteer': typeof VolunteerRoute
   '/what-we-do': typeof WhatWeDoRoute
-  '/_authenticated/admin': typeof AuthenticatedAdminRoute
+  '/_authenticated/$': typeof AuthenticatedSplatRoute
   '/_authenticated/apply': typeof AuthenticatedApplyRoute
   '/_authenticated/cart': typeof AuthenticatedCartRoute
-  '/_authenticated/drive': typeof AuthenticatedDriveRouteWithChildren
+  '/_authenticated/dispatcher': typeof AuthenticatedDispatcherRoute
   '/_authenticated/driver-dispatch': typeof AuthenticatedDriverDispatchRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/_authenticated/my-barakah': typeof AuthenticatedMyBarakahRoute
@@ -384,14 +507,28 @@ export interface FileRoutesById {
   '/_authenticated/my-support': typeof AuthenticatedMySupportRoute
   '/_authenticated/my-swift-move': typeof AuthenticatedMySwiftMoveRoute
   '/_authenticated/my-vehicle-hires': typeof AuthenticatedMyVehicleHiresRoute
-  '/_authenticated/staff': typeof AuthenticatedStaffRoute
   '/_authenticated/staff-security': typeof AuthenticatedStaffSecurityRoute
   '/learn/$slug': typeof LearnSlugRoute
   '/share/$token': typeof ShareTokenRoute
   '/travel/$slug': typeof TravelSlugRoute
+  '/_authenticated/admin/dispatcher': typeof AuthenticatedAdminDispatcherRoute
+  '/_authenticated/admin/emails': typeof AuthenticatedAdminEmailsRoute
+  '/_authenticated/admin/swift-move': typeof AuthenticatedAdminSwiftMoveRoute
   '/_authenticated/drive/wallet': typeof AuthenticatedDriveWalletRoute
+  '/_authenticated/staff/add': typeof AuthenticatedStaffAddRoute
   '/_authenticated/swift-move/new': typeof AuthenticatedSwiftMoveNewRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
+  '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
+  '/_authenticated/drive/': typeof AuthenticatedDriveIndexRoute
+  '/_authenticated/staff/': typeof AuthenticatedStaffIndexRoute
+  '/_authenticated/admin/riders/add': typeof AuthenticatedAdminRidersAddRoute
+  '/_authenticated/admin/staff/add': typeof AuthenticatedAdminStaffAddRoute
+  '/_authenticated/admin/users/create': typeof AuthenticatedAdminUsersCreateRoute
+  '/_authenticated/admin/users/permissions': typeof AuthenticatedAdminUsersPermissionsRoute
+  '/_authenticated/admin/users/roles': typeof AuthenticatedAdminUsersRolesRoute
+  '/_authenticated/admin/riders/': typeof AuthenticatedAdminRidersIndexRoute
+  '/_authenticated/admin/staff/': typeof AuthenticatedAdminStaffIndexRoute
+  '/_authenticated/admin/users/': typeof AuthenticatedAdminUsersIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -415,10 +552,10 @@ export interface FileRouteTypes {
     | '/travel-and-pilgrimage'
     | '/volunteer'
     | '/what-we-do'
-    | '/admin'
+    | '/$'
     | '/apply'
     | '/cart'
-    | '/drive'
+    | '/dispatcher'
     | '/driver-dispatch'
     | '/history'
     | '/my-barakah'
@@ -428,14 +565,28 @@ export interface FileRouteTypes {
     | '/my-support'
     | '/my-swift-move'
     | '/my-vehicle-hires'
-    | '/staff'
     | '/staff-security'
     | '/learn/$slug'
     | '/share/$token'
     | '/travel/$slug'
+    | '/admin/dispatcher'
+    | '/admin/emails'
+    | '/admin/swift-move'
     | '/drive/wallet'
+    | '/staff/add'
     | '/swift-move/new'
     | '/api/public/paystack-webhook'
+    | '/admin/'
+    | '/drive/'
+    | '/staff/'
+    | '/admin/riders/add'
+    | '/admin/staff/add'
+    | '/admin/users/create'
+    | '/admin/users/permissions'
+    | '/admin/users/roles'
+    | '/admin/riders/'
+    | '/admin/staff/'
+    | '/admin/users/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -457,10 +608,10 @@ export interface FileRouteTypes {
     | '/travel-and-pilgrimage'
     | '/volunteer'
     | '/what-we-do'
-    | '/admin'
+    | '/$'
     | '/apply'
     | '/cart'
-    | '/drive'
+    | '/dispatcher'
     | '/driver-dispatch'
     | '/history'
     | '/my-barakah'
@@ -470,14 +621,28 @@ export interface FileRouteTypes {
     | '/my-support'
     | '/my-swift-move'
     | '/my-vehicle-hires'
-    | '/staff'
     | '/staff-security'
     | '/learn/$slug'
     | '/share/$token'
     | '/travel/$slug'
+    | '/admin/dispatcher'
+    | '/admin/emails'
+    | '/admin/swift-move'
     | '/drive/wallet'
+    | '/staff/add'
     | '/swift-move/new'
     | '/api/public/paystack-webhook'
+    | '/admin'
+    | '/drive'
+    | '/staff'
+    | '/admin/riders/add'
+    | '/admin/staff/add'
+    | '/admin/users/create'
+    | '/admin/users/permissions'
+    | '/admin/users/roles'
+    | '/admin/riders'
+    | '/admin/staff'
+    | '/admin/users'
   id:
     | '__root__'
     | '/'
@@ -500,10 +665,10 @@ export interface FileRouteTypes {
     | '/travel-and-pilgrimage'
     | '/volunteer'
     | '/what-we-do'
-    | '/_authenticated/admin'
+    | '/_authenticated/$'
     | '/_authenticated/apply'
     | '/_authenticated/cart'
-    | '/_authenticated/drive'
+    | '/_authenticated/dispatcher'
     | '/_authenticated/driver-dispatch'
     | '/_authenticated/history'
     | '/_authenticated/my-barakah'
@@ -513,14 +678,28 @@ export interface FileRouteTypes {
     | '/_authenticated/my-support'
     | '/_authenticated/my-swift-move'
     | '/_authenticated/my-vehicle-hires'
-    | '/_authenticated/staff'
     | '/_authenticated/staff-security'
     | '/learn/$slug'
     | '/share/$token'
     | '/travel/$slug'
+    | '/_authenticated/admin/dispatcher'
+    | '/_authenticated/admin/emails'
+    | '/_authenticated/admin/swift-move'
     | '/_authenticated/drive/wallet'
+    | '/_authenticated/staff/add'
     | '/_authenticated/swift-move/new'
     | '/api/public/paystack-webhook'
+    | '/_authenticated/admin/'
+    | '/_authenticated/drive/'
+    | '/_authenticated/staff/'
+    | '/_authenticated/admin/riders/add'
+    | '/_authenticated/admin/staff/add'
+    | '/_authenticated/admin/users/create'
+    | '/_authenticated/admin/users/permissions'
+    | '/_authenticated/admin/users/roles'
+    | '/_authenticated/admin/riders/'
+    | '/_authenticated/admin/staff/'
+    | '/_authenticated/admin/users/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -690,11 +869,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WhatWeDoRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/admin': {
-      id: '/_authenticated/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AuthenticatedAdminRouteImport
+    '/_authenticated/$': {
+      id: '/_authenticated/$'
+      path: '/$'
+      fullPath: '/$'
+      preLoaderRoute: typeof AuthenticatedSplatRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/apply': {
@@ -711,11 +890,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCartRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/drive': {
-      id: '/_authenticated/drive'
-      path: '/drive'
-      fullPath: '/drive'
-      preLoaderRoute: typeof AuthenticatedDriveRouteImport
+    '/_authenticated/dispatcher': {
+      id: '/_authenticated/dispatcher'
+      path: '/dispatcher'
+      fullPath: '/dispatcher'
+      preLoaderRoute: typeof AuthenticatedDispatcherRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/driver-dispatch': {
@@ -781,13 +960,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMyVehicleHiresRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/staff': {
-      id: '/_authenticated/staff'
-      path: '/staff'
-      fullPath: '/staff'
-      preLoaderRoute: typeof AuthenticatedStaffRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/staff-security': {
       id: '/_authenticated/staff-security'
       path: '/staff-security'
@@ -816,12 +988,61 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TravelSlugRouteImport
       parentRoute: typeof TravelRoute
     }
+    '/_authenticated/admin/': {
+      id: '/_authenticated/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/dispatcher': {
+      id: '/_authenticated/admin/dispatcher'
+      path: '/admin/dispatcher'
+      fullPath: '/admin/dispatcher'
+      preLoaderRoute: typeof AuthenticatedAdminDispatcherRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/emails': {
+      id: '/_authenticated/admin/emails'
+      path: '/admin/emails'
+      fullPath: '/admin/emails'
+      preLoaderRoute: typeof AuthenticatedAdminEmailsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/swift-move': {
+      id: '/_authenticated/admin/swift-move'
+      path: '/admin/swift-move'
+      fullPath: '/admin/swift-move'
+      preLoaderRoute: typeof AuthenticatedAdminSwiftMoveRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/drive/': {
+      id: '/_authenticated/drive/'
+      path: '/drive'
+      fullPath: '/drive/'
+      preLoaderRoute: typeof AuthenticatedDriveIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/drive/wallet': {
       id: '/_authenticated/drive/wallet'
-      path: '/wallet'
+      path: '/drive/wallet'
       fullPath: '/drive/wallet'
       preLoaderRoute: typeof AuthenticatedDriveWalletRouteImport
-      parentRoute: typeof AuthenticatedDriveRoute
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/staff/': {
+      id: '/_authenticated/staff/'
+      path: '/staff'
+      fullPath: '/staff/'
+      preLoaderRoute: typeof AuthenticatedStaffIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/staff/add': {
+      id: '/_authenticated/staff/add'
+      path: '/staff/add'
+      fullPath: '/staff/add'
+      preLoaderRoute: typeof AuthenticatedStaffAddRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/swift-move/new': {
       id: '/_authenticated/swift-move/new'
@@ -837,25 +1058,70 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPaystackWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/admin/riders/': {
+      id: '/_authenticated/admin/riders/'
+      path: '/admin/riders'
+      fullPath: '/admin/riders/'
+      preLoaderRoute: typeof AuthenticatedAdminRidersIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/riders/add': {
+      id: '/_authenticated/admin/riders/add'
+      path: '/admin/riders/add'
+      fullPath: '/admin/riders/add'
+      preLoaderRoute: typeof AuthenticatedAdminRidersAddRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/staff/': {
+      id: '/_authenticated/admin/staff/'
+      path: '/admin/staff'
+      fullPath: '/admin/staff/'
+      preLoaderRoute: typeof AuthenticatedAdminStaffIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/staff/add': {
+      id: '/_authenticated/admin/staff/add'
+      path: '/admin/staff/add'
+      fullPath: '/admin/staff/add'
+      preLoaderRoute: typeof AuthenticatedAdminStaffAddRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/users/': {
+      id: '/_authenticated/admin/users/'
+      path: '/admin/users'
+      fullPath: '/admin/users/'
+      preLoaderRoute: typeof AuthenticatedAdminUsersIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/users/create': {
+      id: '/_authenticated/admin/users/create'
+      path: '/admin/users/create'
+      fullPath: '/admin/users/create'
+      preLoaderRoute: typeof AuthenticatedAdminUsersCreateRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/users/permissions': {
+      id: '/_authenticated/admin/users/permissions'
+      path: '/admin/users/permissions'
+      fullPath: '/admin/users/permissions'
+      preLoaderRoute: typeof AuthenticatedAdminUsersPermissionsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/users/roles': {
+      id: '/_authenticated/admin/users/roles'
+      path: '/admin/users/roles'
+      fullPath: '/admin/users/roles'
+      preLoaderRoute: typeof AuthenticatedAdminUsersRolesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
-interface AuthenticatedDriveRouteChildren {
-  AuthenticatedDriveWalletRoute: typeof AuthenticatedDriveWalletRoute
-}
-
-const AuthenticatedDriveRouteChildren: AuthenticatedDriveRouteChildren = {
-  AuthenticatedDriveWalletRoute: AuthenticatedDriveWalletRoute,
-}
-
-const AuthenticatedDriveRouteWithChildren =
-  AuthenticatedDriveRoute._addFileChildren(AuthenticatedDriveRouteChildren)
-
 interface AuthenticatedRouteRouteChildren {
-  AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
+  AuthenticatedSplatRoute: typeof AuthenticatedSplatRoute
   AuthenticatedApplyRoute: typeof AuthenticatedApplyRoute
   AuthenticatedCartRoute: typeof AuthenticatedCartRoute
-  AuthenticatedDriveRoute: typeof AuthenticatedDriveRouteWithChildren
+  AuthenticatedDispatcherRoute: typeof AuthenticatedDispatcherRoute
   AuthenticatedDriverDispatchRoute: typeof AuthenticatedDriverDispatchRoute
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
   AuthenticatedMyBarakahRoute: typeof AuthenticatedMyBarakahRoute
@@ -865,16 +1131,31 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMySupportRoute: typeof AuthenticatedMySupportRoute
   AuthenticatedMySwiftMoveRoute: typeof AuthenticatedMySwiftMoveRoute
   AuthenticatedMyVehicleHiresRoute: typeof AuthenticatedMyVehicleHiresRoute
-  AuthenticatedStaffRoute: typeof AuthenticatedStaffRoute
   AuthenticatedStaffSecurityRoute: typeof AuthenticatedStaffSecurityRoute
+  AuthenticatedAdminDispatcherRoute: typeof AuthenticatedAdminDispatcherRoute
+  AuthenticatedAdminEmailsRoute: typeof AuthenticatedAdminEmailsRoute
+  AuthenticatedAdminSwiftMoveRoute: typeof AuthenticatedAdminSwiftMoveRoute
+  AuthenticatedDriveWalletRoute: typeof AuthenticatedDriveWalletRoute
+  AuthenticatedStaffAddRoute: typeof AuthenticatedStaffAddRoute
   AuthenticatedSwiftMoveNewRoute: typeof AuthenticatedSwiftMoveNewRoute
+  AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
+  AuthenticatedDriveIndexRoute: typeof AuthenticatedDriveIndexRoute
+  AuthenticatedStaffIndexRoute: typeof AuthenticatedStaffIndexRoute
+  AuthenticatedAdminRidersAddRoute: typeof AuthenticatedAdminRidersAddRoute
+  AuthenticatedAdminStaffAddRoute: typeof AuthenticatedAdminStaffAddRoute
+  AuthenticatedAdminUsersCreateRoute: typeof AuthenticatedAdminUsersCreateRoute
+  AuthenticatedAdminUsersPermissionsRoute: typeof AuthenticatedAdminUsersPermissionsRoute
+  AuthenticatedAdminUsersRolesRoute: typeof AuthenticatedAdminUsersRolesRoute
+  AuthenticatedAdminRidersIndexRoute: typeof AuthenticatedAdminRidersIndexRoute
+  AuthenticatedAdminStaffIndexRoute: typeof AuthenticatedAdminStaffIndexRoute
+  AuthenticatedAdminUsersIndexRoute: typeof AuthenticatedAdminUsersIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
-  AuthenticatedAdminRoute: AuthenticatedAdminRoute,
+  AuthenticatedSplatRoute: AuthenticatedSplatRoute,
   AuthenticatedApplyRoute: AuthenticatedApplyRoute,
   AuthenticatedCartRoute: AuthenticatedCartRoute,
-  AuthenticatedDriveRoute: AuthenticatedDriveRouteWithChildren,
+  AuthenticatedDispatcherRoute: AuthenticatedDispatcherRoute,
   AuthenticatedDriverDispatchRoute: AuthenticatedDriverDispatchRoute,
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
   AuthenticatedMyBarakahRoute: AuthenticatedMyBarakahRoute,
@@ -884,9 +1165,25 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMySupportRoute: AuthenticatedMySupportRoute,
   AuthenticatedMySwiftMoveRoute: AuthenticatedMySwiftMoveRoute,
   AuthenticatedMyVehicleHiresRoute: AuthenticatedMyVehicleHiresRoute,
-  AuthenticatedStaffRoute: AuthenticatedStaffRoute,
   AuthenticatedStaffSecurityRoute: AuthenticatedStaffSecurityRoute,
+  AuthenticatedAdminDispatcherRoute: AuthenticatedAdminDispatcherRoute,
+  AuthenticatedAdminEmailsRoute: AuthenticatedAdminEmailsRoute,
+  AuthenticatedAdminSwiftMoveRoute: AuthenticatedAdminSwiftMoveRoute,
+  AuthenticatedDriveWalletRoute: AuthenticatedDriveWalletRoute,
+  AuthenticatedStaffAddRoute: AuthenticatedStaffAddRoute,
   AuthenticatedSwiftMoveNewRoute: AuthenticatedSwiftMoveNewRoute,
+  AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
+  AuthenticatedDriveIndexRoute: AuthenticatedDriveIndexRoute,
+  AuthenticatedStaffIndexRoute: AuthenticatedStaffIndexRoute,
+  AuthenticatedAdminRidersAddRoute: AuthenticatedAdminRidersAddRoute,
+  AuthenticatedAdminStaffAddRoute: AuthenticatedAdminStaffAddRoute,
+  AuthenticatedAdminUsersCreateRoute: AuthenticatedAdminUsersCreateRoute,
+  AuthenticatedAdminUsersPermissionsRoute:
+    AuthenticatedAdminUsersPermissionsRoute,
+  AuthenticatedAdminUsersRolesRoute: AuthenticatedAdminUsersRolesRoute,
+  AuthenticatedAdminRidersIndexRoute: AuthenticatedAdminRidersIndexRoute,
+  AuthenticatedAdminStaffIndexRoute: AuthenticatedAdminStaffIndexRoute,
+  AuthenticatedAdminUsersIndexRoute: AuthenticatedAdminUsersIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

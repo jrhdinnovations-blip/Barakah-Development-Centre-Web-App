@@ -2,13 +2,8 @@ import { z } from "zod";
 
 export const kobo = z.number().int().min(1).max(1_000_000_000);
 
-export function formatNaira(koboAmount: number, currency = "NGN") {
-  return new Intl.NumberFormat("en-NG", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 2,
-  }).format(koboAmount / 100);
-}
+import { formatNaira } from "./currency";
+export { formatNaira };
 
 export function makeNumber(prefix: string) {
   const rand = Math.random().toString(36).slice(2, 8).toUpperCase();
@@ -17,7 +12,7 @@ export function makeNumber(prefix: string) {
 }
 
 export function paymentsConfigured() {
-  return Boolean(process.env["PAYSTACK_SECRET_KEY"]);
+  return Boolean(process.env["PAYSTACK_SECRET_KEY"] || process.env["VITE_PAYSTACK_PUBLIC_KEY"]);
 }
 
 export async function getAdmin() {
@@ -32,7 +27,7 @@ export async function initializePaystack(opts: {
   reference: string;
   callbackUrl: string;
 }) {
-  const key = process.env["PAYSTACK_SECRET_KEY"];
+  const key = process.env["PAYSTACK_SECRET_KEY"] || process.env["VITE_PAYSTACK_PUBLIC_KEY"];
   if (!key) return null;
   const res = await fetch("https://api.paystack.co/transaction/initialize", {
     method: "POST",
@@ -49,9 +44,9 @@ export async function initializePaystack(opts: {
   return json.data.authorization_url as string;
 }
 
-type EntityType = "booking" | "order" | "travel_instalment" | "donation" | "swift_ride";
+export type EntityType = "booking" | "order" | "travel_instalment" | "donation" | "swift_ride" | "swift_delivery";
 
-/** Creates the invoice + pending payment pair, then asks the gateway for a hosted page. */
+/** Creates a pending payment record then asks Paystack for a hosted checkout page. */
 export async function createPaymentIntent(
   supabase: any,
   userId: string,
@@ -65,27 +60,10 @@ export async function createPaymentIntent(
     callbackPath: string;
   },
 ) {
-  const { data: invoice, error: invErr } = await supabase
-    .from("invoices")
-    .insert({
-      invoice_number: makeNumber("INV"),
-      payer_id: userId,
-      entity_type: input.entityType,
-      entity_id: input.entityId,
-      description: input.description,
-      amount_kobo: input.amountKobo,
-      legal_entity_id: input.legalEntityId ?? null,
-      programme_id: input.programmeId ?? null,
-      created_by: userId,
-    })
-    .select("id")
-    .single();
-  if (invErr) throw new Error(invErr.message);
-
+  // Create the payment record directly (invoices table may not exist for swift rides/deliveries)
   const { data: payment, error: payErr } = await supabase
     .from("payments")
     .insert({
-      invoice_id: invoice.id,
       payer_id: userId,
       entity_type: input.entityType,
       entity_id: input.entityId,
@@ -98,25 +76,20 @@ export async function createPaymentIntent(
     .single();
   if (payErr) throw new Error(payErr.message);
 
-  const { data: userRow } = await supabase
-    .from("profiles")
-    .select("full_name")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  const key = process.env["PAYSTACK_SECRET_KEY"];
+  const key = process.env["PAYSTACK_SECRET_KEY"] || process.env["VITE_PAYSTACK_PUBLIC_KEY"];
   if (!key) {
     return { paymentId: payment.id as string, configured: false, authorizationUrl: null as string | null };
   }
   const origin =
-    process.env["SITE_URL"] ?? process.env["VITE_SITE_URL"] ?? "https://localhost:8080";
+    process.env["SITE_URL"] ?? process.env["VITE_SITE_URL"] ?? "http://localhost:8080";
   const { data: authData } = await supabase.auth.getUser();
   const email = authData?.user?.email ?? `${userId}@barakah.local`;
+  const sep = input.callbackPath.includes("?") ? "&" : "?";
   const authorizationUrl = await initializePaystack({
     email,
     amountKobo: input.amountKobo,
     reference: payment.id,
-    callbackUrl: `${origin}${input.callbackPath}`,
+    callbackUrl: `${origin}${input.callbackPath}${sep}verify=${payment.id}`,
   });
   return { paymentId: payment.id as string, configured: true, authorizationUrl };
 }
@@ -140,9 +113,7 @@ export async function finalizePayment(paymentId: string, gatewayRef: string | nu
     .from("payments")
     .update({ status: "completed", paid_at: new Date().toISOString(), gateway_ref: gatewayRef })
     .eq("id", paymentId);
-  if (payment.invoice_id) {
-    await admin.from("invoices").update({ status: "paid" }).eq("id", payment.invoice_id);
-  }
+  // Note: invoices table is not used for swift ride/delivery payments
   await admin.from("receipts").insert({
     receipt_number: makeNumber("RCP"),
     payment_id: paymentId,
@@ -218,6 +189,8 @@ export async function finalizePayment(paymentId: string, gatewayRef: string | nu
       paymentId,
       method: "gateway",
     });
+  } else if (payment.entity_type === "swift_delivery" && payment.entity_id) {
+    await admin.from("swift_deliveries").update({ status: "pending" }).eq("id", payment.entity_id);
   }
 
   await admin.rpc("notify_user", {

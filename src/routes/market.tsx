@@ -4,7 +4,7 @@ import { ShoppingBag, ShoppingCart } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { addToCart, listProducts, myCart } from "@/lib/marketplace.functions";
-import { formatNaira } from "@/lib/payments.server";
+import { formatNaira } from "@/lib/currency";
 import { supabase } from "@/integrations/supabase/client";
 import { ORG } from "@/lib/site";
 

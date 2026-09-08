@@ -80,12 +80,14 @@ function ApplyPage() {
         const { error: upErr } = await supabase.storage.from("documents").upload(path, f);
         if (upErr) throw new Error(`Upload failed for ${f.name}`);
         await registerDocument({
-          entityType: "application",
-          entityId: id,
-          filePath: path,
-          fileName: f.name,
-          mimeType: f.type,
-          sizeBytes: f.size,
+          data: {
+            entityType: "application",
+            entityId: id,
+            filePath: path,
+            fileName: f.name,
+            mimeType: f.type,
+            sizeBytes: f.size,
+          },
         });
       }
       toast.success("Application submitted. We'll review it shortly.");

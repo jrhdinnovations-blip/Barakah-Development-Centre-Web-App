@@ -13,10 +13,12 @@ export function PaymentReturn({ onVerified }: { onVerified?: () => void }) {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const ref = params.get("verify");
+    const ref = params.get("verify") || params.get("reference") || params.get("trxref");
     if (!ref) return;
     window.history.replaceState({}, "", window.location.pathname);
-    verifyPayment({ data: { reference: ref } })
+    // ref could be a UUID paymentId or a gateway reference
+    // verifyPayment supports both UUID and gateway references
+    verifyPayment({ data: { paymentId: ref } })
       .then((r) => {
         const ok = r.status === "completed";
         setResult({

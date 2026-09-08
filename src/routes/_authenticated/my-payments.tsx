@@ -46,16 +46,16 @@ function MyPayments() {
   };
 
   const retry = useMutation({
-    mutationFn: (paymentId: string) => retryPayment({ paymentId }),
-    onSuccess: (r) => {
-      if (r.configured && r.authorizationUrl) window.location.href = r.authorizationUrl;
+    mutationFn: (paymentId: string) => retryPayment({ data: { paymentId } }),
+    onSuccess: (r: any) => {
+      if (r?.configured && r?.authorizationUrl) window.location.href = r.authorizationUrl;
       else toast.info("Online payment isn't live yet — our team will contact you.");
     },
     onError: (e) => toast.error(e.message),
   });
 
   const refund = useMutation({
-    mutationFn: () => requestRefund({ paymentId: refundFor!, reason }),
+    mutationFn: () => requestRefund({ data: { paymentId: refundFor!, reason } }),
     onSuccess: () => {
       toast.success("Refund requested. Our team will review it.");
       setRefundFor(null);

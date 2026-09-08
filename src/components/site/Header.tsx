@@ -19,23 +19,30 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-function Logo() {
-  return (
-    <Link to="/" className="flex items-center gap-2.5">
-      <img
-        src="/barakah-logo-cropped.png"
-        alt="Barakah Travel and Tours Limited"
-        className="h-12 w-auto object-contain"
-        style={{ maxWidth: '180px' }}
-      />
-    </Link>
-  );
-}
+import { BarakahCentreLogo } from "@/components/BarakahCentreLogo";
+
 
 export function SiteHeader() {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+
+  const dashboardTarget =
+    role === "driver" || role === "dispatch_rider"
+      ? "/drive"
+      : role === "swift_dispatcher" || role === "dispatcher"
+      ? "/dispatcher"
+      : role === "administrator" || role === "admin" || role === "swift_manager"
+      ? "/admin"
+      : "/my-barakah";
+  const dashboardLabel =
+    role === "driver" || role === "dispatch_rider"
+      ? "Driver Console"
+      : role === "swift_dispatcher" || role === "dispatcher"
+      ? "Dispatcher Console"
+      : role === "administrator" || role === "admin" || role === "swift_manager"
+      ? "Admin Dashboard"
+      : "Dashboard";
 
   async function signOut() {
     await supabase.auth.signOut();
@@ -45,7 +52,7 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
-        <Logo />
+        <BarakahCentreLogo />
 
         {/* Desktop nav */}
         <nav className="hidden items-center gap-1 lg:flex" aria-label="Primary">
@@ -92,11 +99,11 @@ export function SiteHeader() {
             <>
               <NotificationBell />
               <Link
-                to="/my-barakah"
+                to={dashboardTarget as any}
                 className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
               >
                 <LayoutDashboard className="h-4 w-4" />
-                My Barakah
+                {dashboardLabel}
               </Link>
               <button
                 onClick={signOut}
@@ -139,7 +146,7 @@ export function SiteHeader() {
           <SheetContent side="right" className="w-80 overflow-y-auto">
             <SheetHeader>
               <SheetTitle className="text-left">
-                <Logo />
+                <BarakahCentreLogo />
               </SheetTitle>
             </SheetHeader>
             <nav className="mt-6 flex flex-col gap-1" aria-label="Mobile">
@@ -169,11 +176,11 @@ export function SiteHeader() {
               {user ? (
                 <>
                   <Link
-                    to="/my-barakah"
+                    to={dashboardTarget as any}
                     onClick={() => setOpen(false)}
                     className="rounded-lg bg-primary px-4 py-2.5 text-center text-sm font-medium text-primary-foreground"
                   >
-                    My Barakah
+                    {dashboardLabel}
                   </Link>
                   <button
                     onClick={signOut}

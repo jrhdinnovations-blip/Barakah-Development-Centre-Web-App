@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { formatNaira } from "@/lib/payments.server";
+import { formatNaira } from "@/lib/currency";
 import { staffFinanceOverview, staffProcessRefund } from "@/lib/payments.functions";
 
 function fmt(iso: string) {

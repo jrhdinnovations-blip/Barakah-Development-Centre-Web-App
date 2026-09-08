@@ -73,7 +73,7 @@ export function ActiveBookingsDashboard({ deliveries, vehicleBookings, isLoading
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-2xl font-bold text-white tracking-tight">Active Operations</h2>
-                    <p className="text-sm text-slate-400">Track your ongoing package deliveries and vehicle hires in real-time.</p>
+                    <p className="text-sm text-slate-400">Track your ongoing package deliveries and rides in real-time.</p>
                 </div>
 
                 <div className="flex bg-slate-900/80 p-1 rounded-lg border border-slate-800 self-start sm:self-auto">
@@ -96,7 +96,7 @@ export function ActiveBookingsDashboard({ deliveries, vehicleBookings, isLoading
                         className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${activeTab === 'vehicles' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
                             }`}
                     >
-                        Vehicles ({activeVehicles.length})
+                        Rides ({activeVehicles.length})
                     </button>
                 </div>
             </div>
@@ -110,7 +110,7 @@ export function ActiveBookingsDashboard({ deliveries, vehicleBookings, isLoading
                         </div>
                         <h3 className="text-lg font-medium text-white">No active bookings found</h3>
                         <p className="text-sm text-slate-400 max-w-sm mx-auto">
-                            You don't have any deliveries or vehicle rentals in progress right now.
+                            You don't have any deliveries or rides in progress right now.
                         </p>
                     </CardContent>
                 </Card>

@@ -5,9 +5,10 @@ import { Plane } from "lucide-react";
 import { toast } from "sonner";
 import { PaymentReturn } from "@/components/PaymentReturn";
 import { myJourney, payInstalment, savePassengerDetails } from "@/lib/travel.functions";
-import { formatNaira } from "@/lib/payments.server";
+import { formatNaira } from "@/lib/currency";
 
 export const Route = createFileRoute("/_authenticated/my-journey")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "My Journey — My Barakah" },
@@ -65,8 +66,19 @@ function MyJourney() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
-      <h1 className="text-3xl font-bold text-foreground">My Journey</h1>
-      <p className="mt-1 text-muted-foreground">Your travel enrolments, documents and payment plans.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border mb-6">
+        <div>
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400 mb-2">
+            <Plane className="h-3 w-3" />
+            Barakah Travel and Tours Limited
+          </div>
+          <h1 className="text-3xl font-bold text-foreground">My Journey</h1>
+          <p className="mt-1 text-muted-foreground">Your travel enrolments, documents and payment plans.</p>
+        </div>
+        <div className="p-2 bg-card rounded-xl border border-border shadow-sm hidden sm:block shrink-0">
+          <img src="/barakah-logo-cropped.png" alt="Barakah Travel and Tours Limited" className="h-10 w-auto object-contain" />
+        </div>
+      </div>
       <div className="mt-6">
         <PaymentReturn onVerified={() => queryClient.invalidateQueries({ queryKey: ["my-journey"] })} />
       </div>

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, redirect, Link } from '@tanstack/react-router';
 import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
 import { toast } from 'sonner';
-import { Power, Package, CheckCircle2, Loader2, ArrowRight } from 'lucide-react';
+import { Power, Package, CheckCircle2, Loader2, ArrowRight, PhoneCall } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { useDriverTelemetry } from '@/hooks/use-driver-telemetry';
@@ -10,6 +10,28 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
 export const Route = createFileRoute('/_authenticated/driver-dispatch')({
+  ssr: false,
+  beforeLoad: async () => {
+    try {
+      const { data, error } = await supabase.auth.getUser();
+      const user = data?.user;
+      if (error || !user) {
+        throw redirect({ to: '/auth', search: { mode: 'login' } });
+      }
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      const role = roleData?.role ?? user.user_metadata?.['role'] ?? 'registered_user';
+      if (role !== 'driver' && role !== 'administrator' && role !== 'swift_manager') {
+        throw redirect({ to: '/my-swift-move' });
+      }
+    } catch (err: any) {
+      if (err?.isRedirect || err?.to || err?.statusCode) throw err;
+      throw redirect({ to: '/auth', search: { mode: 'login' } });
+    }
+  },
   component: DriverConsolePage,
 });
 
@@ -18,9 +40,25 @@ function DriverConsolePage() {
   const user = auth?.user || auth?.session?.user;
   const [isOnline, setIsOnline] = useState(false);
   const [activeJob, setActiveJob] = useState<any>(null);
+  const [customerPhone, setCustomerPhone] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (activeJob?.customer_id) {
+      supabase.from('profiles').select('phone').eq('id', activeJob.customer_id).single().then(({ data }) => {
+        if (data?.phone) setCustomerPhone(data.phone);
+        else {
+            supabase.from('profiles').select('phone').eq('user_id', activeJob.customer_id).single().then(({ data }) => {
+                if (data?.phone) setCustomerPhone(data.phone);
+            });
+        }
+      });
+    } else {
+      setCustomerPhone(null);
+    }
+  }, [activeJob?.customer_id]);
 
   const { location, gpsError } = useDriverTelemetry(user?.id, isOnline);
-  const { isLoaded } = useJsApiLoader({ googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "" });
+  const { isLoaded } = useJsApiLoader({ googleMapsApiKey: import.meta.env['VITE_GOOGLE_MAPS_API_KEY'] || "" });
 
   useEffect(() => {
     if (!user?.id) return;
@@ -55,9 +93,14 @@ function DriverConsolePage() {
     <div className="container mx-auto py-6 px-4 max-w-5xl flex flex-col gap-6 min-h-dvh">
       <div className="flex justify-between items-center border-b border-slate-800 pb-6">
         <h1 className="text-3xl font-bold text-white">Driver Console</h1>
-        <Button onClick={() => setIsOnline(!isOnline)} disabled={!!activeJob} className={`h-12 px-6 ${isOnline ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-600 hover:bg-emerald-500'} text-white`}>
-          <Power className="mr-2" /> {isOnline ? 'GO OFFLINE' : 'GO ONLINE'}
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" className="border-orange-500/40 text-orange-400 hover:bg-orange-500/10 font-bold" asChild>
+            <Link to="/drive">On-Demand Dispatch (/drive) →</Link>
+          </Button>
+          <Button onClick={() => setIsOnline(!isOnline)} disabled={!!activeJob} className={`h-12 px-6 ${isOnline ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-600 hover:bg-emerald-500'} text-white`}>
+            <Power className="mr-2" /> {isOnline ? 'GO OFFLINE' : 'GO ONLINE'}
+          </Button>
+        </div>
       </div>
 
       <div className="flex-1 relative rounded-2xl overflow-hidden border border-slate-800 min-h-[500px]">
@@ -67,7 +110,19 @@ function DriverConsolePage() {
               <CardContent className="p-6">
                 <h3 className="text-lg font-bold text-white mb-4">Current Dispatch</h3>
                 <p className="text-slate-300 text-sm mb-2">Pickup: {activeJob.pickup_address}</p>
-                <p className="text-slate-300 text-sm mb-6">Dropoff: {activeJob.dropoff_address}</p>
+                <p className="text-slate-300 text-sm mb-4">Dropoff: {activeJob.dropoff_address}</p>
+                
+                {customerPhone && (
+                  <div className="mb-6 flex items-center justify-between bg-slate-800/50 p-3 rounded-xl border border-slate-700/50">
+                    <div>
+                      <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Customer Phone</p>
+                      <p className="text-sm text-white font-medium">{customerPhone}</p>
+                    </div>
+                    <Button variant="outline" size="sm" className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/30" asChild>
+                      <a href={`tel:${customerPhone}`}><PhoneCall className="h-4 w-4 mr-2" /> Call</a>
+                    </Button>
+                  </div>
+                )}
                 
                 {activeJob.status === 'driver_assigned' && (
                   <Button onClick={() => updateJobStatus('in_transit')} className="w-full bg-blue-600 text-white">
@@ -84,7 +139,7 @@ function DriverConsolePage() {
           </div>
         )}
 
-        <GoogleMap mapContainerStyle={{ width: '100%', height: '100%' }} center={location || { lat: 9.0765, lng: 7.3986 }} zoom={16} options={{ disableDefaultUI: true }}>
+        <GoogleMap mapContainerStyle={{ width: '100%', height: '100%' }} center={location || { lat: 9.8965, lng: 8.8583 }} zoom={16} options={{ disableDefaultUI: true }}>
           {isOnline && location && <Marker position={location} icon={{ path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 6, fillColor: '#3b82f6', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 }} />}
         </GoogleMap>
       </div>

@@ -22,14 +22,16 @@ export const getMyDocuments = createServerFn({ method: "GET" })
 
 export const uploadDocumentRecord = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .input(
-    z.object({
-      title: z.string().min(1),
-      fileUrl: z.string().url(),
-      documentType: z.string().optional(),
-    })
+  .validator((input: unknown) =>
+    z
+      .object({
+        title: z.string().min(1),
+        fileUrl: z.string().url(),
+        documentType: z.string().optional(),
+      })
+      .parse(input)
   )
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data, context }: any) => {
     const { supabase, userId } = context;
 
     const { data: record, error } = await supabase
@@ -52,17 +54,19 @@ export const uploadDocumentRecord = createServerFn({ method: "POST" })
 
 export const registerDocument = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .input(
-    z.object({
-      entityType: z.string(),
-      entityId: z.string().uuid(),
-      filePath: z.string(),
-      fileName: z.string(),
-      mimeType: z.string(),
-      sizeBytes: z.number(),
-    })
+  .validator((input: unknown) =>
+    z
+      .object({
+        entityType: z.string(),
+        entityId: z.string().uuid(),
+        filePath: z.string(),
+        fileName: z.string(),
+        mimeType: z.string(),
+        sizeBytes: z.number(),
+      })
+      .parse(input)
   )
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data, context }: { data: { entityType: string; entityId: string; filePath: string; fileName: string; mimeType: string; sizeBytes: number }; context: any }) => {
     const { supabase, userId } = context;
     const { error } = await supabase
       .from("user_documents")

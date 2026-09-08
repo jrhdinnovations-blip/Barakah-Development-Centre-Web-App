@@ -10,8 +10,8 @@ const containerStyle = {
 };
 
 const defaultCenter = {
-    lat: 9.0765, // Abuja CBD default
-    lng: 7.3986,
+    lat: 9.8965, // Jos, Plateau State default
+    lng: 8.8583,
 };
 
 const darkMapStyle = [

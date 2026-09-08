@@ -3,22 +3,58 @@ import { z } from "zod";
 type Ctx = { supabase: any; userId: string };
 
 export async function requireAdmin(supabase: any, userId: string) {
-  const { data: isAdmin } = await supabase.rpc("has_role", {
-    _user_id: userId,
-    _role: "administrator",
-  });
-  if (!isAdmin) throw new Error("Forbidden");
+  try {
+    const { data: isAdmin, error } = await supabase.rpc("has_role", {
+      _user_id: userId,
+      _role: "administrator",
+    });
+    if (!error && isAdmin) return;
+  } catch {}
+
+  const { data: roles } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .eq("status", "active");
+  if (roles?.some((r: any) => r.role === "administrator")) return;
+
+  throw new Error("Forbidden");
 }
 
 export async function requireStaff(supabase: any, userId: string) {
-  const { data: staff } = await supabase.rpc("is_staff", { _user_id: userId });
-  if (!staff) throw new Error("Forbidden");
+  try {
+    const { data: staff, error } = await supabase.rpc("is_staff", { _user_id: userId });
+    if (!error && staff) return;
+  } catch {}
+
+  const { data: roles } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .eq("status", "active");
+  const staffRoles = ['administrator', 'programme_officer', 'content_editor', 'swift_dispatcher', 'swift_manager'];
+  if (roles?.some((r: any) => staffRoles.includes(r.role))) return;
+
+  throw new Error("Forbidden");
 }
 
 export async function requireSwiftStaff(supabase: any, userId: string) {
-  const { data: ok } = await supabase.rpc("is_swift_staff", { _user_id: userId });
-  if (!ok) throw new Error("Forbidden");
+  try {
+    const { data: ok, error } = await supabase.rpc("is_swift_staff", { _user_id: userId });
+    if (!error && ok) return;
+  } catch {}
+
+  const { data: roles } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .eq("status", "active");
+  const swiftStaffRoles = ['administrator', 'swift_dispatcher', 'swift_manager'];
+  if (roles?.some((r: any) => swiftStaffRoles.includes(r.role))) return;
+
+  throw new Error("Forbidden");
 }
+
 
 export function renderTemplate(body: string, vars: Record<string, string>) {
   return body.replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k] ?? "");
@@ -293,7 +329,7 @@ export const hoursSchema = z.object({
   note: z.string().trim().max(500).optional(),
 });
 
-// ===== Phase 4 — Swift Move schemas =====
+// ===== Phase 4 — SwiftMove schemas =====
 
 export const driverApplySchema = z.object({
   fullName: z.string().trim().min(2).max(200),

@@ -1,9 +1,12 @@
-const CACHE_NAME = 'swift-move-v1';
+const CACHE_NAME = 'barakah-v3';
 const STATIC_ASSETS = [
     '/',
-    '/index.html',
     '/manifest.json',
-    '/favicon.ico'
+    '/favicon.ico',
+    '/favicon-32x32.png',
+    '/favicon-16x16.png',
+    '/barakah-centre-logo.png',
+    '/apple-touch-icon.png'
 ];
 
 // Install Event - Pre-cache core shell

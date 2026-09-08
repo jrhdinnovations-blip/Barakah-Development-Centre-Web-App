@@ -1,38 +1,67 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
-  Bike,
-  BookOpen,
-  CalendarDays,
   Car,
-  FileText,
-  Heart,
-  LifeBuoy,
+  Clock,
+  CreditCard,
+  MapPin,
   Package,
-  Plane,
-  TrendingUp,
+  ShieldCheck,
   UserRound,
-  Wallet,
+  ArrowRight,
 } from "lucide-react";
-import { toast } from "sonner";
-import { EmptyState } from "@/components/EmptyState";
 import { supabase } from "@/integrations/supabase/client";
-import { myApplications, withdrawApplication } from "@/lib/applications.functions";
-import { cancelMyBooking, myBookings } from "@/lib/bookings.functions";
-import { myEnrolments } from "@/lib/learning.functions";
-import { markAllNotificationsRead, myNotifications } from "@/lib/notifications.functions";
-import { myRoles } from "@/lib/staff.functions";
+import { useAuth } from "@/hooks/use-auth";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { parseOrderMetadata } from "@/lib/swift-order";
 
 export const Route = createFileRoute("/_authenticated/my-barakah")({
+  ssr: false,
+  beforeLoad: async () => {
+    try {
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { data, error } = await supabase.auth.getUser();
+      const user = data?.user;
+      if (error || !user) return;
+
+      // Check user_roles table and user_metadata
+      const { data: roleRows } = await supabase.from('user_roles').select('role').eq('user_id', user.id);
+      const roles = (roleRows || []).map((r: any) => r.role);
+      const metaRole = user.user_metadata?.['role'] as string | undefined;
+      if (metaRole && !roles.includes(metaRole)) roles.push(metaRole);
+
+      // Redirect admins/managers straight to their dashboard
+      if (roles.includes('administrator') || roles.includes('admin') || roles.includes('swift_manager')) {
+        throw redirect({ to: '/admin' });
+      }
+      // Redirect dispatchers straight to dispatcher console
+      if (roles.includes('swift_dispatcher') || roles.includes('dispatcher')) {
+        throw redirect({ to: '/dispatcher' });
+      }
+      // Redirect drivers directly to their console
+      if (roles.includes('driver') || roles.includes('dispatch_rider')) {
+        throw redirect({ to: '/drive' });
+      }
+
+      // Check if registered in active_drivers
+      const { data: driverRecord } = await supabase.from('active_drivers').select('driver_id').eq('driver_id', user.id).maybeSingle();
+      if (driverRecord) {
+        throw redirect({ to: '/drive' });
+      }
+    } catch (err: any) {
+      if (err?.isRedirect || err?.to || err?.statusCode) throw err;
+    }
+  },
   head: () => ({
     meta: [
-      { title: "My Barakah — Dashboard" },
-      { name: "description", content: "Your personal Barakah dashboard." },
+      { title: "SwiftMove — Customer Dashboard" },
+      { name: "description", content: "Your SwiftMove ride-hailing and courier dispatch dashboard." },
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: MyBarakah,
+  component: MySwiftMoveDashboard,
 });
 
 function fmt(iso: string) {
@@ -44,30 +73,15 @@ function fmt(iso: string) {
   });
 }
 
-function StatusChip({ value }: { value: string }) {
-  return (
-    <span className="inline-block rounded-full bg-accent px-2.5 py-0.5 text-xs font-medium text-accent-foreground capitalize">
-      {value.replace("_", " ")}
-    </span>
-  );
-}
-
-function MyBarakah() {
+function MySwiftMoveDashboard() {
+  const { user } = useAuth();
   const [name, setName] = useState("");
   const [userRole, setUserRole] = useState<string>("user");
-  const queryClient = useQueryClient();
-
-  const roles = useQuery({ queryKey: ["my-roles"], queryFn: () => myRoles() });
-  const applications = useQuery({ queryKey: ["my-applications"], queryFn: () => myApplications() });
-  const bookings = useQuery({ queryKey: ["my-bookings"], queryFn: () => myBookings() });
-  const enrolments = useQuery({ queryKey: ["my-enrolments"], queryFn: () => myEnrolments() });
-  const notifications = useQuery({ queryKey: ["my-notifications"], queryFn: () => myNotifications() });
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) return;
 
-      // Grab role from auth metadata
       const roleFromMeta = data.user.user_metadata?.['role'] || "user";
       setUserRole(roleFromMeta);
 
@@ -76,322 +90,207 @@ function MyBarakah() {
         .select("full_name")
         .eq("user_id", data.user.id)
         .maybeSingle();
-      setName(profile?.full_name || data.user.user_metadata?.['full_name'] || data.user.email || "");
+      setName(profile?.full_name || data.user.user_metadata?.['full_name'] || data.user.email?.split('@')[0] || "");
     });
   }, []);
 
-  const withdraw = useMutation({
-    mutationFn: (applicationId: string) => withdrawApplication({ data: { applicationId } }),
-    onSuccess: () => {
-      toast.success("Application withdrawn.");
-      queryClient.invalidateQueries({ queryKey: ["my-applications"] });
+  // Fetch recent customer bookings & deliveries
+  const recentOrders = useQuery({
+    queryKey: ["customer-recent-orders", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data } = await supabase
+        .from("deliveries")
+        .select("id, pickup_address, dropoff_address, estimated_price, status, package_type, created_at")
+        .eq("sender_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(5);
+      return data || [];
     },
-    onError: (e) => toast.error(e.message),
+    enabled: !!user?.id,
   });
 
-  const cancelBooking = useMutation({
-    mutationFn: (bookingId: string) => cancelMyBooking({ data: { bookingId } }),
-    onSuccess: () => {
-      toast.success("Booking cancelled.");
-      queryClient.invalidateQueries({ queryKey: ["my-bookings"] });
-    },
-    onError: (e) => toast.error(e.message),
-  });
-
-  const isStaff = (roles.data ?? []).some((r) =>
-    ["administrator", "programme_officer", "content_editor"].includes(r),
-  );
-
-  const apps = applications.data ?? [];
-  const bks = bookings.data ?? [];
-  const enrols = enrolments.data ?? [];
-  const notifs = notifications.data ?? [];
+  const orders = recentOrders.data || [];
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-
+    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 space-y-8">
       {/* Welcome Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-6">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">
+          <h1 className="text-3xl font-black text-foreground tracking-tight">
             As-salamu alaykum{name ? `, ${name.split(" ")[0]}` : ""} 👋
           </h1>
-          <p className="mt-1 text-muted-foreground">
-            Welcome to My Barakah — your hub for Travel, Logistics, and Community.
+          <p className="mt-1 text-muted-foreground text-sm">
+            Welcome to <span className="font-semibold text-emerald-600 dark:text-emerald-400">SwiftMove</span> — your intra-city ride-hailing and express courier delivery service.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {isStaff && (
-            <Link
-              to="/staff"
-              className="rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground transition-all hover:opacity-90"
-            >
-              Staff Dashboard →
-            </Link>
-          )}
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3.5 py-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-            <UserRound className="h-3.5 w-3.5" />
-            {userRole === "driver" ? "SwiftMove Driver Partner" : "Customer Account"}
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-3.5 py-1.5 text-xs font-semibold">
+            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            Verified Customer
           </span>
         </div>
       </div>
 
       {/* Primary Action Shortcuts */}
-      <div className="mt-8 grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Link
-          to="/"
-          className="group flex items-center gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:border-emerald-500 hover:shadow-md"
+          to="/my-vehicle-hires"
+          className="group relative overflow-hidden rounded-2xl border border-border bg-card p-5 transition-all hover:border-cyan-500 hover:shadow-lg"
         >
-          <div className="rounded-lg bg-emerald-500/10 p-3 text-emerald-600 dark:text-emerald-400">
-            <Plane className="h-6 w-6" />
+          <div className="flex items-start justify-between">
+            <div className="rounded-xl bg-cyan-500/10 p-3 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20">
+              <Car className="h-6 w-6" />
+            </div>
+            <span className="text-xs font-bold text-cyan-600 dark:text-cyan-400 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+              Book Ride <ArrowRight className="h-3 w-3" />
+            </span>
           </div>
-          <div>
-            <h3 className="font-semibold text-foreground group-hover:text-emerald-600">Travel & Tours</h3>
-            <p className="text-xs text-muted-foreground">Hajj, Umrah & Flights</p>
-          </div>
-        </Link>
-
-        <Link
-          to="/swift-move/new"
-          className="group flex items-center gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:border-blue-500 hover:shadow-md"
-        >
-          <div className="rounded-lg bg-blue-500/10 p-3 text-blue-600 dark:text-blue-400">
-            <Package className="h-6 w-6" />
-          </div>
-          <div>
-            <h3 className="font-semibold text-foreground group-hover:text-blue-600">Send Package</h3>
-            <p className="text-xs text-muted-foreground">Instant SwiftMove delivery</p>
-          </div>
-        </Link>
-
-        <Link
-          to="/swift-move/new"
-          className="group flex items-center gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:border-orange-500 hover:shadow-md"
-        >
-          <div className="rounded-lg bg-orange-500/10 p-3 text-orange-600 dark:text-orange-400">
-            <Car className="h-6 w-6" />
-          </div>
-          <div>
-            <h3 className="font-semibold text-foreground group-hover:text-orange-600">Vehicle Hire</h3>
-            <p className="text-xs text-muted-foreground">Rent sedan, SUV or truck</p>
-          </div>
-        </Link>
-      </div>
-
-      {/* Notifications */}
-      <div className="card-surface mt-8 p-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-foreground">Notifications</h2>
-          {notifs.some((n) => !n.read_at) && (
-            <button
-              onClick={() =>
-                markAllNotificationsRead().then(() =>
-                  queryClient.invalidateQueries({ queryKey: ["my-notifications"] }),
-                )
-              }
-              className="text-xs font-medium text-primary hover:underline"
-            >
-              Mark all read
-            </button>
-          )}
-        </div>
-        {notifs.length === 0 ? (
-          <p className="mt-3 text-sm text-muted-foreground">
-            You're all caught up. Updates about applications, bookings and courses appear here.
-          </p>
-        ) : (
-          <ul className="mt-4 space-y-2">
-            {notifs.slice(0, 8).map((n) => (
-              <li
-                key={n.id}
-                className={`flex items-start justify-between gap-3 rounded-lg border border-border px-4 py-3 ${n.read_at ? "opacity-60" : ""}`}
-              >
-                <div>
-                  <p className="text-sm font-medium text-foreground">{n.title}</p>
-                  {n.body && <p className="mt-0.5 text-xs text-muted-foreground">{n.body}</p>}
-                </div>
-                <span className="shrink-0 text-xs text-muted-foreground">{fmt(n.created_at)}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <div className="mt-8 grid gap-6 lg:grid-cols-3">
-        {/* My Learning */}
-        <section className="card-surface p-6">
-          <div className="flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-              <BookOpen className="h-5 w-5 text-primary" /> My Learning
-            </h2>
-            <Link to="/learn" className="text-xs font-medium text-primary hover:underline">
-              Browse courses
-            </Link>
-          </div>
-          {enrols.length === 0 ? (
-            <p className="mt-3 text-sm text-muted-foreground">
-              You haven't enrolled in a course yet.
+          <div className="mt-4">
+            <h3 className="font-bold text-base text-foreground group-hover:text-cyan-600 dark:group-hover:text-cyan-400">
+              Request a Ride
+            </h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              On-demand passenger rides with real-time driver tracking.
             </p>
-          ) : (
-            <ul className="mt-4 space-y-3">
-              {enrols.map((e: any) => (
-                <li key={e.id}>
-                  <Link
-                    to="/learn/$slug"
-                    params={{ slug: e.course?.slug }}
-                    className="block rounded-lg border border-border p-3 hover:bg-accent/50"
-                  >
-                    <p className="text-sm font-medium text-foreground">{e.course?.title}</p>
-                    <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-accent">
-                      <div className="h-full rounded-full bg-primary" style={{ width: `${e.percent}%` }} />
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {e.completedLessons}/{e.totalLessons} lessons · {e.percent}%
-                    </p>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        {/* My Applications */}
-        <section className="card-surface p-6">
-          <div className="flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-              <FileText className="h-5 w-5 text-primary" /> My Applications
-            </h2>
-            <Link to="/apply" className="text-xs font-medium text-primary hover:underline">
-              New application
-            </Link>
           </div>
-          {apps.length === 0 ? (
-            <p className="mt-3 text-sm text-muted-foreground">No applications yet.</p>
+        </Link>
+
+        <Link
+          to="/my-swift-move"
+          className="group relative overflow-hidden rounded-2xl border border-border bg-card p-5 transition-all hover:border-emerald-500 hover:shadow-lg"
+        >
+          <div className="flex items-start justify-between">
+            <div className="rounded-xl bg-emerald-500/10 p-3 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+              <Package className="h-6 w-6" />
+            </div>
+            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+              Send Item <ArrowRight className="h-3 w-3" />
+            </span>
+          </div>
+          <div className="mt-4">
+            <h3 className="font-bold text-base text-foreground group-hover:text-emerald-600 dark:group-hover:text-emerald-400">
+              Courier Dispatch
+            </h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              Fast, reliable intra-city parcel deliveries by motorcycle couriers.
+            </p>
+          </div>
+        </Link>
+
+        <Link
+          to="/history"
+          className="group relative overflow-hidden rounded-2xl border border-border bg-card p-5 transition-all hover:border-purple-500 hover:shadow-lg"
+        >
+          <div className="flex items-start justify-between">
+            <div className="rounded-xl bg-purple-500/10 p-3 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+              <Clock className="h-6 w-6" />
+            </div>
+            <span className="text-xs font-bold text-purple-600 dark:text-purple-400 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+              History <ArrowRight className="h-3 w-3" />
+            </span>
+          </div>
+          <div className="mt-4">
+            <h3 className="font-bold text-base text-foreground group-hover:text-purple-600 dark:group-hover:text-purple-400">
+              Trip History
+            </h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              Review past passenger trips, parcel orders, and receipts.
+            </p>
+          </div>
+        </Link>
+
+        <Link
+          to="/my-payments"
+          className="group relative overflow-hidden rounded-2xl border border-border bg-card p-5 transition-all hover:border-blue-500 hover:shadow-lg"
+        >
+          <div className="flex items-start justify-between">
+            <div className="rounded-xl bg-blue-500/10 p-3 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+              <CreditCard className="h-6 w-6" />
+            </div>
+            <span className="text-xs font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+              Billing <ArrowRight className="h-3 w-3" />
+            </span>
+          </div>
+          <div className="mt-4">
+            <h3 className="font-bold text-base text-foreground group-hover:text-blue-600 dark:group-hover:text-blue-400">
+              Payments & Billing
+            </h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              Manage payment receipts, invoices, and transaction statements.
+            </p>
+          </div>
+        </Link>
+      </div>
+
+      {/* Recent Activity Table */}
+      <Card className="rounded-3xl border border-border shadow-sm">
+        <CardHeader className="flex flex-row items-center justify-between pb-4">
+          <div>
+            <CardTitle className="text-lg font-bold">Recent Orders & Rides</CardTitle>
+            <CardDescription className="text-xs">Your latest delivery and ride-hailing requests</CardDescription>
+          </div>
+          <Link to="/history" className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline">
+            See all →
+          </Link>
+        </CardHeader>
+        <CardContent>
+          {recentOrders.isLoading ? (
+            <p className="text-center py-8 text-sm text-muted-foreground">Loading recent activity...</p>
+          ) : orders.length === 0 ? (
+            <div className="text-center py-10 space-y-3">
+              <Package className="mx-auto h-10 w-10 text-muted-foreground/40" />
+              <p className="text-sm font-medium text-foreground">No recent rides or deliveries yet</p>
+              <p className="text-xs text-muted-foreground">Your future orders will show up here.</p>
+              <div className="pt-2 flex justify-center gap-3">
+                <Button asChild size="sm" className="bg-cyan-600 hover:bg-cyan-500 text-white text-xs">
+                  <Link to="/my-vehicle-hires">Book a Ride</Link>
+                </Button>
+                <Button asChild size="sm" variant="outline" className="text-xs">
+                  <Link to="/my-swift-move">Send Dispatch</Link>
+                </Button>
+              </div>
+            </div>
           ) : (
-            <ul className="mt-4 space-y-3">
-              {apps.map((a: any) => {
-                const programme = Array.isArray(a.programme) ? a.programme[0] : a.programme;
+            <div className="divide-y divide-border">
+              {orders.map((order: any) => {
+                const meta = parseOrderMetadata(order.package_type);
+                const isRide = meta.isRide;
                 return (
-                  <li key={a.id} className="rounded-lg border border-border p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-medium text-foreground">
-                        {programme?.title ?? "General application"}
-                      </p>
-                      <StatusChip value={a.status} />
+                  <div key={order.id} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <div className={`p-2.5 rounded-xl mt-0.5 ${isRide ? 'bg-cyan-500/10 text-cyan-500 border border-cyan-500/20' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'}`}>
+                        {isRide ? <Car className="h-5 w-5" /> : <Package className="h-5 w-5" />}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold uppercase tracking-wider text-foreground">
+                            {isRide ? "Passenger Ride" : "Courier Dispatch"}
+                          </span>
+                          <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-accent text-accent-foreground capitalize">
+                            {order.status}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          <span className="font-semibold text-foreground">To:</span> {order.dropoff_address}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          {fmt(order.created_at)}
+                        </p>
+                      </div>
                     </div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Submitted {fmt(a.submitted_at)}
-                    </p>
-                    {a.staff_notes && (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        <span className="font-medium text-foreground">Staff note:</span> {a.staff_notes}
-                      </p>
-                    )}
-                    {["submitted", "under_review", "waitlisted"].includes(a.status) && (
-                      <button
-                        onClick={() => withdraw.mutate(a.id)}
-                        className="mt-2 text-xs text-destructive hover:underline"
-                      >
-                        Withdraw
-                      </button>
-                    )}
-                  </li>
+                    <div className="text-right sm:self-center">
+                      <span className="text-base font-black text-foreground">
+                        ₦{Number(order.estimated_price || 0).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
                 );
               })}
-            </ul>
+            </div>
           )}
-        </section>
-
-        {/* My Bookings */}
-        <section className="card-surface p-6">
-          <div className="flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-              <CalendarDays className="h-5 w-5 text-primary" /> My Bookings
-            </h2>
-            <Link to="/bookings" className="text-xs font-medium text-primary hover:underline">
-              Find a session
-            </Link>
-          </div>
-          {bks.length === 0 ? (
-            <p className="mt-3 text-sm text-muted-foreground">You have no bookings yet.</p>
-          ) : (
-            <ul className="mt-4 space-y-3">
-              {bks.map((b: any) => {
-                const slot = Array.isArray(b.slot) ? b.slot[0] : b.slot;
-                const service = Array.isArray(slot?.service) ? slot.service[0] : slot?.service;
-                return (
-                  <li key={b.id} className="rounded-lg border border-border p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-medium text-foreground">{service?.title}</p>
-                      <StatusChip value={b.status} />
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {slot ? fmt(slot.starts_at) : ""} {slot?.location ? `· ${slot.location}` : ""}
-                    </p>
-                    {["requested", "confirmed"].includes(b.status) && (
-                      <button
-                        onClick={() => cancelBooking.mutate(b.id)}
-                        className="mt-2 text-xs text-destructive hover:underline"
-                      >
-                        Cancel booking
-                      </button>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
-      </div>
-
-      {/* Ecosystem Modules Grid */}
-      <h2 className="mt-12 text-2xl font-bold text-foreground">More of your ecosystem</h2>
-      <div className="mt-6 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
-        <EmptyState
-          icon={Plane}
-          title="My Journey"
-          description="Travel enrolments, documents and instalment plans"
-          ctaLabel="Open My Journey"
-          ctaTo="/my-journey"
-        />
-        <EmptyState
-          icon={LifeBuoy}
-          title="My Support"
-          description="Confidential assistance requests"
-          ctaLabel="Open My Support"
-          ctaTo="/my-support"
-        />
-        <EmptyState
-          icon={Heart}
-          title="My Impact"
-          description="Volunteer profile, assignments and verified hours"
-          ctaLabel="Open My Impact"
-          ctaTo="/my-impact"
-        />
-        <EmptyState
-          icon={Wallet}
-          title="My Payments"
-          description="Payments, receipts, refunds and orders"
-          ctaLabel="Open My Payments"
-          ctaTo="/my-payments"
-        />
-      </div>
-      <div className="mt-6 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
-        <EmptyState
-          icon={TrendingUp}
-          title="My Enterprise"
-          description="You're not part of an enterprise programme yet"
-          ctaLabel="Discover enterprise support"
-          ctaTo="/enterprise-and-ventures"
-        />
-        <EmptyState
-          icon={Bike}
-          title="My Swift Move"
-          description="Track package deliveries and vehicle rentals"
-          ctaLabel="Open Swift Move"
-          ctaTo="/my-swift-move"
-        />
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -1,8 +1,14 @@
 {
-    "short_name": "Swift Move",
-    "name": "Swift Move - Logistics & Express Hire",
-    "description": "Professional intra-city dispatch courier and vehicle rental platform.",
+    "short_name": "Barakah",
+    "name": "Barakah Development Centre",
+    "description": "Building a Better Today for a Brighter Tomorrow",
     "icons": [
+        {
+            "src": "/barakah-centre-logo.png",
+            "type": "image/png",
+            "sizes": "192x192 512x512",
+            "purpose": "any maskable"
+        },
         {
             "src": "/icon-192.png",
             "type": "image/png",
@@ -22,8 +28,9 @@
     "display": "standalone",
     "orientation": "portrait",
     "categories": [
+        "community",
+        "education",
         "logistics",
-        "utilities",
         "business"
     ]
 }

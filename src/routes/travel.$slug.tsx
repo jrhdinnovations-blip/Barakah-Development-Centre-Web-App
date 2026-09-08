@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plane } from "lucide-react";
 import { toast } from "sonner";
 import { enrolInPackage, getTravelPackage } from "@/lib/travel.functions";
-import { formatNaira } from "@/lib/payments.server";
+import { formatNaira } from "@/lib/currency";
 import { supabase } from "@/integrations/supabase/client";
 import { ORG } from "@/lib/site";
 import { useEffect, useState } from "react";
@@ -58,7 +58,19 @@ function TravelDetail() {
   });
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-16 sm:px-6">
+    <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6">
+      <div className="flex items-center justify-between pb-6 mb-6 border-b border-border">
+        <Link
+          to="/travel"
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+        >
+          ← All Travel Packages
+        </Link>
+        <span className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 font-medium">
+          <Plane className="h-3.5 w-3.5" /> Barakah Travel and Tours Limited
+        </span>
+      </div>
+
       <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent">
         <Plane className="h-6 w-6 text-accent-foreground" />
       </span>

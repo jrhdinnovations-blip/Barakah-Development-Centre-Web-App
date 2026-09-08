@@ -5,9 +5,10 @@ import { toast } from "sonner";
 import { PaymentReturn } from "@/components/PaymentReturn";
 import { checkout, myCart, removeFromCart } from "@/lib/marketplace.functions";
 import { paymentGatewayStatus } from "@/lib/payments.functions";
-import { formatNaira } from "@/lib/payments.server";
+import { formatNaira } from "@/lib/currency";
 
 export const Route = createFileRoute("/_authenticated/cart")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Cart & Checkout — My Barakah" },

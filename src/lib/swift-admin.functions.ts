@@ -182,7 +182,7 @@ export const swiftCancelRide = createServerFn({ method: "POST" })
     await supabase.rpc("notify_user", {
       _user_id: ride.customer_id,
       _type: "ride_cancelled",
-      _title: "Ride cancelled by Swift Move",
+      _title: "Ride cancelled by SwiftMove",
       _body: data.reason,
       _link: "/my-swift-move",
     });

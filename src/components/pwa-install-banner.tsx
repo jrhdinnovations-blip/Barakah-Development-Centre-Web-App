@@ -39,7 +39,7 @@ export function PwaInstallBanner() {
                     <Smartphone className="h-5 w-5" />
                 </div>
                 <div>
-                    <h4 className="text-xs font-bold text-white">Install Swift Move</h4>
+                    <h4 className="text-xs font-bold text-white">Install SwiftMove</h4>
                     <p className="text-[11px] text-slate-400">Add to home screen for faster dispatch access.</p>
                 </div>
             </div>

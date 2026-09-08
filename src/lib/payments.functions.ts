@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { finalizePayment, paymentsConfigured } from "./payments.server";
+import { createPaymentIntent, finalizePayment, paymentsConfigured } from "./payments.server";
 
 export const paymentGatewayStatus = createServerFn({ method: "GET" }).handler(
   async () => ({
@@ -10,16 +10,56 @@ export const paymentGatewayStatus = createServerFn({ method: "GET" }).handler(
   })
 );
 
-export const verifyPayment = createServerFn({ method: "POST" })
+export const initializeSwiftPaystack = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input: { paymentId: string }) => z.object({ paymentId: z.string().uuid() }).parse(input))
+  .validator(
+    (input: {
+      entityType: "swift_ride" | "swift_delivery";
+      entityId: string;
+      amountKobo: number;
+      description: string;
+      callbackPath: string;
+    }) =>
+      z
+        .object({
+          entityType: z.enum(["swift_ride", "swift_delivery"]),
+          entityId: z.string(),
+          amountKobo: z.number().int().min(100),
+          description: z.string(),
+          callbackPath: z.string(),
+        })
+        .parse(input)
+  )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { data: payment } = await supabase
+    const result = await createPaymentIntent(supabase, userId, {
+      entityType: data.entityType,
+      entityId: data.entityId,
+      amountKobo: data.amountKobo,
+      description: data.description,
+      callbackPath: data.callbackPath,
+    });
+    return result;
+  });
+
+export const verifyPayment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: { paymentId: string }) => z.object({ paymentId: z.string() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data.paymentId);
+    let query = supabase
       .from("payments")
       .select("id, status, payer_id, gateway_ref")
-      .eq("id", data.paymentId)
-      .single();
+      .eq("payer_id", userId);
+
+    if (isUuid) {
+      query = query.eq("id", data.paymentId);
+    } else {
+      query = query.or(`gateway_ref.eq.${data.paymentId},id.eq.${data.paymentId}`);
+    }
+
+    const { data: payment } = await query.maybeSingle();
 
     if (!payment || payment.payer_id !== userId) {
       throw new Error("Payment not found");
@@ -28,7 +68,7 @@ export const verifyPayment = createServerFn({ method: "POST" })
       return { status: "completed" };
     }
 
-    const key = process.env["PAYSTACK_SECRET_KEY"];
+    const key = process.env["PAYSTACK_SECRET_KEY"] || process.env["VITE_PAYSTACK_PUBLIC_KEY"];
     if (!key) {
       return { status: payment.status, configured: false };
     }
@@ -67,16 +107,16 @@ export const myPayments = createServerFn({ method: "GET" })
 
 export const retryPayment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .input(z.object({ paymentId: z.string().uuid() }))
-  .handler(async ({ data, context }) => {
+  .validator((input: unknown) => z.object({ paymentId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }: any) => {
     // This is a placeholder since the full implementation was lost
     return { configured: false, authorizationUrl: null };
   });
 
 export const requestRefund = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .input(z.object({ paymentId: z.string().uuid(), reason: z.string() }))
-  .handler(async ({ data, context }) => {
+  .validator((input: unknown) => z.object({ paymentId: z.string().uuid(), reason: z.string() }).parse(input))
+  .handler(async ({ data, context }: any) => {
     const { supabase, userId } = context;
     const { data: payment } = await supabase
       .from("payments")
@@ -101,7 +141,7 @@ export const requestRefund = createServerFn({ method: "POST" })
 
 export const staffFinanceOverview = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .handler(async ({ context }: any) => {
     const { supabase } = context;
     const [payments, refunds, invoices] = await Promise.all([
       supabase
@@ -121,7 +161,7 @@ export const staffFinanceOverview = createServerFn({ method: "GET" })
         .limit(100),
     ]);
 
-    const gatewayConfigured = !!process.env.PAYSTACK_SECRET_KEY;
+    const gatewayConfigured = !!process.env['PAYSTACK_SECRET_KEY'];
 
     return {
       payments: payments.data ?? [],
@@ -133,7 +173,9 @@ export const staffFinanceOverview = createServerFn({ method: "GET" })
 
 export const staffProcessRefund = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .input(z.object({ refundId: z.string().uuid(), action: z.string(), notes: z.string().optional() }))
-  .handler(async ({ data, context }) => {
+  .validator((input: unknown) =>
+    z.object({ refundId: z.string().uuid(), action: z.string(), notes: z.string().optional() }).parse(input)
+  )
+  .handler(async ({ data, context }: any) => {
     return { success: true };
   });
