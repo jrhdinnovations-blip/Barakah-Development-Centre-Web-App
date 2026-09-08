@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
-import { resetUserPassword, getAllUsersAdmin } from "@/lib/admin.functions";
+import { resetUserPassword, getAllUsersAdmin, updateUserRoleAdmin } from "@/lib/admin.functions";
 import { toast } from "sonner";
 import {
   Users,
@@ -165,10 +165,27 @@ function AllUsersPage() {
       const profiles = profilesRes.data || [];
       const roles = rolesRes.data || [];
 
-      // Build a role lookup
+      // Build a role lookup with priority
+      const rolePriority: Record<string, number> = {
+        administrator: 100,
+        swift_manager: 90,
+        swift_dispatcher: 80,
+        dispatcher: 80,
+        driver: 70,
+        programme_officer: 60,
+        content_editor: 50,
+        staff: 40,
+        registered_user: 10,
+      };
+
       const roleMap = new Map<string, string>();
       for (const r of roles) {
-        roleMap.set(r.user_id, r.role);
+        const currentBest = roleMap.get(r.user_id);
+        const currentScore = currentBest ? (rolePriority[currentBest] ?? 0) : -1;
+        const newScore = rolePriority[r.role] ?? 0;
+        if (newScore > currentScore) {
+          roleMap.set(r.user_id, r.role);
+        }
       }
 
       // Merge profiles with their roles
@@ -227,17 +244,11 @@ function AllUsersPage() {
   const updateRole = async (userId: string, newRole: string) => {
     const toastId = toast.loading("Updating role…");
     try {
-      const { error } = await supabase
-        .from("user_roles")
-        .upsert(
-          { user_id: userId, role: newRole as any, status: "active" },
-          { onConflict: "user_id,role" },
-        );
-      if (error) throw error;
-      toast.success("Role updated!", { id: toastId });
+      await updateUserRoleAdmin({ data: { userId, role: newRole } });
+      toast.success("Role updated successfully!", { id: toastId });
       fetchUsers();
     } catch (e: any) {
-      toast.error("Failed: " + e.message, { id: toastId });
+      toast.error("Failed: " + (e.message || e.toString()), { id: toastId });
     }
   };
 

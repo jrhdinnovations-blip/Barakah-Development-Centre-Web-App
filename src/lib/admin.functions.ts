@@ -25,6 +25,23 @@ async function requireAdmin(supabase: any, userId: string, user?: any) {
   throw new Error("Forbidden");
 }
 
+async function requireAdminOrManager(supabase: any, userId: string, user?: any) {
+  const metaRole = user?.user_metadata?.role;
+  if (metaRole === "administrator" || metaRole === "swift_manager") return;
+
+  try {
+    const { data: roles } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .eq("status", "active");
+    const roleList = (roles || []).map((r: any) => r.role);
+    if (roleList.includes("administrator") || roleList.includes("swift_manager")) return;
+  } catch {}
+
+  throw new Error("Forbidden: Administrator or Manager access required");
+}
+
 async function requireAuthorizedToCreateUser(
   supabase: any,
   userId: string,
@@ -713,16 +730,38 @@ export const getAllUsersAdmin = createServerFn({ method: "GET" })
       const profiles = profilesData.data || [];
       const roles = rolesData.data || [];
 
+      const rolePriority: Record<string, number> = {
+        administrator: 100,
+        swift_manager: 90,
+        swift_dispatcher: 80,
+        dispatcher: 80,
+        driver: 70,
+        programme_officer: 60,
+        content_editor: 50,
+        staff: 40,
+        registered_user: 10,
+      };
+
+      const userRoleMap = new Map<string, string>();
+      for (const r of roles) {
+        const currentBest = userRoleMap.get(r.user_id);
+        const currentScore = currentBest ? (rolePriority[currentBest] ?? 0) : -1;
+        const newScore = rolePriority[r.role] ?? 0;
+        if (newScore > currentScore) {
+          userRoleMap.set(r.user_id, r.role);
+        }
+      }
+
       return users.map(u => {
         const profile = profiles.find(p => p.user_id === u.id);
-        const roleRow = roles.find(r => r.user_id === u.id);
+        const assignedRole = userRoleMap.get(u.id) || (u.user_metadata?.['role'] as string | undefined) || 'registered_user';
         return {
           user_id: u.id,
           full_name: profile?.full_name || (u.user_metadata?.['full_name'] as string | undefined) || 'Unnamed User',
           phone: profile?.phone || (u.user_metadata?.['phone'] as string | undefined) || null,
           location: profile?.location || null,
           email: u.email,
-          role: roleRow?.role || (u.user_metadata?.['role'] as string | undefined) || 'registered_user',
+          role: assignedRole,
           created_at: u.created_at,
           status: profile?.status || 'active'
         };
@@ -736,8 +775,28 @@ export const getAllUsersAdmin = createServerFn({ method: "GET" })
 
       const profiles = profilesRes.data || [];
       const roles = rolesRes.data || [];
+
+      const rolePriority: Record<string, number> = {
+        administrator: 100,
+        swift_manager: 90,
+        swift_dispatcher: 80,
+        dispatcher: 80,
+        driver: 70,
+        programme_officer: 60,
+        content_editor: 50,
+        staff: 40,
+        registered_user: 10,
+      };
+
       const roleMap = new Map<string, string>();
-      for (const r of roles) roleMap.set(r.user_id, r.role);
+      for (const r of roles) {
+        const currentBest = roleMap.get(r.user_id);
+        const currentScore = currentBest ? (rolePriority[currentBest] ?? 0) : -1;
+        const newScore = rolePriority[r.role] ?? 0;
+        if (newScore > currentScore) {
+          roleMap.set(r.user_id, r.role);
+        }
+      }
 
       return profiles.map((p: any) => ({
         user_id: p.user_id,
@@ -800,5 +859,72 @@ export const upsertPage = createServerFn({ method: "POST" })
       metadata: { slug: fields.slug, status: fields.status },
     });
     return { ok: true };
+  });
+
+export const updateUserRoleAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: any) =>
+    z
+      .object({
+        userId: z.string().uuid(),
+        role: z.string().min(1),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId, user } = context;
+    await requireAdminOrManager(supabase, userId, user);
+
+    const { hasServiceRoleKey, supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    if (!hasServiceRoleKey) throw new Error("Service role key required to update roles");
+
+    // Standardize 'dispatcher' to 'swift_dispatcher'
+    const normalizedRole = data.role === "dispatcher" ? "swift_dispatcher" : data.role;
+
+    // 1. Delete competing roles for this user so they don't have multiple conflicting roles
+    await supabaseAdmin.from("user_roles").delete().eq("user_id", data.userId);
+
+    // 2. Insert the target role
+    const { error: insertErr } = await supabaseAdmin.from("user_roles").insert({
+      user_id: data.userId,
+      role: normalizedRole as any,
+      status: "active",
+    });
+    if (insertErr) throw new Error(insertErr.message);
+
+    // 3. Update auth metadata so user.user_metadata has the new role
+    try {
+      const { data: targetUser } = await supabaseAdmin.auth.admin.getUserById(data.userId);
+      if (targetUser?.user) {
+        await supabaseAdmin.auth.admin.updateUserById(data.userId, {
+          user_metadata: {
+            ...targetUser.user.user_metadata,
+            role: normalizedRole,
+          },
+        });
+      }
+    } catch (e) {
+      console.warn("Failed to update auth metadata for role:", e);
+    }
+
+    // 4. Handle driver table if needed
+    if (normalizedRole === "driver") {
+      await supabaseAdmin.from("active_drivers").upsert(
+        { driver_id: data.userId, status: "available" },
+        { onConflict: "driver_id" }
+      );
+    } else {
+      await supabaseAdmin.from("active_drivers").delete().eq("driver_id", data.userId);
+    }
+
+    // 5. Audit log
+    await supabaseAdmin.from("audit_logs").insert({
+      actor_id: userId,
+      action: "user.role_change",
+      entity_type: "user_roles",
+      metadata: { target_user: data.userId, new_role: normalizedRole },
+    });
+
+    return { ok: true, role: normalizedRole };
   });
 
