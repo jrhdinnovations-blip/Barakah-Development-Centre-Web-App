@@ -238,7 +238,7 @@ function AddStaffAdminPage() {
   };
 
   const handleCopyCredentials = () => {
-    const creds = `=== Barakah Staff Corporate Account ===\nEmployee: ${form.full_name}\nOfficial Email: ${fullCorporateEmail}\nInitial Password: ${form.password}\nDepartment: ${form.department || 'General'}\nWebmail Access: https://mail.${selectedDomain}\n======================================`;
+    const creds = `=== Barakah Staff Corporate Account ===\nEmployee: ${form.full_name}\nOfficial Email: ${fullCorporateEmail}\nInitial Password: ${form.password}\nDepartment: ${form.department || 'General'}\nWebmail Access: https://mail.google.com\n======================================`;
     navigator.clipboard.writeText(creds);
     setCopiedCredentials(true);
     toast.success('Corporate account credentials copied to clipboard!');
@@ -272,12 +272,12 @@ function AddStaffAdminPage() {
             <div className="flex items-center justify-between pb-2 border-b border-slate-800">
               <span className="font-bold text-slate-400 uppercase tracking-wider">Webmail Portal</span>
               <a
-                href={`https://mail.${selectedDomain}`}
+                href="https://mail.google.com"
                 target="_blank"
                 rel="noreferrer"
                 className="text-teal-400 hover:underline flex items-center gap-1"
               >
-                <span>mail.{selectedDomain}</span>
+                <span>mail.google.com</span>
                 <ExternalLink className="h-3 w-3" />
               </a>
             </div>

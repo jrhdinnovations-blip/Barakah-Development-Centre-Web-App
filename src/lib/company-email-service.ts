@@ -42,7 +42,7 @@ export const DEFAULT_DOMAINS: CompanyDomain[] = [
     status: 'active',
     createdAt: '2026-01-01T00:00:00Z',
     mailProvider: 'google_workspace',
-    webmailUrl: 'https://mail.google.com/a/barakahdevcentre.com',
+    webmailUrl: 'https://mail.google.com',
   },
   {
     id: 'dom-swiftmove',
@@ -51,7 +51,7 @@ export const DEFAULT_DOMAINS: CompanyDomain[] = [
     status: 'active',
     createdAt: '2026-01-01T00:00:00Z',
     mailProvider: 'google_workspace',
-    webmailUrl: 'https://mail.google.com/a/swiftmove.ng',
+    webmailUrl: 'https://mail.google.com',
   },
 ];
 

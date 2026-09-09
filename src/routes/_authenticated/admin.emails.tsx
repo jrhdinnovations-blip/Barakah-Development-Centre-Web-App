@@ -376,9 +376,9 @@ function AdminCompanyEmailsPage() {
               <span>Webmail Gateway</span>
               <ExternalLink className="h-4 w-4 text-purple-400" />
             </div>
-            <p className="text-sm font-black text-white font-mono truncate mt-1">mail.{primaryDomain?.domain}</p>
+            <p className="text-sm font-black text-white font-mono truncate mt-1">mail.google.com</p>
             <a
-              href={primaryDomain?.webmailUrl || `https://mail.${primaryDomain?.domain}`}
+              href={primaryDomain?.webmailUrl || 'https://mail.google.com'}
               target="_blank"
               rel="noreferrer"
               className="text-[11px] text-purple-400 hover:underline inline-flex items-center gap-1"
@@ -551,7 +551,7 @@ function AdminCompanyEmailsPage() {
                                 size="sm"
                                 variant="ghost"
                                 onClick={() => {
-                                  const creds = `=== Barakah Staff Account ===\nEmployee: ${box.fullName}\nOfficial Email: ${box.email}\nDepartment: ${box.department}\nWebmail: https://mail.${box.domain}\n============================`;
+                                  const creds = `=== Barakah Staff Account ===\nEmployee: ${box.fullName}\nOfficial Email: ${box.email}\nDepartment: ${box.department}\nWebmail: https://mail.google.com\n============================`;
                                   copyToClipboard(creds, `cred-${box.id}`);
                                 }}
                                 className="h-8 text-xs text-slate-300 hover:text-white"
@@ -567,7 +567,7 @@ function AdminCompanyEmailsPage() {
                                 )}
                               </Button>
                               <a
-                                href={`https://mail.${box.domain}`}
+                                href="https://mail.google.com"
                                 target="_blank"
                                 rel="noreferrer"
                                 className="p-1.5 text-slate-400 hover:text-white rounded hover:bg-slate-800"
