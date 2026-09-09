@@ -31,7 +31,7 @@ export interface StaffMailbox {
   quotaMb?: number | undefined;
 }
 
-const STORAGE_DOMAINS_KEY = 'barakah_company_domains_v1';
+const STORAGE_DOMAINS_KEY = 'barakah_company_domains_v2';
 const STORAGE_MAILBOXES_KEY = 'barakah_staff_mailboxes_v1';
 
 export const DEFAULT_DOMAINS: CompanyDomain[] = [
