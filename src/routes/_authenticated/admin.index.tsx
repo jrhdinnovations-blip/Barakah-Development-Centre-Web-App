@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { adminFetchAllOrders } from '@/lib/dispatcher.functions';
 import { 
   Users, ShieldCheck, Activity, Package, Car, 
-  Settings, CreditCard, Building, MapPin, Truck, Shield, RefreshCw, Radio, Mail
+  Settings, CreditCard, Building, MapPin, Truck, Shield, RefreshCw, Radio, Mail, Image
 } from 'lucide-react';
 
 export const Route = createFileRoute('/_authenticated/admin/')({
@@ -77,6 +77,13 @@ const DASHBOARD_SECTIONS = [
     items: [
       { title: 'System Activity', path: '/admin/audit', icon: Activity, color: 'text-purple-500', bg: 'bg-purple-500/10' },
       { title: 'Global Settings', path: '/settings', icon: Settings, color: 'text-slate-400', bg: 'bg-slate-800' },
+    ],
+  },
+  {
+    title: 'Content & Media',
+    description: 'Upload and manage images and videos on the Barakah website',
+    items: [
+      { title: 'Media Library', path: '/admin/media', icon: Image, color: 'text-violet-400', bg: 'bg-violet-500/10' },
     ],
   },
 ];

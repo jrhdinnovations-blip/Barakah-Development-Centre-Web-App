@@ -49,6 +49,7 @@ import { Route as TravelSlugRouteImport } from './routes/travel.$slug'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as AuthenticatedAdminDispatcherRouteImport } from './routes/_authenticated/admin.dispatcher'
 import { Route as AuthenticatedAdminEmailsRouteImport } from './routes/_authenticated/admin.emails'
+import { Route as AuthenticatedAdminMediaRouteImport } from './routes/_authenticated/admin.media'
 import { Route as AuthenticatedAdminSwiftMoveRouteImport } from './routes/_authenticated/admin.swift-move'
 import { Route as AuthenticatedDriveIndexRouteImport } from './routes/_authenticated/drive.index'
 import { Route as AuthenticatedDriveWalletRouteImport } from './routes/_authenticated/drive.wallet'
@@ -272,6 +273,11 @@ const AuthenticatedAdminEmailsRoute =
     path: '/admin/emails',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAdminMediaRoute = AuthenticatedAdminMediaRouteImport.update({
+  id: '/admin/media',
+  path: '/admin/media',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedAdminSwiftMoveRoute =
   AuthenticatedAdminSwiftMoveRouteImport.update({
     id: '/admin/swift-move',
@@ -399,6 +405,7 @@ export interface FileRoutesByFullPath {
   '/travel/$slug': typeof TravelSlugRoute
   '/admin/dispatcher': typeof AuthenticatedAdminDispatcherRoute
   '/admin/emails': typeof AuthenticatedAdminEmailsRoute
+  '/admin/media': typeof AuthenticatedAdminMediaRoute
   '/admin/swift-move': typeof AuthenticatedAdminSwiftMoveRoute
   '/drive/wallet': typeof AuthenticatedDriveWalletRoute
   '/staff/add': typeof AuthenticatedStaffAddRoute
@@ -455,6 +462,7 @@ export interface FileRoutesByTo {
   '/travel/$slug': typeof TravelSlugRoute
   '/admin/dispatcher': typeof AuthenticatedAdminDispatcherRoute
   '/admin/emails': typeof AuthenticatedAdminEmailsRoute
+  '/admin/media': typeof AuthenticatedAdminMediaRoute
   '/admin/swift-move': typeof AuthenticatedAdminSwiftMoveRoute
   '/drive/wallet': typeof AuthenticatedDriveWalletRoute
   '/staff/add': typeof AuthenticatedStaffAddRoute
@@ -513,6 +521,7 @@ export interface FileRoutesById {
   '/travel/$slug': typeof TravelSlugRoute
   '/_authenticated/admin/dispatcher': typeof AuthenticatedAdminDispatcherRoute
   '/_authenticated/admin/emails': typeof AuthenticatedAdminEmailsRoute
+  '/_authenticated/admin/media': typeof AuthenticatedAdminMediaRoute
   '/_authenticated/admin/swift-move': typeof AuthenticatedAdminSwiftMoveRoute
   '/_authenticated/drive/wallet': typeof AuthenticatedDriveWalletRoute
   '/_authenticated/staff/add': typeof AuthenticatedStaffAddRoute
@@ -571,6 +580,7 @@ export interface FileRouteTypes {
     | '/travel/$slug'
     | '/admin/dispatcher'
     | '/admin/emails'
+    | '/admin/media'
     | '/admin/swift-move'
     | '/drive/wallet'
     | '/staff/add'
@@ -627,6 +637,7 @@ export interface FileRouteTypes {
     | '/travel/$slug'
     | '/admin/dispatcher'
     | '/admin/emails'
+    | '/admin/media'
     | '/admin/swift-move'
     | '/drive/wallet'
     | '/staff/add'
@@ -684,6 +695,7 @@ export interface FileRouteTypes {
     | '/travel/$slug'
     | '/_authenticated/admin/dispatcher'
     | '/_authenticated/admin/emails'
+    | '/_authenticated/admin/media'
     | '/_authenticated/admin/swift-move'
     | '/_authenticated/drive/wallet'
     | '/_authenticated/staff/add'
@@ -1009,6 +1021,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminEmailsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/media': {
+      id: '/_authenticated/admin/media'
+      path: '/admin/media'
+      fullPath: '/admin/media'
+      preLoaderRoute: typeof AuthenticatedAdminMediaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin/swift-move': {
       id: '/_authenticated/admin/swift-move'
       path: '/admin/swift-move'
@@ -1134,6 +1153,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedStaffSecurityRoute: typeof AuthenticatedStaffSecurityRoute
   AuthenticatedAdminDispatcherRoute: typeof AuthenticatedAdminDispatcherRoute
   AuthenticatedAdminEmailsRoute: typeof AuthenticatedAdminEmailsRoute
+  AuthenticatedAdminMediaRoute: typeof AuthenticatedAdminMediaRoute
   AuthenticatedAdminSwiftMoveRoute: typeof AuthenticatedAdminSwiftMoveRoute
   AuthenticatedDriveWalletRoute: typeof AuthenticatedDriveWalletRoute
   AuthenticatedStaffAddRoute: typeof AuthenticatedStaffAddRoute
@@ -1168,6 +1188,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedStaffSecurityRoute: AuthenticatedStaffSecurityRoute,
   AuthenticatedAdminDispatcherRoute: AuthenticatedAdminDispatcherRoute,
   AuthenticatedAdminEmailsRoute: AuthenticatedAdminEmailsRoute,
+  AuthenticatedAdminMediaRoute: AuthenticatedAdminMediaRoute,
   AuthenticatedAdminSwiftMoveRoute: AuthenticatedAdminSwiftMoveRoute,
   AuthenticatedDriveWalletRoute: AuthenticatedDriveWalletRoute,
   AuthenticatedStaffAddRoute: AuthenticatedStaffAddRoute,
