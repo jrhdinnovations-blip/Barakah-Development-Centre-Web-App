@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import {
   MapPin,
@@ -166,8 +166,8 @@ function openNavigation(address: string) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function DriverDashboard() {
-  const { session, user } = useAuth() as any;
-  const userId = user?.id || session?.user?.id;
+  const { user, role } = useAuth();
+  const userId = user?.id;
 
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -182,9 +182,9 @@ function DriverDashboard() {
   const [completedJob, setCompletedJob] = useState<Delivery | null>(null);
 
   // ── Personnel Service Category & Filter ────────────────────────────────────
-  // Dispatch Riders only see dispatches; Car Drivers only see passenger rides!
-  const authRole = user?.user_metadata?.['role'] || session?.user?.user_metadata?.['role'];
-  const isManagerOrAdmin = authRole === "administrator" || authRole === "swift_manager";
+  // Dispatch Couriers only receive dispatcher-assigned dispatches; Car Drivers only see passenger rides!
+  const authRole = role || (user?.user_metadata?.['role'] as string | undefined);
+  const isManagerOrAdmin = authRole === "administrator" || authRole === "admin" || authRole === "swift_manager";
 
   const metaCategory = (user?.user_metadata?.['rider_category'] || user?.user_metadata?.['category']) as
     | "dispatch_rider"
@@ -197,13 +197,13 @@ function DriverDashboard() {
       ? "dispatch_rider"
       : /car|sedan|suv|van|bus|toyota|honda/i.test(vehicleTypeMeta)
       ? "driver"
-      : "dispatch_rider";
+      : (authRole === "dispatch_rider" ? "dispatch_rider" : "dispatch_rider");
 
   const defaultCategory = metaCategory || inferredCategory;
 
-  // Category is LOCKED — vehicle drivers only see passenger rides, dispatch riders only see parcel orders.
-  // Admins/managers see all requests.
-  const serviceMode: "dispatch_rider" | "driver" | "all" = isManagerOrAdmin ? "all" : defaultCategory;
+  // On /drive, lock to driver's actual category (default to dispatch_rider).
+  // This ensures even admins testing /drive experience the exact cockpit behavior without leaking raw unassigned dispatches.
+  const serviceMode: "dispatch_rider" | "driver" = defaultCategory;
 
   const handleToggleOnline = async (nextOnline: boolean) => {
     setIsOnline(nextOnline);
@@ -249,12 +249,16 @@ function DriverDashboard() {
   const fetchDeliveries = useCallback(async () => {
     if (!userId) return;
     try {
-      // Query deliveries: pending jobs available to pick up, OR jobs assigned to this driver
-      // For administrators/managers, also fetch all active assigned deliveries
       let query = supabase.from("swift_deliveries").select("*");
-      if (isManagerOrAdmin) {
-        query = query.or(`status.eq.pending,driver_id.not.is.null,driver_id.eq.${userId}`);
+
+      if (serviceMode === "dispatch_rider") {
+        // DISPATCHER-FIRST MODEL — dispatch couriers NEVER receive pending/unassigned orders.
+        // Only orders already assigned to them (driver_id = userId) are fetched.
+        // The dispatcher is the only one who can assign orders (via dispatchAssignTrip).
+        // No pending orders → no unassigned data → no Accept button can ever reach the rider.
+        query = query.eq("driver_id", userId);
       } else {
+        // Vehicle drivers: see pending passenger rides + their own assigned jobs
         query = query.or(`status.eq.pending,driver_id.eq.${userId}`);
       }
 
@@ -266,7 +270,10 @@ function DriverDashboard() {
     } finally {
       setIsLoading(false);
     }
-  }, [userId, isManagerOrAdmin]);
+  }, [userId, serviceMode]);
+
+  // Track last-seen assigned dispatch order ID so we only fire the chime once per assignment
+  const lastAssignedDispatchRef = useRef<string | null>(null);
 
   useEffect(() => {
     fetchDeliveries();
@@ -279,14 +286,36 @@ function DriverDashboard() {
         { event: "*", schema: "public", table: "swift_deliveries" },
         (payload: any) => {
           fetchDeliveries();
-          // Detect when dispatcher assigns a trip to this rider (or any trip if manager/admin)
           if (payload.eventType === "UPDATE") {
             const updated = payload.new;
             const isAssignedToMe = updated?.driver_id === userId;
-            if (updated?.status === "accepted" && (isAssignedToMe || isManagerOrAdmin)) {
+            const isDispatchOrder = !parseOrderMetadata(updated?.package_type).isRide;
+
+            // Fire notification when dispatcher assigns a dispatch order to this rider.
+            // For rides, self-accept flow is unchanged so no extra notification needed.
+            if (
+              updated?.status === "accepted" &&
+              isAssignedToMe &&
+              isDispatchOrder &&
+              lastAssignedDispatchRef.current !== updated.id
+            ) {
+              lastAssignedDispatchRef.current = updated.id;
               playDispatchAlertChime();
-              toast.success("🚨 Trip Assigned by Dispatcher!", {
-                description: `Order ${updated.id.slice(0, 8)}: Navigate to pickup at ${updated.pickup_address}`,
+              // Extra chime burst for dispatcher assignments
+              setTimeout(() => playDispatchAlertChime(), 400);
+              toast.success("📦 Dispatch Assignment Received!", {
+                description: `Order #${updated.id.slice(0, 8).toUpperCase()} — Pickup: ${updated.pickup_address}. Head to pickup now!`,
+                duration: 12000,
+              });
+            } else if (
+              updated?.status === "accepted" &&
+              (isAssignedToMe || isManagerOrAdmin) &&
+              !isDispatchOrder
+            ) {
+              // Passenger ride accepted notification (existing behaviour)
+              playDispatchAlertChime();
+              toast.success("🚗 Ride Accepted!", {
+                description: `Head to passenger pickup at ${updated.pickup_address}`,
                 duration: 9000,
               });
             }
@@ -305,13 +334,22 @@ function DriverDashboard() {
   }, [userId, fetchDeliveries, isManagerOrAdmin, playDispatchAlertChime]);
 
   const handleAcceptJob = async (job: Delivery) => {
+    const meta = parseOrderMetadata(job.package_type);
+    if (!meta.isRide) {
+      toast.error("Dispatch parcel orders can only be assigned by a dispatcher.");
+      return;
+    }
+
     setProcessingId(job.id);
     try {
-      const meta = parseOrderMetadata(job.package_type);
+      if (!userId) {
+        toast.error("You must be logged in to accept a job.");
+        return;
+      }
 
       // Fetch driver's profile name and phone number
       let driverPhone: string | null = null;
-      let driverName = user?.user_metadata?.full_name || "Swift Captain";
+      let driverName = (user?.user_metadata?.['full_name'] as string | undefined) || "Swift Captain";
 
       const { data: profData } = await supabase
         .from("profiles")
@@ -403,6 +441,7 @@ function DriverDashboard() {
   };
 
   const handleUpdateStatus = async (job: Delivery, newStatus: string) => {
+    if (!userId) return;
     setProcessingId(job.id);
     try {
       const meta = parseOrderMetadata(job.package_type);
@@ -456,22 +495,30 @@ function DriverDashboard() {
   };
 
   const availableJobs = deliveries.filter((d) => {
-    if (d.status !== "pending") return false;
     const meta = parseOrderMetadata(d.package_type);
 
+    // CRITICAL: Dispatch parcel orders are NEVER self-acceptable on /drive!
+    // Customers book a dispatch -> Dispatcher sees it on Dispatcher Dashboard -> Dispatcher assigns a rider.
+    // Riders only receive the order once assigned by the dispatcher.
+    if (!meta.isRide) {
+      return false;
+    }
+
+    // For passenger rides: dispatch couriers never take passenger rides
     if (serviceMode === "dispatch_rider") {
-      // Dispatched riders ONLY see dispatch requests (never passenger rides)
-      return !meta.isRide;
+      return false;
     }
-    if (serviceMode === "driver") {
-      // Drivers ONLY see passenger ride requests (never dispatch parcels)
-      return meta.isRide;
-    }
-    return true; // 'all' mode for managers / fleet dispatchers
+
+    // Vehicle drivers can see and self-accept pending passenger rides
+    return d.status === "pending";
   });
 
+  // Active dispatch orders assigned to this rider by the dispatcher
   const pendingDispatchCount = deliveries.filter(
-    (d) => d.status === "pending" && !parseOrderMetadata(d.package_type).isRide,
+    (d) =>
+      d.driver_id === userId &&
+      ["accepted", "picked_up", "in_transit"].includes(d.status) &&
+      !parseOrderMetadata(d.package_type).isRide,
   ).length;
 
   const pendingRideCount = deliveries.filter(
@@ -480,7 +527,7 @@ function DriverDashboard() {
 
   const currentActiveJob = deliveries.find(
     (d) =>
-      (d.driver_id === userId || (isManagerOrAdmin && !!d.driver_id)) &&
+      d.driver_id === userId &&
       ["accepted", "picked_up", "in_transit"].includes(d.status),
   );
   // ── Earnings filter state ────────────────────────────────────────────────
@@ -834,7 +881,7 @@ function DriverDashboard() {
   // ── Main Dashboard View ──────────────────────────────────────────────────────
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-  const driverName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Driver";
+  const driverName = (user?.user_metadata?.['full_name'] as string | undefined) || user?.email?.split("@")[0] || "Driver";
 
   return (
     <div className="min-h-screen bg-[#070B14] text-slate-200 font-sans relative overflow-hidden flex flex-col">
@@ -939,14 +986,14 @@ function DriverDashboard() {
             <div>
               <p className="text-xs font-bold leading-tight">
                 {serviceMode === "dispatch_rider"
-                  ? "Dispatch Courier — Parcel Deliveries Only"
+                  ? "Dispatch Courier — Dispatcher-Assigned Jobs"
                   : serviceMode === "driver"
                   ? "Vehicle Driver — Passenger Rides Only"
                   : "Fleet Operations — All Requests"}
               </p>
               <p className="text-[10px] opacity-60 mt-0.5">
                 {serviceMode === "dispatch_rider"
-                  ? "You receive parcel & courier dispatch orders"
+                  ? "Parcel orders are assigned by the dispatcher — not self-accept"
                   : serviceMode === "driver"
                   ? "You receive passenger ride & hire requests"
                   : "Viewing all fleet requests (manager view)"}
@@ -960,7 +1007,11 @@ function DriverDashboard() {
               ? "bg-cyan-500/15 border-cyan-500/40 text-cyan-400"
               : "bg-purple-500/15 border-purple-500/40 text-purple-400"
           }`}>
-            {serviceMode === "dispatch_rider" ? pendingDispatchCount : serviceMode === "driver" ? pendingRideCount : availableJobs.length} pending
+            {serviceMode === "dispatch_rider"
+              ? `${pendingDispatchCount} active`
+              : serviceMode === "driver"
+              ? `${pendingRideCount} pending`
+              : `${availableJobs.length} pending`}
           </div>
         </div>
       </div>
@@ -982,16 +1033,8 @@ function DriverDashboard() {
                 <div className={`w-2 h-2 rounded-full animate-ping ${
                   serviceMode === "driver" ? "bg-cyan-400" : "bg-orange-500"
                 }`} />
-                <span className={`text-sm font-semibold ${
-                  serviceMode === "driver" ? "text-cyan-300" : "text-orange-400"
-                }`}>
-                  {availableJobs.length}{" "}
-                  {serviceMode === "dispatch_rider"
-                    ? `dispatch delivery request${availableJobs.length > 1 ? "s" : ""}`
-                    : serviceMode === "driver"
-                    ? `passenger ride request${availableJobs.length > 1 ? "s" : ""}`
-                    : `request${availableJobs.length > 1 ? "s" : ""}`}{" "}
-                  nearby
+                <span className="text-sm font-semibold text-cyan-300">
+                  {availableJobs.length} passenger ride request{availableJobs.length > 1 ? "s" : ""} nearby
                 </span>
               </div>
             </div>
@@ -1178,7 +1221,7 @@ function DriverDashboard() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold">
                       {serviceMode === "dispatch_rider" ? (
-                        "Online. Scanning for courier parcel & dispatch requests..."
+                        "Awaiting dispatcher assignment..."
                       ) : serviceMode === "driver" ? (
                         "Online. Scanning for passenger ride & hire requests..."
                       ) : (
@@ -1187,7 +1230,7 @@ function DriverDashboard() {
                     </p>
                     <p className="text-[11px] opacity-75 mt-0.5">
                       {serviceMode === "dispatch_rider"
-                        ? "Passenger rides are hidden to keep your courier workflow focused."
+                        ? "The dispatcher reviews all parcel orders and assigns them to you. You'll get an alert the moment a job is assigned."
                         : serviceMode === "driver"
                         ? "Dispatch deliveries are hidden to keep your passenger ride workflow focused."
                         : "Showing unified fleet requests."}
