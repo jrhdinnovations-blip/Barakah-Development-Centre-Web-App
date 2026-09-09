@@ -1,6 +1,30 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
+const FALLBACK_SUPABASE_URL = "https://bidhwdaxkbuxewfogxcx.supabase.co";
+const FALLBACK_SUPABASE_KEY = "sb_publishable_NuHEsBKe8pc_YiNU4TAsQA_-6zC8OFy";
+
+export function sanitizeSupabaseUrl(url?: string | null): string {
+  if (!url) return FALLBACK_SUPABASE_URL;
+  let clean = url.trim().replace(/^["']|["']$/g, '').trim();
+  if (!clean) return FALLBACK_SUPABASE_URL;
+  if (!clean.startsWith('http://') && !clean.startsWith('https://')) {
+    clean = `https://${clean}`;
+  }
+  try {
+    new URL(clean);
+    return clean;
+  } catch {
+    return FALLBACK_SUPABASE_URL;
+  }
+}
+
+export function sanitizeSupabaseKey(key?: string | null): string {
+  if (!key) return FALLBACK_SUPABASE_KEY;
+  const clean = key.trim().replace(/^["']|["']$/g, '').trim();
+  return clean || FALLBACK_SUPABASE_KEY;
+}
+
 function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith('sb_publishable_') || value.startsWith('sb_secret_');
 }
@@ -25,22 +49,16 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
   };
 }
 
-
 function createSupabaseClient() {
-  // Use import.meta.env for client-side (Vite build-time replacement)
-  // Fall back to process.env for SSR (server-side rendering)
-  const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || process.env['SUPABASE_URL'];
-  const SUPABASE_PUBLISHABLE_KEY = import.meta.env['VITE_SUPABASE_PUBLISHABLE_KEY'] || process.env['SUPABASE_PUBLISHABLE_KEY'];
+  const envUrl =
+    (typeof import.meta !== 'undefined' && import.meta.env?.['VITE_SUPABASE_URL']) ||
+    (typeof process !== 'undefined' && (process.env?.['SUPABASE_URL'] || process.env?.['VITE_SUPABASE_URL']));
+  const SUPABASE_URL = sanitizeSupabaseUrl(envUrl);
 
-  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-    const missing = [
-      ...(!SUPABASE_URL ? ['SUPABASE_URL'] : []),
-      ...(!SUPABASE_PUBLISHABLE_KEY ? ['SUPABASE_PUBLISHABLE_KEY'] : []),
-    ];
-    const message = `Missing Supabase environment variable(s): ${missing.join(', ')}. Please configure them in your environment.`;
-    console.error(`[Supabase] ${message}`);
-    throw new Error(message);
-  }
+  const envKey =
+    (typeof import.meta !== 'undefined' && import.meta.env?.['VITE_SUPABASE_PUBLISHABLE_KEY']) ||
+    (typeof process !== 'undefined' && (process.env?.['SUPABASE_PUBLISHABLE_KEY'] || process.env?.['VITE_SUPABASE_PUBLISHABLE_KEY']));
+  const SUPABASE_PUBLISHABLE_KEY = sanitizeSupabaseKey(envKey);
 
   return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     global: {
@@ -49,10 +67,9 @@ function createSupabaseClient() {
     auth: {
       persistSession: true,
       autoRefreshToken: true,
-    }
+    },
   });
 }
-
 
 let _supabase: ReturnType<typeof createSupabaseClient> | undefined;
 
@@ -64,4 +81,3 @@ export const supabase = new Proxy({} as ReturnType<typeof createSupabaseClient>,
     return Reflect.get(_supabase, prop, receiver);
   },
 });
-

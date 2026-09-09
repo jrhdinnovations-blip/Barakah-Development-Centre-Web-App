@@ -1,14 +1,13 @@
 import { createClient } from "@supabase/supabase-js";
+import { sanitizeSupabaseUrl, sanitizeSupabaseKey } from "./client";
 
-const supabaseUrl = process.env["SUPABASE_URL"] || process.env["VITE_SUPABASE_URL"] || "https://bidhwdaxkbuxewfogxcx.supabase.co";
-const rawServiceRoleKey = process.env["SUPABASE_SERVICE_ROLE_KEY"] || "";
-const fallbackKey = process.env["SUPABASE_PUBLISHABLE_KEY"] || process.env["VITE_SUPABASE_PUBLISHABLE_KEY"] || "sb_publishable_NuHEsBKe8pc_YiNU4TAsQA_-6zC8OFy";
+const rawUrl = process.env["SUPABASE_URL"] || process.env["VITE_SUPABASE_URL"];
+const supabaseUrl = sanitizeSupabaseUrl(rawUrl);
 
-export const hasServiceRoleKey = Boolean(rawServiceRoleKey && rawServiceRoleKey.trim().length > 0);
+const rawServiceRoleKey = (process.env["SUPABASE_SERVICE_ROLE_KEY"] || "").trim().replace(/^["']|["']$/g, "").trim();
+const fallbackKey = sanitizeSupabaseKey(process.env["SUPABASE_PUBLISHABLE_KEY"] || process.env["VITE_SUPABASE_PUBLISHABLE_KEY"]);
 
-if (!supabaseUrl || !hasServiceRoleKey) {
-  console.warn("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables.");
-}
+export const hasServiceRoleKey = Boolean(rawServiceRoleKey && rawServiceRoleKey.length > 0);
 
 export const supabaseAdmin = createClient(supabaseUrl, hasServiceRoleKey ? rawServiceRoleKey : fallbackKey, {
   auth: {

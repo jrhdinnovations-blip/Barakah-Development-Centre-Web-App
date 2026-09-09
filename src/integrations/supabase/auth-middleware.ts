@@ -1,7 +1,7 @@
 import { createMiddleware } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
 import { createClient } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, sanitizeSupabaseUrl, sanitizeSupabaseKey } from "@/integrations/supabase/client";
 import type { Database } from "./types";
 
 export const requireSupabaseAuth = createMiddleware().server(async ({ next }) => {
@@ -21,8 +21,8 @@ export const requireSupabaseAuth = createMiddleware().server(async ({ next }) =>
     throw new Error("Unauthorized access");
   }
 
-  const supabaseUrl = process.env["SUPABASE_URL"] || process.env["VITE_SUPABASE_URL"] || "https://bidhwdaxkbuxewfogxcx.supabase.co";
-  const supabaseKey = process.env["SUPABASE_PUBLISHABLE_KEY"] || process.env["VITE_SUPABASE_PUBLISHABLE_KEY"] || "sb_publishable_NuHEsBKe8pc_YiNU4TAsQA_-6zC8OFy";
+  const supabaseUrl = sanitizeSupabaseUrl(process.env["SUPABASE_URL"] || process.env["VITE_SUPABASE_URL"]);
+  const supabaseKey = sanitizeSupabaseKey(process.env["SUPABASE_PUBLISHABLE_KEY"] || process.env["VITE_SUPABASE_PUBLISHABLE_KEY"]);
 
   // When a token is available, create a scoped authenticated client so database queries and RPCs
   // run with the authenticated user's permissions and RLS context

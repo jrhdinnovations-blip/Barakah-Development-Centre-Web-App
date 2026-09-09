@@ -326,7 +326,7 @@ function StaffDashboard() {
               <Mail className="mx-auto h-8 w-8 text-muted-foreground/40" />
               <p className="mt-2 text-sm font-medium text-muted-foreground">No company mailbox assigned yet</p>
               <p className="mt-1 text-xs text-muted-foreground/70">
-                Ask your administrator to provision a <span className="font-mono">@barakah.ng</span> email address for you.
+                Ask your administrator to provision a <span className="font-mono">@barakahdevcentre.com</span> email address for you.
               </p>
             </div>
           )}

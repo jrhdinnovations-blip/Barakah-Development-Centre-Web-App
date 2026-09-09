@@ -81,7 +81,7 @@ function CreateUserPage() {
           </div>
           <div>
             <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Email Address <span className="text-red-400">*</span></label>
-            <Input type="email" required value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="user@barakah.ng" className="mt-1.5 bg-slate-900 border-slate-700 h-11" />
+            <Input type="email" required value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="user@barakahdevcentre.com" className="mt-1.5 bg-slate-900 border-slate-700 h-11" />
           </div>
           <div>
             <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Phone Number</label>

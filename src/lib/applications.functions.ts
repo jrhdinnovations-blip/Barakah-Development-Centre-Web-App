@@ -12,8 +12,10 @@ import {
 
 export const listOpenProgrammes = createServerFn({ method: "GET" }).handler(async () => {
   const { createClient } = await import("@supabase/supabase-js");
-  const key = process.env["SUPABASE_PUBLISHABLE_KEY"]!;
-  const pub = createClient(process.env["SUPABASE_URL"]!, key, {
+  const { sanitizeSupabaseUrl, sanitizeSupabaseKey } = await import("@/integrations/supabase/client");
+  const key = sanitizeSupabaseKey(process.env["SUPABASE_PUBLISHABLE_KEY"] || process.env["VITE_SUPABASE_PUBLISHABLE_KEY"]);
+  const url = sanitizeSupabaseUrl(process.env["SUPABASE_URL"] || process.env["VITE_SUPABASE_URL"]);
+  const pub = createClient(url, key, {
     auth: { persistSession: false },
     global: {
       fetch: (input, init) => {

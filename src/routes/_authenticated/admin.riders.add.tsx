@@ -77,8 +77,9 @@ function AddRiderPage() {
       } catch (serverErr: any) {
         console.warn('Server function returned error, using direct registration:', serverErr);
         const { createClient } = await import('@supabase/supabase-js');
-        const supabaseUrl = import.meta.env['VITE_SUPABASE_URL'] || 'https://bidhwdaxkbuxewfogxcx.supabase.co';
-        const supabaseKey = import.meta.env['VITE_SUPABASE_PUBLISHABLE_KEY'] || 'sb_publishable_NuHEsBKe8pc_YiNU4TAsQA_-6zC8OFy';
+        const { sanitizeSupabaseUrl, sanitizeSupabaseKey } = await import('@/integrations/supabase/client');
+        const supabaseUrl = sanitizeSupabaseUrl(import.meta.env['VITE_SUPABASE_URL']);
+        const supabaseKey = sanitizeSupabaseKey(import.meta.env['VITE_SUPABASE_PUBLISHABLE_KEY']);
         const isolatedClient = createClient(supabaseUrl, supabaseKey, {
           auth: {
             persistSession: false,

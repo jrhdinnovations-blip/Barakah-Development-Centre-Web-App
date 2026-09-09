@@ -1,14 +1,14 @@
 /** ============================================================================
  *  Barakah Corporate Email & Domain Service
  *  ============================================================================
- *  Manages official company email domains (default: @barakah.ng), username
+ *  Manages official company email domains (default: @barakahdevcentre.com), username
  *  slugification, DNS record generation (MX, SPF, DKIM, DMARC), and mailbox
  *  provisioning for staff members.
  *  ============================================================================ */
 
 export interface CompanyDomain {
   id: string;
-  domain: string; // e.g. "barakah.ng"
+  domain: string; // e.g. "barakahdevcentre.com"
   isPrimary: boolean;
   status: 'active' | 'pending_verification';
   createdAt: string;
@@ -20,7 +20,7 @@ export interface StaffMailbox {
   id: string;
   userId?: string | undefined;
   fullName: string;
-  email: string; // e.g. "ibrahim.musa@barakah.ng"
+  email: string; // e.g. "ibrahim.musa@barakahdevcentre.com"
   domain: string;
   username: string; // e.g. "ibrahim.musa"
   department: string;
@@ -37,12 +37,12 @@ const STORAGE_MAILBOXES_KEY = 'barakah_staff_mailboxes_v1';
 export const DEFAULT_DOMAINS: CompanyDomain[] = [
   {
     id: 'dom-barakah',
-    domain: 'barakah.ng',
+    domain: 'barakahdevcentre.com',
     isPrimary: true,
     status: 'active',
     createdAt: '2026-01-01T00:00:00Z',
     mailProvider: 'google_workspace',
-    webmailUrl: 'https://mail.google.com/a/barakah.ng',
+    webmailUrl: 'https://mail.google.com/a/barakahdevcentre.com',
   },
   {
     id: 'dom-swiftmove',
@@ -86,12 +86,12 @@ export function saveCompanyDomains(domains: CompanyDomain[]): void {
 }
 
 /**
- * Returns the primary corporate domain name (e.g. "barakah.ng").
+ * Returns the primary corporate domain name (e.g. "barakahdevcentre.com").
  */
 export function getPrimaryCompanyDomain(): string {
   const domains = getCompanyDomains();
   const primary = domains.find((d) => d.isPrimary) || domains[0];
-  return primary ? primary.domain : 'barakah.ng';
+  return primary ? primary.domain : 'barakahdevcentre.com';
 }
 
 /**

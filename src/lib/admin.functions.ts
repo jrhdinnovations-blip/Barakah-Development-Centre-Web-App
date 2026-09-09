@@ -254,9 +254,9 @@ export const createUserAdmin = createServerFn({ method: "POST" })
       }).then(() => {});
     } else {
       // Create user using isolated client without persisting session
-      const { createClient } = await import("@supabase/supabase-js");
-      const url = process.env["SUPABASE_URL"] || process.env["VITE_SUPABASE_URL"] || "https://bidhwdaxkbuxewfogxcx.supabase.co";
-      const key = process.env["SUPABASE_PUBLISHABLE_KEY"] || process.env["VITE_SUPABASE_PUBLISHABLE_KEY"] || "sb_publishable_NuHEsBKe8pc_YiNU4TAsQA_-6zC8OFy";
+      const { sanitizeSupabaseUrl, sanitizeSupabaseKey } = await import("@/integrations/supabase/client");
+      const url = sanitizeSupabaseUrl(process.env["SUPABASE_URL"] || process.env["VITE_SUPABASE_URL"]);
+      const key = sanitizeSupabaseKey(process.env["SUPABASE_PUBLISHABLE_KEY"] || process.env["VITE_SUPABASE_PUBLISHABLE_KEY"]);
 
       const isolatedClient = createClient(url, key, {
         auth: {
