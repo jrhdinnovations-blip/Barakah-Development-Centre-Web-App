@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const FALLBACK_SUPABASE_URL = "https://bidhwdaxkbuxewfogxcx.supabase.co";
-const FALLBACK_SUPABASE_KEY = "sb_publishable_NuHEsBKe8pc_YiNU4TAsQA_-6zC8OFy";
+const FALLBACK_SUPABASE_URL = "https://zvfgtshhfmnlxjouwdqw.supabase.co";
+const FALLBACK_SUPABASE_KEY = "sb_publishable_h8dR4o5XdqM2YIv58gf1Qg_-xl1-JxJ";
 
 export function sanitizeSupabaseUrl(url?: string | null): string {
   if (!url) return FALLBACK_SUPABASE_URL;
