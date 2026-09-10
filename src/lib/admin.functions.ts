@@ -585,48 +585,64 @@ export const getAllRidersAdmin = createServerFn({ method: "GET" })
     }
     if (!isAllowed) throw new Error("Forbidden");
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { hasServiceRoleKey, supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    // 1. Get all driver user_ids from user_roles (uses supabaseAdmin to bypass RLS)
-    const { data: driverRoles } = await supabaseAdmin
-      .from("user_roles")
-      .select("user_id")
-      .eq("role", "driver");
-
-    const driverIds = (driverRoles || []).map((r: any) => r.user_id);
-    if (driverIds.length === 0) return [];
-
-    // 2. Fetch profiles and active_drivers via supabaseAdmin (bypasses RLS)
-    const [profilesRes, activeRes] = await Promise.all([
-      supabaseAdmin
-        .from("profiles")
-        .select("user_id, full_name, phone, location, status, created_at")
-        .in("user_id", driverIds)
-        .order("created_at", { ascending: false }),
+    // 1. Fetch driver roles, auth users, and active drivers in parallel
+    const [rolesRes, authUsersRes, activeRes] = await Promise.all([
+      supabaseAdmin.from("user_roles").select("user_id").eq("role", "driver"),
+      hasServiceRoleKey ? supabaseAdmin.auth.admin.listUsers() : Promise.resolve({ data: { users: [] }, error: null }),
       supabaseAdmin.from("active_drivers").select("*"),
     ]);
 
-    const profiles = profilesRes.data || [];
-    const activeDrvs = activeRes.data || [];
+    const authUsers = (authUsersRes.data?.users || []) as any[];
+    const activeDrvs = (activeRes.data || []) as any[];
 
-    return profiles.map((p: any) => {
-      const active = activeDrvs.find((a: any) => a.driver_id === p.user_id);
-      const isActive = active?.status === "available" || p.status === "active";
+    // Collect all driver IDs from user_roles AND auth user_metadata
+    const driverIdSet = new Set<string>((rolesRes.data || []).map((r: any) => r.user_id));
+    for (const u of authUsers) {
+      if (u.user_metadata?.role === "driver" || u.user_metadata?.rider_category) {
+        driverIdSet.add(u.id);
+      }
+    }
+
+    const driverIds = Array.from(driverIdSet);
+    if (driverIds.length === 0) return [];
+
+    // 2. Fetch profiles
+    const { data: profilesData } = await supabaseAdmin
+      .from("profiles")
+      .select("user_id, full_name, phone, location, status, created_at")
+      .in("user_id", driverIds)
+      .order("created_at", { ascending: false });
+
+    const profiles = profilesData || [];
+
+    return driverIds.map((uid) => {
+      const p = profiles.find((prof: any) => prof.user_id === uid);
+      const authUser = authUsers.find((u: any) => u.id === uid);
+      const active = activeDrvs.find((a: any) => a.driver_id === uid);
+      const meta = authUser?.user_metadata || {};
+      const isActive = active?.status === "available" || p?.status === "active";
+
+      const category = (meta.rider_category as "dispatch_rider" | "driver") || (
+        meta.vehicle_type && /car|sedan|suv|van|bus/i.test(meta.vehicle_type) ? "driver" : "dispatch_rider"
+      );
 
       return {
-        id: p.user_id,
-        user_id: p.user_id,
-        full_name: p.full_name || "Unnamed Personnel",
-        phone: p.phone || "N/A",
-        email: "N/A",
-        category: "dispatch_rider" as const,
-        vehicle_type: (active as any)?.vehicle_type || "Motorcycle",
-        vehicle_make: "",
-        plate_number: "",
-        vehicle_color: "",
-        location: p.location || "Location Unknown",
-        status: isActive ? "active" : "offline",
-        created_at: p.created_at,
+        id: uid,
+        user_id: uid,
+        full_name: p?.full_name || meta.full_name || authUser?.email?.split("@")[0] || "Unnamed Rider",
+        phone: p?.phone || meta.phone || "N/A",
+        email: authUser?.email || "N/A",
+        email_confirmed: Boolean(authUser?.email_confirmed_at),
+        category,
+        vehicle_type: meta.vehicle_type || (active as any)?.vehicle_type || (category === "driver" ? "Sedan" : "Motorcycle"),
+        vehicle_make: meta.vehicle_make || "",
+        plate_number: meta.plate_number || "",
+        vehicle_color: meta.vehicle_color || "",
+        location: p?.location || "Location Unknown",
+        status: isActive ? ("active" as const) : ("offline" as const),
+        created_at: p?.created_at || authUser?.created_at || new Date().toISOString(),
       };
     });
   });
@@ -1126,6 +1142,96 @@ export const recordAuditLogAdmin = createServerFn({ method: "POST" })
       console.error("[recordAuditLogAdmin] insert error:", error);
       throw new Error(error.message);
     }
+
+    return { ok: true };
+  });
+
+export const confirmAllDriverAccounts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId, user } = context;
+    const metaRole = user?.user_metadata?.['role'] as string | undefined;
+    let isAllowed = metaRole === "administrator" || metaRole === "swift_manager";
+    if (!isAllowed) {
+      const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId).eq("status", "active");
+      const roleList = (roles || []).map((r: any) => r.role);
+      isAllowed = roleList.includes("administrator") || roleList.includes("swift_manager");
+    }
+    if (!isAllowed) throw new Error("Forbidden");
+
+    const { hasServiceRoleKey, supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    if (!hasServiceRoleKey) throw new Error("Service role key required to confirm accounts.");
+
+    const [rolesRes, authUsersRes] = await Promise.all([
+      supabaseAdmin.from("user_roles").select("user_id").eq("role", "driver"),
+      supabaseAdmin.auth.admin.listUsers(),
+    ]);
+
+    const authUsers = (authUsersRes.data?.users || []) as any[];
+    const driverIdSet = new Set<string>((rolesRes.data || []).map((r: any) => r.user_id));
+    for (const u of authUsers) {
+      if (u.user_metadata?.role === "driver" || u.user_metadata?.rider_category) {
+        driverIdSet.add(u.id);
+      }
+    }
+
+    let confirmed = 0;
+    let failed = 0;
+    for (const uid of driverIdSet) {
+      const { error } = await supabaseAdmin.auth.admin.updateUserById(uid, {
+        email_confirm: true,
+      });
+      if (error) {
+        failed++;
+      } else {
+        confirmed++;
+      }
+    }
+
+    await supabaseAdmin.from("audit_logs").insert({
+      actor_id: userId,
+      action: "riders.bulk_confirm",
+      entity_type: "auth.users",
+      metadata: { confirmed, failed, total: driverIdSet.size },
+    }).then(() => {});
+
+    return { confirmed, failed, total: driverIdSet.size };
+  });
+
+export const confirmUserAccount = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z
+      .object({
+        targetUserId: z.string().uuid(),
+      })
+      .parse(input)
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId, user } = context;
+    const metaRole = user?.user_metadata?.['role'] as string | undefined;
+    let isAllowed = metaRole === "administrator" || metaRole === "swift_manager";
+    if (!isAllowed) {
+      const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId).eq("status", "active");
+      const roleList = (roles || []).map((r: any) => r.role);
+      isAllowed = roleList.includes("administrator") || roleList.includes("swift_manager");
+    }
+    if (!isAllowed) throw new Error("Forbidden");
+
+    const { hasServiceRoleKey, supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    if (!hasServiceRoleKey) throw new Error("Service role key required to confirm accounts.");
+
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(data.targetUserId, {
+      email_confirm: true,
+    });
+    if (error) throw new Error(error.message);
+
+    await supabaseAdmin.from("audit_logs").insert({
+      actor_id: userId,
+      action: "user.account_confirm",
+      entity_type: "auth.users",
+      metadata: { target_user: data.targetUserId },
+    }).then(() => {});
 
     return { ok: true };
   });

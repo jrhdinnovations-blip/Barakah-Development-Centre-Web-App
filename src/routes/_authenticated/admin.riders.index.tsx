@@ -5,6 +5,8 @@ import {
   resetUserPassword,
   getAllRidersAdmin,
   updateRiderRoleCategoryAdmin,
+  confirmAllDriverAccounts,
+  confirmUserAccount,
 } from "@/lib/admin.functions";
 import { toast } from "sonner";
 import {
@@ -67,6 +69,7 @@ interface DriverPersonnel {
   full_name: string;
   phone: string;
   email: string;
+  email_confirmed?: boolean;
   category: "dispatch_rider" | "driver";
   vehicle_type: string;
   vehicle_make?: string;
@@ -83,10 +86,12 @@ function RidersDirectoryPage() {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<"all" | "dispatch_rider" | "driver">("all");
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isBulkConfirming, setIsBulkConfirming] = useState(false);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const navigate = useNavigate();
 
   // Reset Password State
-  const [resetTarget, setResetTarget] = useState<{ id: string; name: string } | null>(null);
+  const [resetTarget, setResetTarget] = useState<{ id: string; name: string; email?: string } | null>(null);
   const [resetPass, setResetPass] = useState("");
   const [showResetPass, setShowResetPass] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -109,6 +114,36 @@ function RidersDirectoryPage() {
     setShowResetPass(true);
   };
 
+  const handleBulkConfirm = async () => {
+    setIsBulkConfirming(true);
+    try {
+      const res = await confirmAllDriverAccounts();
+      toast.success(
+        `Verification complete! Confirmed ${res.confirmed} rider account(s). All riders can now log in immediately!`
+      );
+      fetchDrivers();
+    } catch (e: any) {
+      toast.error("Failed to verify riders: " + (e.message || e.toString()));
+    } finally {
+      setIsBulkConfirming(false);
+    }
+  };
+
+  const handleConfirmSingle = async (driver: DriverPersonnel) => {
+    setConfirmingId(driver.user_id);
+    try {
+      await confirmUserAccount({ data: { targetUserId: driver.user_id } });
+      toast.success(`Account for ${driver.full_name} (${driver.email}) verified! Rider can now log in.`);
+      setDrivers((prev) =>
+        prev.map((d) => (d.user_id === driver.user_id ? { ...d, email_confirmed: true } : d))
+      );
+    } catch (e: any) {
+      toast.error("Confirmation failed: " + (e.message || e.toString()));
+    } finally {
+      setConfirmingId(null);
+    }
+  };
+
   const handleResetPassword = async () => {
     if (!resetTarget || resetPass.length < 6) {
       toast.error("Password must be at least 6 characters.");
@@ -117,10 +152,11 @@ function RidersDirectoryPage() {
     setResetting(true);
     const chosenPass = resetPass;
     const targetName = resetTarget.name;
+    const targetId = resetTarget.id;
     try {
-      await resetUserPassword({ data: { targetUserId: resetTarget.id, newPassword: chosenPass } });
-      toast.success(`Password for ${targetName} reset to: ${chosenPass}`, {
-        duration: 10000,
+      await resetUserPassword({ data: { targetUserId: targetId, newPassword: chosenPass } });
+      toast.success(`Password for ${targetName} set to: ${chosenPass}. Account also verified!`, {
+        duration: 12000,
         action: {
           label: "Copy",
           onClick: () => {
@@ -129,6 +165,9 @@ function RidersDirectoryPage() {
           },
         },
       });
+      setDrivers((prev) =>
+        prev.map((d) => (d.user_id === targetId ? { ...d, email_confirmed: true } : d))
+      );
       setResetTarget(null);
       setResetPass("");
     } catch (e: any) {
@@ -327,20 +366,35 @@ function RidersDirectoryPage() {
               Manage Dispatch Riders (parcels/deliveries) and Vehicle Drivers (passenger rides/fleet hires).
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2.5">
             <Button
               onClick={handleRefresh}
               variant="outline"
               size="icon"
               className="h-10 w-10 bg-slate-900 border-slate-700 text-slate-400 hover:text-white"
+              title="Refresh list"
             >
               <RefreshCw
                 className={`h-4 w-4 ${isRefreshing ? "animate-spin text-orange-400" : ""}`}
               />
             </Button>
             <Button
+              onClick={handleBulkConfirm}
+              variant="outline"
+              disabled={isBulkConfirming}
+              className="h-10 bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300 gap-2 font-semibold text-xs sm:text-sm"
+              title="Ensure all rider accounts are active and email verified so they can log in without errors"
+            >
+              {isBulkConfirming ? (
+                <Loader2 className="h-4 w-4 animate-spin text-emerald-400" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+              )}
+              Fix / Verify Rider Logins
+            </Button>
+            <Button
               onClick={() => navigate({ to: "/admin/riders/add" as any })}
-              className="bg-orange-600 hover:bg-orange-500 gap-2 h-10 shadow-lg shadow-orange-600/20"
+              className="bg-orange-600 hover:bg-orange-500 gap-2 h-10 shadow-lg shadow-orange-600/20 text-white font-bold"
             >
               <UserPlus className="h-4 w-4" /> Onboard Personnel
             </Button>
@@ -575,12 +629,35 @@ function RidersDirectoryPage() {
                           <span className="flex items-center gap-1.5 text-slate-400">
                             <MapPin className="h-3.5 w-3.5 text-slate-500" /> {driver.location}
                           </span>
+                          {driver.email_confirmed === false && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-amber-500/15 border border-amber-500/30 text-amber-300">
+                              ⚠️ Login Unverified
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
 
                     {/* Actions & Role Switch */}
                     <div className="flex flex-wrap items-center gap-2 self-start lg:self-center">
+                      {/* If unverified, show verify button */}
+                      {driver.email_confirmed === false && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={confirmingId === driver.user_id}
+                          className="h-8 px-3 text-xs bg-emerald-500/15 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/25 gap-1.5 font-bold"
+                          onClick={() => handleConfirmSingle(driver)}
+                        >
+                          {confirmingId === driver.user_id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                          )}
+                          Verify Account
+                        </Button>
+                      )}
+
                       {/* Assign / Change Role Button */}
                       <Button
                         size="sm"
@@ -598,7 +675,7 @@ function RidersDirectoryPage() {
                         variant="outline"
                         className="h-8 px-3 text-xs bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20 gap-1"
                         onClick={() =>
-                          setResetTarget({ id: driver.user_id, name: driver.full_name })
+                          setResetTarget({ id: driver.user_id, name: driver.full_name, email: driver.email })
                         }
                       >
                         <KeyRound className="h-3.5 w-3.5 mr-1" /> Reset Pass
@@ -840,31 +917,55 @@ function RidersDirectoryPage() {
       {/* Reset Password Modal */}
       {resetTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-[#0a0f1c] border border-slate-800 rounded-2xl p-6 w-full max-w-sm space-y-4">
+          <div className="bg-[#0a0f1c] border border-slate-800 rounded-2xl p-6 w-full max-w-md space-y-4 shadow-2xl">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <KeyRound className="h-5 w-5 text-amber-400" /> Reset Password
+                <KeyRound className="h-5 w-5 text-amber-400" /> Set Rider Password
               </h3>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={generateRandomPass}
-                className="h-8 text-xs text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 gap-1.5"
-              >
-                <Sparkles className="h-3.5 w-3.5" /> Auto-Generate
-              </Button>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setResetPass("Rider@2026");
+                    setShowResetPass(true);
+                  }}
+                  className="h-7 text-[11px] text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 px-2"
+                >
+                  Rider@2026
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={generateRandomPass}
+                  className="h-7 text-[11px] text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 gap-1 px-2"
+                >
+                  <Sparkles className="h-3 w-3" /> Random
+                </Button>
+              </div>
             </div>
-            <p className="text-xs text-slate-400">
-              Set a new login password for{" "}
-              <span className="text-white font-semibold">{resetTarget.name}</span>
-            </p>
+            <div>
+              <p className="text-xs text-slate-300">
+                Set a login password for{" "}
+                <span className="text-white font-bold">{resetTarget.name}</span>
+              </p>
+              {resetTarget.email && resetTarget.email !== "N/A" && (
+                <p className="text-[11px] text-blue-400 font-mono mt-0.5">
+                  Login Email: {resetTarget.email}
+                </p>
+              )}
+              <p className="text-[11px] text-slate-500 mt-1">
+                Setting a password also automatically marks this rider’s email as verified so they can log in immediately.
+              </p>
+            </div>
             <div className="relative">
               <Input
                 type={showResetPass ? "text" : "password"}
                 value={resetPass}
                 onChange={(e) => setResetPass(e.target.value)}
-                placeholder="New password (min 6 chars)"
+                placeholder="Enter password (min 6 chars)"
                 className="bg-slate-900 border-slate-700 h-11 pr-10 font-mono text-sm"
                 autoFocus
               />
@@ -893,7 +994,7 @@ function RidersDirectoryPage() {
                 onClick={handleResetPassword}
                 disabled={resetting || resetPass.length < 6}
               >
-                {resetting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Set Password"}
+                {resetting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Password"}
               </Button>
             </div>
           </div>
