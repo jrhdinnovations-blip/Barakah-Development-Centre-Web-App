@@ -626,17 +626,17 @@ function CustomerBookingPage() {
                       <div className="bg-orange-500/8 border border-orange-500/25 rounded-2xl p-4 space-y-3">
                         <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest">SwiftMove Account Details</p>
 
-                        {/* Account Number */}
+                        {/* Zenith Bank Account */}
                         <div className="flex items-center justify-between gap-3">
                           <div>
-                            <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-0.5">Account Number</p>
-                            <p className="text-xl font-black text-white tracking-widest">0334876453</p>
+                            <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-0.5">Zenith Bank</p>
+                            <p className="text-xl font-black text-white tracking-widest">1310765201</p>
                           </div>
                           <button
                             type="button"
                             onClick={() => {
-                              navigator.clipboard.writeText('0334876453');
-                              toast.success('Account number copied!');
+                              navigator.clipboard.writeText('1310765201');
+                              toast.success('Zenith Bank account number copied!');
                             }}
                             className="shrink-0 px-3 py-1.5 rounded-lg bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/30 text-orange-300 text-[11px] font-bold transition-all active:scale-95"
                           >
@@ -647,9 +647,30 @@ function CustomerBookingPage() {
                         {/* Divider */}
                         <div className="h-px bg-slate-800" />
 
-                        {/* Bank Name */}
+                        {/* Moniepoint Account */}
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-0.5">Moniepoint</p>
+                            <p className="text-xl font-black text-white tracking-widest">7066252731</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText('7066252731');
+                              toast.success('Moniepoint account number copied!');
+                            }}
+                            className="shrink-0 px-3 py-1.5 rounded-lg bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/30 text-orange-300 text-[11px] font-bold transition-all active:scale-95"
+                          >
+                            Copy
+                          </button>
+                        </div>
+
+                        {/* Divider */}
+                        <div className="h-px bg-slate-800" />
+
+                        {/* Account Name */}
                         <div className="flex justify-between items-center text-sm">
-                          <span className="text-slate-400 text-[11px]">Bank / Business</span>
+                          <span className="text-slate-400 text-[11px]">Account Name</span>
                           <span className="text-white font-bold">SwiftMove Logistics</span>
                         </div>
 
@@ -664,8 +685,8 @@ function CustomerBookingPage() {
 
                       {/* WhatsApp CTA */}
                       <a
-                        href={`https://wa.me/2348060480745?text=${encodeURIComponent(
-                          `Hello SwiftMove! I've just made a bank transfer of ₦${(activeOrder?.estimated_price || fare).toLocaleString()} to account 0334876453 (SwiftMove Logistics). Please find my payment receipt attached. Order reference: ${activeOrder?.payment_reference || 'pending'}`
+                        href={`https://wa.me/2347044223076?text=${encodeURIComponent(
+                          `Hello SwiftMove! I've just made a bank transfer of ₦${(activeOrder?.estimated_price || fare).toLocaleString()} to SwiftMove Logistics (Zenith: 1310765201 / Moniepoint: 7066252731). Please find my payment receipt attached. Order reference: ${activeOrder?.payment_reference || 'pending'}`
                         )}`}
                         target="_blank"
                         rel="noopener noreferrer"
@@ -675,12 +696,22 @@ function CustomerBookingPage() {
                         Send Receipt on WhatsApp
                       </a>
 
+                      {/* Call Us */}
+                      <a
+                        href="tel:+2347041626545"
+                        className="w-full flex items-center justify-center gap-2.5 py-3 rounded-2xl bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-300 font-bold text-sm transition-all active:scale-[0.98]"
+                      >
+                        <span className="text-lg">📞</span>
+                        Call Us: 07041626545
+                      </a>
+
                       <p className="text-[10px] text-slate-500 text-center leading-relaxed">
-                        After transferring, tap the button above to send your payment receipt to our WhatsApp.<br />
-                        Your order will be confirmed once payment is verified.
+                        After transferring, send your receipt via WhatsApp or call us to confirm.<br />
+                        Your order will be activated once payment is verified.
                       </p>
                     </div>
                   )}
+
                 </div>
 
                 {/* Confirm Button */}
