@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { createClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 async function requireAdmin(supabase: any, userId: string, user?: any) {
@@ -356,68 +357,98 @@ export const createStaffAdmin = createServerFn({ method: "POST" })
     if (!isAllowed) throw new Error("Forbidden: Only administrators and managers can add staff");
 
     const { hasServiceRoleKey, supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    if (!hasServiceRoleKey) {
-      throw new Error("Server configuration error: Service role key is missing.");
-    }
 
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email: data.email,
-      password: data.password,
-      email_confirm: true,
-      user_metadata: {
-        full_name: data.full_name,
-        phone: data.phone || null,
-        recovery_email: data.recovery_email || null,
-        role: data.role,
-        department: data.department || null,
-        designation: data.designation || null,
-        branch: data.branch || null,
-        employee_id: data.employee_id || null,
-      },
-    });
+    let newUserId: string;
+    let authEmail: string;
 
-    if (authError) throw new Error(authError.message);
-    if (!authData.user) throw new Error("Failed to create staff account");
-
-    const newUserId = authData.user.id;
-
-    // Profiles: only insert columns that exist in DB (user_id, full_name, phone)
-    await supabaseAdmin
-      .from("profiles")
-      .upsert(
-        {
-          user_id: newUserId,
+    if (hasServiceRoleKey) {
+      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+        email: data.email,
+        password: data.password,
+        email_confirm: true,
+        user_metadata: {
           full_name: data.full_name,
           phone: data.phone || null,
+          recovery_email: data.recovery_email || null,
+          role: data.role,
+          department: data.department || null,
+          designation: data.designation || null,
+          branch: data.branch || null,
+          employee_id: data.employee_id || null,
         },
-        { onConflict: "user_id" }
-      );
+      });
 
-    // User Roles: insert staff role if allowed by DB enum
-    try {
+      if (authError) throw new Error(authError.message);
+      if (!authData.user) throw new Error("Failed to create staff account");
+
+      newUserId = authData.user.id;
+      authEmail = authData.user.email ?? data.email;
+
       await supabaseAdmin
-        .from("user_roles")
-        .upsert(
-          {
-            user_id: newUserId,
-            role: data.role as any,
-            status: "active",
-          },
-          { onConflict: "user_id,role" }
-        );
-    } catch {}
+        .from("profiles")
+        .upsert({ user_id: newUserId, full_name: data.full_name, phone: data.phone || null }, { onConflict: "user_id" });
 
-    await supabase.from("audit_logs").insert({
-      actor_id: userId,
-      action: "staff.create",
-      entity_type: "auth.users",
-      metadata: { target_user: newUserId, role: data.role, email: data.email },
-    }).then(() => {});
+      try {
+        await supabaseAdmin
+          .from("user_roles")
+          .upsert({ user_id: newUserId, role: data.role as any, status: "active" }, { onConflict: "user_id,role" });
+      } catch {}
+
+    } else {
+      // Fallback: use signUp (no service role key)
+      const { sanitizeSupabaseUrl, sanitizeSupabaseKey } = await import("@/integrations/supabase/client");
+      const url = sanitizeSupabaseUrl(process.env["SUPABASE_URL"] || process.env["VITE_SUPABASE_URL"]);
+      const key = sanitizeSupabaseKey(process.env["SUPABASE_PUBLISHABLE_KEY"] || process.env["VITE_SUPABASE_PUBLISHABLE_KEY"]);
+
+      const isolatedClient = createClient(url, key, {
+        auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+      });
+
+      const { data: signUpData, error: signUpError } = await isolatedClient.auth.signUp({
+        email: data.email,
+        password: data.password,
+        options: {
+          data: {
+            full_name: data.full_name,
+            phone: data.phone || null,
+            recovery_email: data.recovery_email || null,
+            role: data.role,
+            department: data.department || null,
+            designation: data.designation || null,
+            branch: data.branch || null,
+            employee_id: data.employee_id || null,
+            consent_given: true,
+          },
+        },
+      });
+
+      if (signUpError) throw new Error(signUpError.message);
+      if (!signUpData.user) throw new Error("Failed to create staff account");
+
+      newUserId = signUpData.user.id;
+      authEmail = signUpData.user.email ?? data.email;
+
+      try {
+        await supabase
+          .from("profiles")
+          .upsert({ user_id: newUserId, full_name: data.full_name, phone: data.phone || null } as any, { onConflict: "user_id" });
+      } catch {}
+    }
+
+    // Audit log
+    try {
+      await supabase.from("audit_logs").insert({
+        actor_id: userId,
+        action: "staff.create",
+        entity_type: "auth.users",
+        metadata: { target_user: newUserId, role: data.role, email: data.email },
+      });
+    } catch {}
 
     return {
       ok: true,
       userId: newUserId,
-      email: authData.user.email,
+      email: authEmail,
     };
   });
 
