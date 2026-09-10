@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { adminFetchAllOrders } from '@/lib/dispatcher.functions';
 import { 
   Users, ShieldCheck, Activity, Package, Car, 
-  Settings, CreditCard, Building, MapPin, Truck, Shield, RefreshCw, Radio, Mail, Image
+  Settings, CreditCard, Building, MapPin, Truck, Shield, RefreshCw, Radio, Mail, Image, ShieldAlert
 } from 'lucide-react';
 
 export const Route = createFileRoute('/_authenticated/admin/')({
@@ -72,10 +72,10 @@ const DASHBOARD_SECTIONS = [
     ],
   },
   {
-    title: 'System Settings',
-    description: 'Global configuration and monitoring',
+    title: 'System & Compliance',
+    description: 'Global configuration, audit logs and monitoring',
     items: [
-      { title: 'System Activity', path: '/admin/audit', icon: Activity, color: 'text-purple-500', bg: 'bg-purple-500/10' },
+      { title: 'System Audit Logs', path: '/admin/audit', icon: ShieldAlert, color: 'text-purple-400', bg: 'bg-purple-500/10' },
       { title: 'Global Settings', path: '/settings', icon: Settings, color: 'text-slate-400', bg: 'bg-slate-800' },
     ],
   },

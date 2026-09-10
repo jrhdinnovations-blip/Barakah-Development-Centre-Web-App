@@ -38,14 +38,16 @@ export const Route = createFileRoute('/_authenticated/admin/staff/')({
       const { data, error } = await supabase.auth.getUser();
       const user = data?.user;
       if (error || !user) throw redirect({ to: '/auth', search: { mode: 'login' } });
-      const { data: roleData } = await supabase
+      const { data: rolesData } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', user.id)
-        .maybeSingle();
-      const role = roleData?.role ?? user.user_metadata?.['role'] ?? 'registered_user';
-      if (role !== 'administrator' && role !== 'swift_manager')
-        throw redirect({ to: '/my-barakah' });
+        .eq('status', 'active');
+      const roles = (rolesData || []).map((r: any) => r.role);
+      const metaRole = user.user_metadata?.['role'] as string | undefined;
+      if (metaRole) roles.push(metaRole);
+      const isAdmin = roles.includes('administrator') || roles.includes('swift_manager');
+      if (!isAdmin) throw redirect({ to: '/my-barakah' });
     } catch (err: any) {
       if (err?.isRedirect || err?.to || err?.statusCode) throw err;
       throw redirect({ to: '/auth', search: { mode: 'login' } });

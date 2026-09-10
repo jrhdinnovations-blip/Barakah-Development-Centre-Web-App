@@ -39,14 +39,16 @@ export const Route = createFileRoute("/_authenticated/admin/users/")({
       const { data, error } = await supabase.auth.getUser();
       const user = data?.user;
       if (error || !user) throw redirect({ to: "/auth", search: { mode: "login" } });
-      const { data: roleData } = await supabase
+      const { data: rolesData } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id)
-        .maybeSingle();
-      const role = roleData?.role ?? user.user_metadata?.['role'] ?? "registered_user";
-      if (role !== "administrator" && role !== "swift_manager")
-        throw redirect({ to: "/my-swift-move" });
+        .eq("status", "active");
+      const roles = (rolesData || []).map((r: any) => r.role);
+      const metaRole = user.user_metadata?.['role'] as string | undefined;
+      if (metaRole) roles.push(metaRole);
+      const isAdmin = roles.includes("administrator") || roles.includes("swift_manager");
+      if (!isAdmin) throw redirect({ to: "/my-swift-move" });
     } catch (err: any) {
       if (err?.isRedirect || err?.to || err?.statusCode) throw err;
       throw redirect({ to: "/auth", search: { mode: "login" } });
@@ -140,22 +142,24 @@ function AllUsersPage() {
 
   const fetchUsers = useCallback(async () => {
     try {
-      try {
-        const adminUsers = await getAllUsersAdmin();
-        if (Array.isArray(adminUsers) && adminUsers.length > 0) {
-          setUsers(adminUsers);
-          return;
-        }
-      } catch (err) {
-        console.warn("getAllUsersAdmin server function error, using client fallback:", err);
+      // Primary path: server function (bypasses browser RLS, runs on server)
+      const adminUsers = await getAllUsersAdmin();
+      if (Array.isArray(adminUsers)) {
+        setUsers(adminUsers);
+        return;
       }
+    } catch (serverErr) {
+      console.warn("getAllUsersAdmin server function failed, trying client fallback:", serverErr);
+    }
 
-      // Fallback: Fetch profiles and user_roles directly
+    // Client-side fallback — only works if RLS allows admin to read all profiles
+    try {
       const [profilesRes, rolesRes] = await Promise.all([
         supabase
           .from("profiles")
           .select("user_id, full_name, phone, location, status, created_at")
-          .order("created_at", { ascending: false }),
+          .order("created_at", { ascending: false })
+          .limit(1000),
         supabase.from("user_roles").select("user_id, role"),
       ]);
 
@@ -165,7 +169,6 @@ function AllUsersPage() {
       const profiles = profilesRes.data || [];
       const roles = rolesRes.data || [];
 
-      // Build a role lookup with priority
       const rolePriority: Record<string, number> = {
         administrator: 100,
         swift_manager: 90,
@@ -183,12 +186,9 @@ function AllUsersPage() {
         const currentBest = roleMap.get(r.user_id);
         const currentScore = currentBest ? (rolePriority[currentBest] ?? 0) : -1;
         const newScore = rolePriority[r.role] ?? 0;
-        if (newScore > currentScore) {
-          roleMap.set(r.user_id, r.role);
-        }
+        if (newScore > currentScore) roleMap.set(r.user_id, r.role);
       }
 
-      // Merge profiles with their roles
       const merged = profiles.map((p) => ({
         user_id: p.user_id,
         full_name: p.full_name || "Unnamed User",
@@ -200,14 +200,17 @@ function AllUsersPage() {
       }));
 
       setUsers(merged);
-    } catch (e: any) {
-      console.error("Users fetch error:", e);
-      toast.error("Failed to load users: " + e.message);
+    } catch (clientErr: any) {
+      console.error("Client fallback also failed:", clientErr);
+      toast.error("Failed to load users. Check your RLS policies or service role key.");
     } finally {
       setLoading(false);
       setIsRefreshing(false);
     }
+    return;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
 
   useEffect(() => {
     fetchUsers();

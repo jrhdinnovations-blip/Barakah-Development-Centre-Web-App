@@ -438,7 +438,7 @@ export const getStaffMembersAdmin = createServerFn({ method: "GET" })
     }
     if (!isAllowed) throw new Error("Forbidden");
 
-    const { hasServiceRoleKey, supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const STAFF_ROLES = [
       'administrator',
@@ -449,50 +449,55 @@ export const getStaffMembersAdmin = createServerFn({ method: "GET" })
       'staff',
     ];
 
-    if (hasServiceRoleKey) {
-      const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers();
-      if (error) throw new Error(error.message);
+    // Query user_roles for staff role users, then join profiles
+    const [rolesRes, profilesRes] = await Promise.all([
+      supabaseAdmin
+        .from("user_roles")
+        .select("user_id, role, status")
+        .in("role", STAFF_ROLES),
+      supabaseAdmin
+        .from("profiles")
+        .select("user_id, full_name, phone, location, status, created_at")
+        .order("created_at", { ascending: false })
+        .limit(1000),
+    ]);
 
-      const [profilesData, rolesData] = await Promise.all([
-        supabaseAdmin.from("profiles").select("*"),
-        supabaseAdmin.from("user_roles").select("*"),
-      ]);
+    const allRoles = rolesRes.data || [];
+    const allProfiles = profilesRes.data || [];
 
-      const profiles = profilesData.data || [];
-      const roles = rolesData.data || [];
+    // Get unique staff user_ids
+    const staffUserIds = [...new Set(allRoles.map((r: any) => r.user_id))];
+    if (staffUserIds.length === 0) return [];
 
-      const staffList = (users || [])
-        .filter((u: any) => {
-          const uMetaRole = u.user_metadata?.['role'];
-          const userRoleRows = roles.filter((r: any) => r.user_id === u.id);
-          const hasStaffDbRole = userRoleRows.some((r: any) => STAFF_ROLES.includes(r.role));
-          const hasStaffMetaRole = STAFF_ROLES.includes(uMetaRole);
-          return hasStaffDbRole || hasStaffMetaRole;
-        })
-        .map((u: any) => {
-          const profile = profiles.find((p: any) => p.user_id === u.id);
-          const userRoleRow = roles.find((r: any) => r.user_id === u.id && STAFF_ROLES.includes(r.role));
-          const role = userRoleRow?.role || u.user_metadata?.['role'] || 'staff';
-          return {
-            user_id: u.id,
-            full_name: (u.user_metadata?.['full_name'] as string | undefined) || profile?.full_name || 'Unnamed Staff',
-            email: u.email || 'N/A',
-            phone: (u.user_metadata?.['phone'] as string | undefined) || profile?.phone || null,
-            department: (u.user_metadata?.['department'] as string | undefined) || (profile as any)?.department || null,
-            designation: (u.user_metadata?.['designation'] as string | undefined) || (profile as any)?.designation || null,
-            branch: (u.user_metadata?.['branch'] as string | undefined) || (profile as any)?.branch || null,
-            employee_id: (u.user_metadata?.['employee_id'] as string | undefined) || null,
-            role,
-            created_at: u.created_at,
-            status: (profile?.status as string) || 'active',
-          };
-        })
-        .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-      return staffList;
+    // Build role map (highest priority role per user)
+    const rolePriority: Record<string, number> = {
+      administrator: 100, swift_manager: 90, swift_dispatcher: 80,
+      programme_officer: 60, content_editor: 50, staff: 40,
+    };
+    const roleMap = new Map<string, string>();
+    for (const r of allRoles) {
+      const current = roleMap.get(r.user_id);
+      if (!current || (rolePriority[r.role] ?? 0) > (rolePriority[current] ?? 0)) {
+        roleMap.set(r.user_id, r.role);
+      }
     }
 
-    return [];
+    return staffUserIds.map(uid => {
+      const profile = allProfiles.find((p: any) => p.user_id === uid);
+      return {
+        user_id: uid,
+        full_name: profile?.full_name || 'Unnamed Staff',
+        email: 'N/A',
+        phone: profile?.phone || null,
+        department: null,
+        designation: null,
+        branch: null,
+        employee_id: null,
+        role: roleMap.get(uid) || 'staff',
+        created_at: profile?.created_at || new Date().toISOString(),
+        status: profile?.status || 'active',
+      };
+    }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   });
 
 export const resetUserPassword = createServerFn({ method: "POST" })
@@ -549,86 +554,45 @@ export const getAllRidersAdmin = createServerFn({ method: "GET" })
     }
     if (!isAllowed) throw new Error("Forbidden");
 
-    const { hasServiceRoleKey, supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    // 1. Get driver user_ids
-    const client = hasServiceRoleKey ? supabaseAdmin : supabase;
-    const { data: driverRoles } = await client.from("user_roles").select("user_id").eq("role", "driver");
+    // 1. Get all driver user_ids from user_roles (uses supabaseAdmin to bypass RLS)
+    const { data: driverRoles } = await supabaseAdmin
+      .from("user_roles")
+      .select("user_id")
+      .eq("role", "driver");
+
     const driverIds = (driverRoles || []).map((r: any) => r.user_id);
     if (driverIds.length === 0) return [];
 
-    // 2. Fetch profiles and active_drivers
+    // 2. Fetch profiles and active_drivers via supabaseAdmin (bypasses RLS)
     const [profilesRes, activeRes] = await Promise.all([
-      client.from("profiles").select("*").in("user_id", driverIds).order("created_at", { ascending: false }),
-      client.from("active_drivers").select("*"),
+      supabaseAdmin
+        .from("profiles")
+        .select("user_id, full_name, phone, location, status, created_at")
+        .in("user_id", driverIds)
+        .order("created_at", { ascending: false }),
+      supabaseAdmin.from("active_drivers").select("*"),
     ]);
 
     const profiles = profilesRes.data || [];
     const activeDrvs = activeRes.data || [];
 
-    // 3. User metadata & emails from auth.users (via admin API)
-    const userMetaMap = new Map<string, {
-      email: string;
-      category: "dispatch_rider" | "driver";
-      vehicle_type: string;
-      vehicle_make: string;
-      plate_number: string;
-      vehicle_color: string;
-    }>();
-    if (hasServiceRoleKey) {
-      try {
-        const { data: { users } } = await supabaseAdmin.auth.admin.listUsers();
-        for (const u of users || []) {
-          const rawCat = u.user_metadata?.['rider_category'] as string | undefined;
-          const rawVehicleType = (u.user_metadata?.['vehicle_type'] as string | undefined) || "";
-          const rawVehicleMake = (u.user_metadata?.['vehicle_make'] as string | undefined) || "";
-          const rawPlateNumber = (u.user_metadata?.['plate_number'] as string | undefined) || "";
-          const rawVehicleColor = (u.user_metadata?.['vehicle_color'] as string | undefined) || "";
-          let category: "dispatch_rider" | "driver" = "dispatch_rider";
-          if (rawCat === "driver" || rawCat === "dispatch_rider") {
-            category = rawCat;
-          } else if (rawVehicleType || rawVehicleMake) {
-            const vLower = (rawVehicleType + " " + rawVehicleMake).toLowerCase();
-            if (vLower.includes("car") || vLower.includes("sedan") || vLower.includes("suv") || vLower.includes("van") || vLower.includes("bus") || vLower.includes("truck")) {
-              category = "driver";
-            } else {
-              category = "dispatch_rider";
-            }
-          }
-          userMetaMap.set(u.id, {
-            email: u.email || "N/A",
-            category,
-            vehicle_type: rawVehicleType,
-            vehicle_make: rawVehicleMake,
-            plate_number: rawPlateNumber,
-            vehicle_color: rawVehicleColor,
-          });
-        }
-      } catch {}
-    }
-
     return profiles.map((p: any) => {
       const active = activeDrvs.find((a: any) => a.driver_id === p.user_id);
-      const meta = userMetaMap.get(p.user_id);
       const isActive = active?.status === "available" || p.status === "active";
-      
-      let category: "dispatch_rider" | "driver" = meta?.category || "dispatch_rider";
-      let vehicleType = meta?.vehicle_type || (active as any)?.vehicle_type || "";
-      if (!vehicleType) {
-        vehicleType = category === "driver" ? "Sedan" : "Motorcycle";
-      }
 
       return {
         id: p.user_id,
         user_id: p.user_id,
         full_name: p.full_name || "Unnamed Personnel",
         phone: p.phone || "N/A",
-        email: meta?.email || "N/A",
-        category,
-        vehicle_type: vehicleType,
-        vehicle_make: meta?.vehicle_make || "",
-        plate_number: meta?.plate_number || "",
-        vehicle_color: meta?.vehicle_color || "",
+        email: "N/A",
+        category: "dispatch_rider" as const,
+        vehicle_type: (active as any)?.vehicle_type || "Motorcycle",
+        vehicle_make: "",
+        plate_number: "",
+        vehicle_color: "",
         location: p.location || "Location Unknown",
         status: isActive ? "active" : "offline",
         created_at: p.created_at,
@@ -716,99 +680,91 @@ export const getAllUsersAdmin = createServerFn({ method: "GET" })
     }
     if (!isAllowed) throw new Error("Forbidden");
 
-    const { hasServiceRoleKey, supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const rolePriority: Record<string, number> = {
+      administrator: 100,
+      swift_manager: 90,
+      swift_dispatcher: 80,
+      dispatcher: 80,
+      driver: 70,
+      programme_officer: 60,
+      content_editor: 50,
+      staff: 40,
+      registered_user: 10,
+    };
 
-    if (hasServiceRoleKey) {
-      const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers();
-      if (error) throw new Error(error.message);
-
-      const [profilesData, rolesData] = await Promise.all([
-        supabaseAdmin.from("profiles").select("*"),
-        supabaseAdmin.from("user_roles").select("*"),
-      ]);
-
-      const profiles = profilesData.data || [];
-      const roles = rolesData.data || [];
-
-      const rolePriority: Record<string, number> = {
-        administrator: 100,
-        swift_manager: 90,
-        swift_dispatcher: 80,
-        dispatcher: 80,
-        driver: 70,
-        programme_officer: 60,
-        content_editor: 50,
-        staff: 40,
-        registered_user: 10,
-      };
-
-      const userRoleMap = new Map<string, string>();
+    function buildRoleMap(roles: any[]): Map<string, string> {
+      const map = new Map<string, string>();
       for (const r of roles) {
-        const currentBest = userRoleMap.get(r.user_id);
+        const currentBest = map.get(r.user_id);
         const currentScore = currentBest ? (rolePriority[currentBest] ?? 0) : -1;
         const newScore = rolePriority[r.role] ?? 0;
-        if (newScore > currentScore) {
-          userRoleMap.set(r.user_id, r.role);
-        }
+        if (newScore > currentScore) map.set(r.user_id, r.role);
       }
-
-      return users.map(u => {
-        const profile = profiles.find(p => p.user_id === u.id);
-        const assignedRole = userRoleMap.get(u.id) || (u.user_metadata?.['role'] as string | undefined) || 'registered_user';
-        return {
-          user_id: u.id,
-          full_name: profile?.full_name || (u.user_metadata?.['full_name'] as string | undefined) || 'Unnamed User',
-          phone: profile?.phone || (u.user_metadata?.['phone'] as string | undefined) || null,
-          location: profile?.location || null,
-          email: u.email,
-          role: assignedRole,
-          created_at: u.created_at,
-          status: profile?.status || 'active'
-        };
-      }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    } else {
-      // Fallback: Query profiles and user_roles directly via authenticated client
-      const [profilesRes, rolesRes] = await Promise.all([
-        supabase.from("profiles").select("user_id, full_name, phone, location, status, created_at").order("created_at", { ascending: false }),
-        supabase.from("user_roles").select("user_id, role"),
-      ]);
-
-      const profiles = profilesRes.data || [];
-      const roles = rolesRes.data || [];
-
-      const rolePriority: Record<string, number> = {
-        administrator: 100,
-        swift_manager: 90,
-        swift_dispatcher: 80,
-        dispatcher: 80,
-        driver: 70,
-        programme_officer: 60,
-        content_editor: 50,
-        staff: 40,
-        registered_user: 10,
-      };
-
-      const roleMap = new Map<string, string>();
-      for (const r of roles) {
-        const currentBest = roleMap.get(r.user_id);
-        const currentScore = currentBest ? (rolePriority[currentBest] ?? 0) : -1;
-        const newScore = rolePriority[r.role] ?? 0;
-        if (newScore > currentScore) {
-          roleMap.set(r.user_id, r.role);
-        }
-      }
-
-      return profiles.map((p: any) => ({
-        user_id: p.user_id,
-        full_name: p.full_name || 'Unnamed User',
-        phone: p.phone || null,
-        location: p.location || null,
-        email: 'N/A',
-        role: roleMap.get(p.user_id) || 'registered_user',
-        created_at: p.created_at,
-        status: p.status || 'active',
-      }));
+      return map;
     }
+
+    // ── Try service-role admin path (real auth.admin.listUsers) ──────────────
+    try {
+      const { hasServiceRoleKey, supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+      if (hasServiceRoleKey) {
+        const { data: authData, error: authError } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+        // If this fails the key is not a real service-role key → fall through
+        if (!authError && authData?.users) {
+          const [profilesData, rolesData] = await Promise.all([
+            supabaseAdmin.from("profiles").select("*"),
+            supabaseAdmin.from("user_roles").select("*"),
+          ]);
+
+          const profiles = profilesData.data || [];
+          const userRoleMap = buildRoleMap(rolesData.data || []);
+
+          return authData.users.map(u => {
+            const profile = profiles.find((p: any) => p.user_id === u.id);
+            const assignedRole = userRoleMap.get(u.id)
+              || (u.user_metadata?.['role'] as string | undefined)
+              || 'registered_user';
+            return {
+              user_id: u.id,
+              full_name: profile?.full_name || (u.user_metadata?.['full_name'] as string | undefined) || 'Unnamed User',
+              phone: profile?.phone || (u.user_metadata?.['phone'] as string | undefined) || null,
+              location: profile?.location || null,
+              email: u.email ?? 'N/A',
+              role: assignedRole,
+              created_at: u.created_at,
+              status: profile?.status || 'active',
+            };
+          }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        }
+      }
+    } catch {
+      // Service-role key missing or invalid — fall through to authenticated client
+    }
+
+    // ── Fallback: server-side authenticated supabase client ──────────────────
+    // Runs on the server so it uses the session cookie and admin RLS policies.
+    const [profilesRes, rolesRes] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("user_id, full_name, phone, location, status, created_at")
+        .order("created_at", { ascending: false })
+        .limit(1000),
+      supabase.from("user_roles").select("user_id, role"),
+    ]);
+
+    const profiles = profilesRes.data || [];
+    const roleMap = buildRoleMap(rolesRes.data || []);
+
+    return profiles.map((p: any) => ({
+      user_id: p.user_id,
+      full_name: p.full_name || 'Unnamed User',
+      phone: p.phone || null,
+      location: p.location || null,
+      email: 'N/A',
+      role: roleMap.get(p.user_id) || 'registered_user',
+      created_at: p.created_at,
+      status: p.status || 'active',
+    }));
   });
 
 const pageSchema = z.object({
@@ -926,5 +882,220 @@ export const updateUserRoleAdmin = createServerFn({ method: "POST" })
     });
 
     return { ok: true, role: normalizedRole };
+  });
+
+export interface AuditLogItem {
+  id: string;
+  actor_id: string | null;
+  actor_name: string;
+  actor_email: string;
+  actor_role: string;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  metadata: any;
+  created_at: string;
+}
+
+export interface AuditLogsResponse {
+  logs: AuditLogItem[];
+  stats: {
+    total: number;
+    securityCount: number;
+    operationalCount: number;
+    todayCount: number;
+    uniqueActors: number;
+  };
+}
+
+export const getAuditLogsAdmin = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: any) =>
+    z
+      .object({
+        limit: z.number().min(10).max(500).optional().default(150),
+        action: z.string().optional(),
+        entityType: z.string().optional(),
+        days: z.number().optional(),
+        search: z.string().optional(),
+      })
+      .parse(input || {}),
+  )
+  .handler(async ({ data, context }): Promise<AuditLogsResponse> => {
+    const { supabase, userId, user } = context;
+    await requireAdminOrManager(supabase, userId, user);
+
+    const { hasServiceRoleKey, supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const client = hasServiceRoleKey ? supabaseAdmin : supabase;
+
+    let query = client
+      .from("audit_logs")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (data.action && data.action !== "all") {
+      query = query.ilike("action", `%${data.action}%`);
+    }
+
+    if (data.entityType && data.entityType !== "all") {
+      query = query.eq("entity_type", data.entityType);
+    }
+
+    if (data.days && data.days > 0) {
+      const cutoff = new Date(Date.now() - data.days * 24 * 60 * 60 * 1000).toISOString();
+      query = query.gte("created_at", cutoff);
+    }
+
+    query = query.limit(data.limit || 150);
+
+    const { data: rawLogs, error } = await query;
+    if (error) {
+      console.error("[getAuditLogsAdmin] query error:", error);
+      throw new Error(`Failed to load audit logs: ${error.message}`);
+    }
+
+    const logsList = rawLogs || [];
+
+    // Extract unique actor IDs
+    const actorIds = Array.from(
+      new Set(logsList.map((l: any) => l.actor_id).filter(Boolean)),
+    ) as string[];
+
+    const actorMap = new Map<string, { name: string; email: string; role: string }>();
+
+    if (actorIds.length > 0) {
+      const [profilesRes, rolesRes] = await Promise.all([
+        client.from("profiles").select("user_id, full_name, phone, role").in("user_id", actorIds),
+        client.from("user_roles").select("user_id, role").in("user_id", actorIds),
+      ]);
+
+      const emailMap = new Map<string, string>();
+      if (hasServiceRoleKey) {
+        try {
+          const { data: usersData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+          for (const u of usersData?.users || []) {
+            if (u.email) emailMap.set(u.id, u.email);
+          }
+        } catch {}
+      }
+
+      const profiles = profilesRes.data || [];
+      const rolesData = rolesRes.data || [];
+
+      for (const id of actorIds) {
+        const prof = profiles.find((p: any) => p.user_id === id);
+        const r = rolesData.find((rd: any) => rd.user_id === id)?.role || prof?.role || "user";
+        const email = emailMap.get(id) || prof?.phone || "N/A";
+        actorMap.set(id, {
+          name: prof?.full_name || (id === userId ? "Current Administrator" : `Admin #${id.slice(0, 6)}`),
+          email,
+          role: r,
+        });
+      }
+    }
+
+    const todayCutoff = new Date();
+    todayCutoff.setHours(0, 0, 0, 0);
+
+    let securityCount = 0;
+    let operationalCount = 0;
+    let todayCount = 0;
+    const uniqueActorSet = new Set<string>();
+
+    const transformed: AuditLogItem[] = logsList.map((l: any) => {
+      const actor = l.actor_id ? actorMap.get(l.actor_id) : null;
+      const isSecurity =
+        l.action?.startsWith("role.") ||
+        l.action?.startsWith("user.") ||
+        l.action?.startsWith("auth.") ||
+        l.action?.startsWith("permission.") ||
+        l.entity_type === "user_roles" ||
+        l.entity_type === "auth.users";
+
+      const isOperational =
+        l.action?.includes("order") ||
+        l.action?.includes("dispatch") ||
+        l.action?.includes("assign") ||
+        l.action?.includes("trip") ||
+        l.entity_type === "swift_deliveries" ||
+        l.entity_type === "active_drivers";
+
+      if (isSecurity) securityCount++;
+      if (isOperational) operationalCount++;
+      if (new Date(l.created_at) >= todayCutoff) todayCount++;
+      if (l.actor_id) uniqueActorSet.add(l.actor_id);
+
+      return {
+        id: l.id,
+        actor_id: l.actor_id,
+        actor_name: actor?.name || (l.actor_id ? `User #${l.actor_id.slice(0, 6)}` : "Automated System"),
+        actor_email: actor?.email || "System Event",
+        actor_role: actor?.role || "system",
+        action: l.action || "general.event",
+        entity_type: l.entity_type || "system",
+        entity_id: l.entity_id || null,
+        metadata: l.metadata || {},
+        created_at: l.created_at,
+      };
+    });
+
+    let filtered = transformed;
+    if (data.search && data.search.trim()) {
+      const q = data.search.toLowerCase().trim();
+      filtered = transformed.filter((item) => {
+        return (
+          item.action.toLowerCase().includes(q) ||
+          item.entity_type.toLowerCase().includes(q) ||
+          item.actor_name.toLowerCase().includes(q) ||
+          item.actor_email.toLowerCase().includes(q) ||
+          (item.entity_id && item.entity_id.toLowerCase().includes(q)) ||
+          JSON.stringify(item.metadata).toLowerCase().includes(q)
+        );
+      });
+    }
+
+    return {
+      logs: filtered,
+      stats: {
+        total: transformed.length,
+        securityCount,
+        operationalCount,
+        todayCount,
+        uniqueActors: uniqueActorSet.size,
+      },
+    };
+  });
+
+export const recordAuditLogAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: any) =>
+    z
+      .object({
+        action: z.string().min(1),
+        entityType: z.string().min(1),
+        entityId: z.string().optional(),
+        metadata: z.record(z.any()).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { hasServiceRoleKey, supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const client = hasServiceRoleKey ? supabaseAdmin : supabase;
+
+    const { error } = await client.from("audit_logs").insert({
+      actor_id: userId,
+      action: data.action,
+      entity_type: data.entityType,
+      entity_id: data.entityId || null,
+      metadata: data.metadata || {},
+    });
+
+    if (error) {
+      console.error("[recordAuditLogAdmin] insert error:", error);
+      throw new Error(error.message);
+    }
+
+    return { ok: true };
   });
 

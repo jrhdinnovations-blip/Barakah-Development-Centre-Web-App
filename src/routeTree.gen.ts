@@ -25,6 +25,7 @@ import { Route as MediaAndInsightsRouteImport } from './routes/media-and-insight
 import { Route as PartnersRouteImport } from './routes/partners'
 import { Route as PeaceAndInstitutionalServicesRouteImport } from './routes/peace-and-institutional-services'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as SwiftmoveRouteImport } from './routes/swiftmove'
 import { Route as TravelRouteImport } from './routes/travel'
 import { Route as TravelAndPilgrimageRouteImport } from './routes/travel-and-pilgrimage'
 import { Route as VolunteerRouteImport } from './routes/volunteer'
@@ -47,6 +48,7 @@ import { Route as LearnSlugRouteImport } from './routes/learn.$slug'
 import { Route as ShareTokenRouteImport } from './routes/share.$token'
 import { Route as TravelSlugRouteImport } from './routes/travel.$slug'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
+import { Route as AuthenticatedAdminAuditRouteImport } from './routes/_authenticated/admin.audit'
 import { Route as AuthenticatedAdminDispatcherRouteImport } from './routes/_authenticated/admin.dispatcher'
 import { Route as AuthenticatedAdminEmailsRouteImport } from './routes/_authenticated/admin.emails'
 import { Route as AuthenticatedAdminMediaRouteImport } from './routes/_authenticated/admin.media'
@@ -145,6 +147,11 @@ const PeaceAndInstitutionalServicesRoute =
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SwiftmoveRoute = SwiftmoveRouteImport.update({
+  id: '/swiftmove',
+  path: '/swiftmove',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TravelRoute = TravelRouteImport.update({
@@ -259,6 +266,11 @@ const TravelSlugRoute = TravelSlugRouteImport.update({
 const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   id: '/admin/',
   path: '/admin/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAdminAuditRoute = AuthenticatedAdminAuditRouteImport.update({
+  id: '/admin/audit',
+  path: '/admin/audit',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedAdminDispatcherRoute =
@@ -382,6 +394,7 @@ export interface FileRoutesByFullPath {
   '/partners': typeof PartnersRoute
   '/peace-and-institutional-services': typeof PeaceAndInstitutionalServicesRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/swiftmove': typeof SwiftmoveRoute
   '/travel': typeof TravelRouteWithChildren
   '/travel-and-pilgrimage': typeof TravelAndPilgrimageRoute
   '/volunteer': typeof VolunteerRoute
@@ -403,6 +416,7 @@ export interface FileRoutesByFullPath {
   '/learn/$slug': typeof LearnSlugRoute
   '/share/$token': typeof ShareTokenRoute
   '/travel/$slug': typeof TravelSlugRoute
+  '/admin/audit': typeof AuthenticatedAdminAuditRoute
   '/admin/dispatcher': typeof AuthenticatedAdminDispatcherRoute
   '/admin/emails': typeof AuthenticatedAdminEmailsRoute
   '/admin/media': typeof AuthenticatedAdminMediaRoute
@@ -439,6 +453,7 @@ export interface FileRoutesByTo {
   '/partners': typeof PartnersRoute
   '/peace-and-institutional-services': typeof PeaceAndInstitutionalServicesRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/swiftmove': typeof SwiftmoveRoute
   '/travel': typeof TravelRouteWithChildren
   '/travel-and-pilgrimage': typeof TravelAndPilgrimageRoute
   '/volunteer': typeof VolunteerRoute
@@ -460,6 +475,7 @@ export interface FileRoutesByTo {
   '/learn/$slug': typeof LearnSlugRoute
   '/share/$token': typeof ShareTokenRoute
   '/travel/$slug': typeof TravelSlugRoute
+  '/admin/audit': typeof AuthenticatedAdminAuditRoute
   '/admin/dispatcher': typeof AuthenticatedAdminDispatcherRoute
   '/admin/emails': typeof AuthenticatedAdminEmailsRoute
   '/admin/media': typeof AuthenticatedAdminMediaRoute
@@ -498,6 +514,7 @@ export interface FileRoutesById {
   '/partners': typeof PartnersRoute
   '/peace-and-institutional-services': typeof PeaceAndInstitutionalServicesRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/swiftmove': typeof SwiftmoveRoute
   '/travel': typeof TravelRouteWithChildren
   '/travel-and-pilgrimage': typeof TravelAndPilgrimageRoute
   '/volunteer': typeof VolunteerRoute
@@ -519,6 +536,7 @@ export interface FileRoutesById {
   '/learn/$slug': typeof LearnSlugRoute
   '/share/$token': typeof ShareTokenRoute
   '/travel/$slug': typeof TravelSlugRoute
+  '/_authenticated/admin/audit': typeof AuthenticatedAdminAuditRoute
   '/_authenticated/admin/dispatcher': typeof AuthenticatedAdminDispatcherRoute
   '/_authenticated/admin/emails': typeof AuthenticatedAdminEmailsRoute
   '/_authenticated/admin/media': typeof AuthenticatedAdminMediaRoute
@@ -557,6 +575,7 @@ export interface FileRouteTypes {
     | '/partners'
     | '/peace-and-institutional-services'
     | '/reset-password'
+    | '/swiftmove'
     | '/travel'
     | '/travel-and-pilgrimage'
     | '/volunteer'
@@ -578,6 +597,7 @@ export interface FileRouteTypes {
     | '/learn/$slug'
     | '/share/$token'
     | '/travel/$slug'
+    | '/admin/audit'
     | '/admin/dispatcher'
     | '/admin/emails'
     | '/admin/media'
@@ -614,6 +634,7 @@ export interface FileRouteTypes {
     | '/partners'
     | '/peace-and-institutional-services'
     | '/reset-password'
+    | '/swiftmove'
     | '/travel'
     | '/travel-and-pilgrimage'
     | '/volunteer'
@@ -635,6 +656,7 @@ export interface FileRouteTypes {
     | '/learn/$slug'
     | '/share/$token'
     | '/travel/$slug'
+    | '/admin/audit'
     | '/admin/dispatcher'
     | '/admin/emails'
     | '/admin/media'
@@ -672,6 +694,7 @@ export interface FileRouteTypes {
     | '/partners'
     | '/peace-and-institutional-services'
     | '/reset-password'
+    | '/swiftmove'
     | '/travel'
     | '/travel-and-pilgrimage'
     | '/volunteer'
@@ -693,6 +716,7 @@ export interface FileRouteTypes {
     | '/learn/$slug'
     | '/share/$token'
     | '/travel/$slug'
+    | '/_authenticated/admin/audit'
     | '/_authenticated/admin/dispatcher'
     | '/_authenticated/admin/emails'
     | '/_authenticated/admin/media'
@@ -731,6 +755,7 @@ export interface RootRouteChildren {
   PartnersRoute: typeof PartnersRoute
   PeaceAndInstitutionalServicesRoute: typeof PeaceAndInstitutionalServicesRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  SwiftmoveRoute: typeof SwiftmoveRoute
   TravelRoute: typeof TravelRouteWithChildren
   TravelAndPilgrimageRoute: typeof TravelAndPilgrimageRoute
   VolunteerRoute: typeof VolunteerRoute
@@ -851,6 +876,13 @@ declare module '@tanstack/react-router' {
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/swiftmove': {
+      id: '/swiftmove'
+      path: '/swiftmove'
+      fullPath: '/swiftmove'
+      preLoaderRoute: typeof SwiftmoveRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/travel': {
@@ -1007,6 +1039,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/audit': {
+      id: '/_authenticated/admin/audit'
+      path: '/admin/audit'
+      fullPath: '/admin/audit'
+      preLoaderRoute: typeof AuthenticatedAdminAuditRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin/dispatcher': {
       id: '/_authenticated/admin/dispatcher'
       path: '/admin/dispatcher'
@@ -1151,6 +1190,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMySwiftMoveRoute: typeof AuthenticatedMySwiftMoveRoute
   AuthenticatedMyVehicleHiresRoute: typeof AuthenticatedMyVehicleHiresRoute
   AuthenticatedStaffSecurityRoute: typeof AuthenticatedStaffSecurityRoute
+  AuthenticatedAdminAuditRoute: typeof AuthenticatedAdminAuditRoute
   AuthenticatedAdminDispatcherRoute: typeof AuthenticatedAdminDispatcherRoute
   AuthenticatedAdminEmailsRoute: typeof AuthenticatedAdminEmailsRoute
   AuthenticatedAdminMediaRoute: typeof AuthenticatedAdminMediaRoute
@@ -1186,6 +1226,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMySwiftMoveRoute: AuthenticatedMySwiftMoveRoute,
   AuthenticatedMyVehicleHiresRoute: AuthenticatedMyVehicleHiresRoute,
   AuthenticatedStaffSecurityRoute: AuthenticatedStaffSecurityRoute,
+  AuthenticatedAdminAuditRoute: AuthenticatedAdminAuditRoute,
   AuthenticatedAdminDispatcherRoute: AuthenticatedAdminDispatcherRoute,
   AuthenticatedAdminEmailsRoute: AuthenticatedAdminEmailsRoute,
   AuthenticatedAdminMediaRoute: AuthenticatedAdminMediaRoute,
@@ -1248,6 +1289,7 @@ const rootRouteChildren: RootRouteChildren = {
   PartnersRoute: PartnersRoute,
   PeaceAndInstitutionalServicesRoute: PeaceAndInstitutionalServicesRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  SwiftmoveRoute: SwiftmoveRoute,
   TravelRoute: TravelRouteWithChildren,
   TravelAndPilgrimageRoute: TravelAndPilgrimageRoute,
   VolunteerRoute: VolunteerRoute,
