@@ -126,18 +126,18 @@ function AllUsersPage() {
 
   const fetchUsers = useCallback(async () => {
     try {
-      // Primary path: server function (bypasses browser RLS, runs on server)
-      const adminUsers = await getAllUsersAdmin();
-      if (Array.isArray(adminUsers)) {
-        setUsers(adminUsers);
-        return;
+      // Primary path: server function (runs on server, bypasses browser RLS)
+      try {
+        const adminUsers = await getAllUsersAdmin();
+        if (Array.isArray(adminUsers)) {
+          setUsers(adminUsers);
+          return;
+        }
+      } catch (serverErr) {
+        console.warn("getAllUsersAdmin server function failed, trying client fallback:", serverErr);
       }
-    } catch (serverErr) {
-      console.warn("getAllUsersAdmin server function failed, trying client fallback:", serverErr);
-    }
 
-    // Client-side fallback — only works if RLS allows admin to read all profiles
-    try {
+      // Client-side fallback — queries profiles and user_roles
       const [profilesRes, rolesRes] = await Promise.all([
         supabase
           .from("profiles")
@@ -146,9 +146,6 @@ function AllUsersPage() {
           .limit(1000),
         supabase.from("user_roles").select("user_id, role"),
       ]);
-
-      if (profilesRes.error) throw profilesRes.error;
-      if (rolesRes.error) throw rolesRes.error;
 
       const profiles = profilesRes.data || [];
       const roles = rolesRes.data || [];
@@ -181,18 +178,17 @@ function AllUsersPage() {
         location: p.location || null,
         role: roleMap.get(p.user_id) || "registered_user",
         created_at: p.created_at,
+        status: p.status || "active",
       }));
 
       setUsers(merged);
-    } catch (clientErr: any) {
-      console.error("Client fallback also failed:", clientErr);
-      toast.error("Failed to load users. Check your RLS policies or service role key.");
+    } catch (err: any) {
+      console.error("fetchUsers failed:", err);
+      toast.error("Failed to load users: " + (err.message || String(err)));
     } finally {
       setLoading(false);
       setIsRefreshing(false);
     }
-    return;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
 

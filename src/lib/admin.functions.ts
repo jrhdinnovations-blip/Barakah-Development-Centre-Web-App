@@ -8,7 +8,7 @@ const SUPER_ADMIN_EMAILS = [
   "barakahdevelopmentcentre@gmail.com",
 ];
 
-async function checkAdminPermissions(userId: string, user?: any) {
+async function checkAdminPermissions(supabase: any, userId: string, user?: any) {
   const email = user?.email?.toLowerCase();
   if (email && SUPER_ADMIN_EMAILS.includes(email)) {
     return { isAdmin: true, isManager: true, isDispatcher: true };
@@ -25,33 +25,51 @@ async function checkAdminPermissions(userId: string, user?: any) {
     return { isAdmin: false, isManager: false, isDispatcher: true };
   }
 
+  let rolesList: string[] = [];
+
   try {
     const { hasServiceRoleKey, supabaseAdmin } = await import("@/integrations/supabase/client.server");
     if (hasServiceRoleKey) {
       const { data: roles } = await supabaseAdmin
         .from("user_roles")
-        .select("role")
-        .eq("user_id", userId)
-        .eq("status", "active");
-      const list = (roles || []).map((r: any) => r.role);
-      const isAdmin = list.includes("administrator") || list.includes("admin");
-      const isManager = isAdmin || list.includes("swift_manager");
-      const isDispatcher = isManager || list.includes("swift_dispatcher") || list.includes("dispatcher");
-      return { isAdmin, isManager, isDispatcher };
+        .select("role, status")
+        .eq("user_id", userId);
+      if (roles && roles.length > 0) {
+        rolesList = roles
+          .filter((r: any) => r.status !== "suspended")
+          .map((r: any) => r.role);
+      }
     }
   } catch {}
 
-  return { isAdmin: false, isManager: false, isDispatcher: false };
+  if (rolesList.length === 0 && supabase) {
+    try {
+      const { data: roles } = await supabase
+        .from("user_roles")
+        .select("role, status")
+        .eq("user_id", userId);
+      if (roles && roles.length > 0) {
+        rolesList = roles
+          .filter((r: any) => r.status !== "suspended")
+          .map((r: any) => r.role);
+      }
+    } catch {}
+  }
+
+  const isAdmin = rolesList.includes("administrator") || rolesList.includes("admin");
+  const isManager = isAdmin || rolesList.includes("swift_manager");
+  const isDispatcher = isManager || rolesList.includes("swift_dispatcher") || rolesList.includes("dispatcher");
+  return { isAdmin, isManager, isDispatcher };
 }
 
 async function requireAdmin(supabase: any, userId: string, user?: any) {
-  const perm = await checkAdminPermissions(userId, user);
+  const perm = await checkAdminPermissions(supabase, userId, user);
   if (perm.isAdmin) return;
   throw new Error("Forbidden: Administrator access required");
 }
 
 async function requireAdminOrManager(supabase: any, userId: string, user?: any) {
-  const perm = await checkAdminPermissions(userId, user);
+  const perm = await checkAdminPermissions(supabase, userId, user);
   if (perm.isAdmin || perm.isManager) return;
   throw new Error("Forbidden: Administrator or Manager access required");
 }
@@ -62,7 +80,7 @@ async function requireAuthorizedToCreateUser(
   targetRole: string,
   user?: any
 ) {
-  const perm = await checkAdminPermissions(userId, user);
+  const perm = await checkAdminPermissions(supabase, userId, user);
   if (perm.isAdmin) return;
   if (targetRole === "driver" && (perm.isManager || perm.isDispatcher)) return;
   throw new Error("Forbidden: You are not authorized to create this type of user");
@@ -974,7 +992,7 @@ export const getAuditLogsAdmin = createServerFn({ method: "GET" })
 
     if (actorIds.length > 0) {
       const [profilesRes, rolesRes] = await Promise.all([
-        client.from("profiles").select("user_id, full_name, phone, role").in("user_id", actorIds),
+        client.from("profiles").select("user_id, full_name, phone").in("user_id", actorIds),
         client.from("user_roles").select("user_id, role").in("user_id", actorIds),
       ]);
 
@@ -988,12 +1006,12 @@ export const getAuditLogsAdmin = createServerFn({ method: "GET" })
         } catch {}
       }
 
-      const profiles = profilesRes.data || [];
-      const rolesData = rolesRes.data || [];
+      const profiles = (profilesRes.data || []) as any[];
+      const rolesData = (rolesRes.data || []) as any[];
 
       for (const id of actorIds) {
         const prof = profiles.find((p: any) => p.user_id === id);
-        const r = rolesData.find((rd: any) => rd.user_id === id)?.role || prof?.role || "user";
+        const r = rolesData.find((rd: any) => rd.user_id === id)?.role || "user";
         const email = emailMap.get(id) || prof?.phone || "N/A";
         actorMap.set(id, {
           name: prof?.full_name || (id === userId ? "Current Administrator" : `Admin #${id.slice(0, 6)}`),
