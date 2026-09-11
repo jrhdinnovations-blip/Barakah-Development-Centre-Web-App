@@ -74,7 +74,7 @@ const REVIEWS = [
   { name: 'Fatima Al-Hassan', role: 'HR Manager', stars: 5, text: 'We use SwiftMove for all our office dispatch runs. Reliable, affordable, and great customer support.' },
 ];
 
-function SwiftMoveLanding() {
+export function SwiftMoveLanding() {
   return (
     <div className="min-h-screen bg-[#080c17] text-slate-200 overflow-x-hidden">
 

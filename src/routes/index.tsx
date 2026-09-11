@@ -2,10 +2,39 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { ArrowRight, Truck, BookOpen, HeartHandshake, Globe2, ShieldCheck, Image as ImageIcon, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { isSwiftmoveDomain } from '@/lib/domain-detection';
+import { SwiftMoveLanding } from './swiftmove';
 
 export const Route = createFileRoute('/')({
-  component: BarakahHomePage,
+  head: () => {
+    const isSwift = typeof window !== 'undefined' && isSwiftmoveDomain();
+    if (isSwift) {
+      return {
+        meta: [
+          { title: 'SwiftMove Logistics — Fast, Reliable Deliveries & Ride Hailing' },
+          { name: 'description', content: 'Same-day dispatch, package delivery, and on-demand vehicle hire across Nigeria. Book online in seconds.' },
+          { property: 'og:title', content: 'SwiftMove Logistics — On-Demand Deliveries & Rides' },
+          { property: 'og:description', content: 'Same-day parcel dispatch, live tracking, and on-demand rides.' },
+        ],
+      };
+    }
+    return {
+      meta: [
+        { title: 'Barakah Development Centre — Building a Better Today for a Brighter Tomorrow' },
+        { name: 'description', content: 'A comprehensive ecosystem dedicated to logistics, learning, humanitarian aid, institutional excellence, and sacred travel.' },
+      ],
+    };
+  },
+  component: HomePageDispatcher,
 });
+
+function HomePageDispatcher() {
+  const isSwift = isSwiftmoveDomain();
+  if (isSwift) {
+    return <SwiftMoveLanding />;
+  }
+  return <BarakahHomePage />;
+}
 
 function BarakahHomePage() {
   return (

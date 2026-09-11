@@ -22,6 +22,7 @@ import { TravelHeader } from "@/components/TravelHeader";
 import { PwaInstallBanner } from "@/components/pwa-install-banner";
 import { registerServiceWorker } from "@/pwa-register";
 import { ORG } from "@/lib/site";
+import { isSwiftmoveDomain } from "@/lib/domain-detection";
 
 function NotFoundComponent() {
   return (
@@ -137,48 +138,56 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
-  head: () => ({
-    meta: [
-      { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" },
-      { title: `${ORG.legalName} — ${ORG.tagline}` },
-      {
-        name: "description",
-        content:
-          "Barakah Development Centre empowers people, strengthens institutions and transforms communities through knowledge, leadership, innovation and service.",
-      },
-      { property: "og:title", content: `${ORG.legalName}` },
-      { property: "og:description", content: ORG.tagline },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
+  head: () => {
+    const isSwift = typeof window !== "undefined" && isSwiftmoveDomain();
+    return {
+      meta: [
+        { charSet: "utf-8" },
+        { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" },
+        {
+          title: isSwift
+            ? "SwiftMove Logistics — Fast, Reliable Deliveries & Ride Hailing"
+            : `${ORG.legalName} — ${ORG.tagline}`,
+        },
+        {
+          name: "description",
+          content: isSwift
+            ? "SwiftMove by Barakah Development Centre. On-demand package delivery, dispatch courier, and vehicle hire across Nigeria."
+            : "Barakah Development Centre empowers people, strengthens institutions and transforms communities through knowledge, leadership, innovation and service.",
+        },
+        { property: "og:title", content: isSwift ? "SwiftMove Logistics — On-Demand Deliveries & Rides" : `${ORG.legalName}` },
+        { property: "og:description", content: isSwift ? "Fast, reliable deliveries and ride hailing across Nigeria." : ORG.tagline },
+        { property: "og:type", content: "website" },
+        { name: "twitter:card", content: "summary_large_image" },
 
-      // --- PWA MOBILE CAPABILITIES ---
-      { name: "theme-color", content: "#020617" },
-      { name: "mobile-web-app-capable", content: "yes" },
-      { name: "apple-mobile-web-app-capable", content: "yes" },
-      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
-      { name: "apple-mobile-web-app-title", content: "Barakah" },
-    ],
-    links: [
-      { rel: "stylesheet", href: appCss },
-      // --- FAVICONS & BRAND ICONS ---
-      { rel: "icon", href: "/favicon.ico?v=3", sizes: "any" },
-      { rel: "icon", href: "/favicon-32x32.png?v=3", type: "image/png", sizes: "32x32" },
-      { rel: "icon", href: "/favicon-16x16.png?v=3", type: "image/png", sizes: "16x16" },
-      { rel: "icon", href: "/barakah-centre-logo.png?v=3", type: "image/png" },
-      { rel: "shortcut icon", href: "/favicon.ico?v=3" },
-      { rel: "apple-touch-icon", href: "/apple-touch-icon.png?v=3" },
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Public+Sans:wght@400;500;600;700&display=swap",
-      },
+        // --- PWA MOBILE CAPABILITIES ---
+        { name: "theme-color", content: isSwift ? "#080c17" : "#020617" },
+        { name: "mobile-web-app-capable", content: "yes" },
+        { name: "apple-mobile-web-app-capable", content: "yes" },
+        { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+        { name: "apple-mobile-web-app-title", content: isSwift ? "SwiftMove" : "Barakah" },
+      ],
+      links: [
+        { rel: "stylesheet", href: appCss },
+        // --- FAVICONS & BRAND ICONS ---
+        { rel: "icon", href: isSwift ? "/swiftmove-logo.jpg" : "/favicon.ico?v=3", sizes: "any" },
+        { rel: "icon", href: "/favicon-32x32.png?v=3", type: "image/png", sizes: "32x32" },
+        { rel: "icon", href: "/favicon-16x16.png?v=3", type: "image/png", sizes: "16x16" },
+        { rel: "icon", href: isSwift ? "/swiftmove-logo.jpg" : "/barakah-centre-logo.png?v=3", type: "image/png" },
+        { rel: "shortcut icon", href: isSwift ? "/swiftmove-logo.jpg" : "/favicon.ico?v=3" },
+        { rel: "apple-touch-icon", href: isSwift ? "/swiftmove-logo.jpg" : "/apple-touch-icon.png?v=3" },
+        { rel: "preconnect", href: "https://fonts.googleapis.com" },
+        { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+        {
+          rel: "stylesheet",
+          href: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Public+Sans:wght@400;500;600;700&display=swap",
+        },
 
-      // --- PWA MANIFEST ---
-      { rel: "manifest", href: "/manifest.json?v=3" },
-    ],
-  }),
+        // --- PWA MANIFEST ---
+        { rel: "manifest", href: "/manifest.json?v=3" },
+      ],
+    };
+  },
   shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
@@ -205,17 +214,24 @@ function RootComponent() {
   // Track URL dynamically
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
+  const isSwiftDomain = isSwiftmoveDomain();
+
   // Broadened to catch all variations: /my-swift-move, /swiftmove-move/new, and /my-vehicle-hires
   const isSwiftmove =
+    isSwiftDomain ||
     pathname.includes("swift") ||
     pathname.includes("vehicle") ||
-    (typeof window !== "undefined" && window.location.hostname.includes("swiftmove"));
+    pathname.includes("drive") ||
+    pathname.includes("dispatcher");
+
+  const isLanding = pathname === "/swiftmove" || (pathname === "/" && isSwiftDomain);
 
   // Individualized platform check for Barakah Travel & Tours
   const isTravel =
-    pathname.startsWith("/travel") ||
-    pathname === "/my-journey" ||
-    (typeof window !== "undefined" && window.location.hostname.includes("travel"));
+    !isSwiftDomain &&
+    (pathname.startsWith("/travel") ||
+      pathname === "/my-journey" ||
+      (typeof window !== "undefined" && window.location.hostname.includes("travel")));
 
   // Driver console, Dispatcher, and Admin dashboard get a completely standalone layout — no ecosystem chrome at all
   const isStandaloneApp = pathname.startsWith("/drive") || pathname.startsWith("/admin") || pathname.startsWith("/staff") || pathname.startsWith("/dispatcher");
@@ -256,7 +272,7 @@ function RootComponent() {
       <div className="flex min-h-screen flex-col relative overflow-x-hidden transition-colors duration-300">
 
         {/* Swiftmove Header, Travel Header, or Barakah Centre Header */}
-        {isSwiftmove ? (
+        {isLanding ? null : isSwiftmove ? (
           <SwiftmoveHeader />
         ) : isTravel ? (
           <TravelHeader />
@@ -266,7 +282,7 @@ function RootComponent() {
 
         <main className="flex-1 relative z-10">
           {/* Swiftmove Background Elements */}
-          {isSwiftmove && (
+          {isSwiftmove && !isLanding && (
             <>
               <div
                 className="absolute inset-0 -z-20 w-full h-full opacity-20 pointer-events-none"
@@ -287,7 +303,7 @@ function RootComponent() {
           <Outlet />
         </main>
 
-        {!isSwiftmove && <SiteFooter />}
+        {!isSwiftmove && !isLanding && <SiteFooter />}
       </div>
       )}
 
