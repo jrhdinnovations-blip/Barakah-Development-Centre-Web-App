@@ -24,6 +24,7 @@ import {
     Radio,
     ShieldAlert,
     ChevronRight,
+    Image,
 } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
@@ -216,6 +217,20 @@ const adminNav: RoleNav = {
             title: "Security & Logs",
             items: [
                 { title: "Audit Logs", path: "/admin/audit", icon: ShieldAlert, description: "Security audit & activity history" },
+            ],
+        },
+        {
+            title: "Content & Media",
+            accentColor: "text-violet-400",
+            items: [
+                {
+                    title: "Media Library",
+                    path: "/admin/media",
+                    icon: Image,
+                    description: "Upload & manage site images and videos",
+                    badge: "Upload",
+                    badgeColor: "bg-violet-500/20 text-violet-400",
+                },
             ],
         },
     ],

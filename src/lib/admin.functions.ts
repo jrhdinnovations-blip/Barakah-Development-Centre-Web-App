@@ -1216,3 +1216,64 @@ export const confirmUserAccount = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+// ─── Media bucket bootstrap ────────────────────────────────────────────────────
+/**
+ * Ensures the `site-media` public storage bucket exists.
+ * Called from AdminMediaLibrary on mount — safe to call multiple times.
+ */
+export const ensureMediaBucketExists = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId, user } = context;
+
+    // Lightweight admin check
+    const SUPER = ["barakahdevcentre@gmail.com", "barakahdevelopmentcentre@gmail.com"];
+    const email = user?.email?.toLowerCase();
+    const isSuper = email && SUPER.includes(email);
+    const metaRole = user?.user_metadata?.["role"];
+    const isAdminMeta = ["administrator", "admin", "swift_manager"].includes(metaRole || "");
+    if (!isSuper && !isAdminMeta) {
+      const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+      const roleList = (roles || []).map((r: any) => r.role);
+      if (!roleList.some((r: string) => ["administrator", "admin", "swift_manager"].includes(r))) {
+        throw new Error("Forbidden");
+      }
+    }
+
+    const { hasServiceRoleKey, supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    if (!hasServiceRoleKey) {
+      return { created: false, reason: "no-service-key" };
+    }
+
+    const BUCKET = "site-media";
+
+    // Check if bucket exists
+    const { data: existing, error: getErr } = await supabaseAdmin.storage.getBucket(BUCKET);
+
+    if (existing && !getErr) {
+      return { created: false, exists: true };
+    }
+
+    // Create the bucket as public
+    const { error: createErr } = await supabaseAdmin.storage.createBucket(BUCKET, {
+      public: true,
+      allowedMimeTypes: [
+        "image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml",
+        "video/mp4", "video/webm", "video/quicktime", "video/x-msvideo",
+      ],
+      fileSizeLimit: 100 * 1024 * 1024, // 100 MB
+    });
+
+    if (createErr) {
+      // Bucket may have been created concurrently — treat duplicate as success
+      if (
+        createErr.message?.toLowerCase().includes("already exists") ||
+        createErr.message?.toLowerCase().includes("duplicate")
+      ) {
+        return { created: false, exists: true };
+      }
+      throw new Error(`Failed to create storage bucket: ${createErr.message}`);
+    }
+
+    return { created: true };
+  });

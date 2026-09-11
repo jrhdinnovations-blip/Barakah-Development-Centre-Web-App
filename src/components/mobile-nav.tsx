@@ -20,6 +20,7 @@ import {
     Key,
     ShieldAlert,
     LogOut,
+    Image,
 } from 'lucide-react';
 
 import { useAuth } from '@/hooks/use-auth';
@@ -94,6 +95,7 @@ const adminNav = {
                 { title: 'User Management', path: '/admin/users', icon: Users },
                 { title: 'Audit Logs', path: '/admin/audit', icon: ShieldAlert },
                 { title: 'Payments & Ledger', path: '/my-payments', icon: CreditCard },
+                { title: 'Media Library', path: '/admin/media', icon: Image },
             ],
         },
     ],
