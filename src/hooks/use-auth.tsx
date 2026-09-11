@@ -18,6 +18,14 @@ export function useAuth() {
           .select('role')
           .eq('user_id', user.id);
         
+        const SUPER_ADMINS = ['barakahdevcentre@gmail.com', 'barakahdevelopmentcentre@gmail.com'];
+        const email = user.email?.toLowerCase();
+        if (email && SUPER_ADMINS.includes(email)) {
+          setRole('administrator');
+          setLoading(false);
+          return;
+        }
+
         const roles = (roleRows || []).map((r: any) => r.role);
         const metaRole = user.user_metadata?.['role'] as string | undefined;
         if (metaRole && !roles.includes(metaRole)) roles.push(metaRole);
@@ -52,6 +60,14 @@ export function useAuth() {
       const currentUser = session?.user ?? null;
       setUser(currentUser);
       if (currentUser) {
+        const SUPER_ADMINS = ['barakahdevcentre@gmail.com', 'barakahdevelopmentcentre@gmail.com'];
+        const email = currentUser.email?.toLowerCase();
+        if (email && SUPER_ADMINS.includes(email)) {
+          setRole('administrator');
+          setLoading(false);
+          return;
+        }
+
         const { data: roleRows } = await supabase
           .from('user_roles')
           .select('role')

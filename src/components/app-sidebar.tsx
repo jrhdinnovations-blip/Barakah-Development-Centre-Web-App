@@ -1,4 +1,4 @@
-﻿import { Link, useLocation } from "@tanstack/react-router";
+import { Link, useLocation } from "@tanstack/react-router";
 import {
     Package,
     Truck,
@@ -114,46 +114,41 @@ const driverNav: RoleNav = {
 };
 
 // ─── Admin Nav ────────────────────────────────────────────────────────────────
-// Scalable: add/remove items per section without touching the render logic.
-
 const adminNav: RoleNav = {
     roleLabel: "Administrator",
     roleColor: "text-purple-400",
     roleBg: "bg-purple-500/10 border-purple-500/20",
     roleDot: "bg-purple-400",
     sections: [
-        // 1. Dashboard overview
         {
             title: "Overview",
             items: [
-                { title: "Dashboard", path: "/admin", icon: Activity, description: "System overview & metrics" },
+                { title: "Dashboard", path: "/admin", icon: Activity, description: "System overview & operations metrics" },
             ],
         },
-
-        // 2. Users management
         {
-            title: "Users",
+            title: "Users Management",
             accentColor: "text-blue-400",
             items: [
                 {
                     title: "All Users",
                     path: "/admin/users",
                     icon: Users,
-                    description: "Browse & manage all accounts",
+                    description: "Browse, view & manage all accounts",
                 },
                 {
                     title: "Add User",
                     path: "/admin/users/create",
                     icon: UserPlus,
-                    description: "Register a new user account",
-                    badge: "New",
+                    description: "Register a new user biodata",
+                    badge: "Add",
                     badgeColor: "bg-blue-500/20 text-blue-400",
                 },
                 {
                     title: "Roles",
                     path: "/admin/users/roles",
                     icon: ShieldCheck,
-                    description: "Manage user role definitions",
+                    description: "Manage role assignments",
                 },
                 {
                     title: "Permissions",
@@ -163,122 +158,70 @@ const adminNav: RoleNav = {
                 },
             ],
         },
-
-        // 3. Staff directory
         {
-            title: "Staff",
+            title: "Staff Management",
             accentColor: "text-emerald-400",
             items: [
                 {
                     title: "Staff Directory",
                     path: "/admin/staff",
                     icon: Users,
-                    description: "Full employee directory",
+                    description: "Full staff roster & employee profiles",
                 },
                 {
                     title: "Add Staff",
                     path: "/admin/staff/add",
                     icon: UserPlus,
-                    description: "Onboard a new staff member",
-                    badge: "New",
+                    description: "Onboard new staff member",
+                    badge: "Add",
                     badgeColor: "bg-emerald-500/20 text-emerald-400",
-                },
-                {
-                    title: "Departments",
-                    path: "/staff/departments",
-                    icon: Building,
-                    description: "Organisational units",
-                },
-                {
-                    title: "Designations",
-                    path: "/staff/designations",
-                    icon: Briefcase,
-                    description: "Job titles & grades",
-                },
-                {
-                    title: "Branches",
-                    path: "/staff/branches",
-                    icon: MapPin,
-                    description: "Office & field locations",
                 },
                 {
                     title: "Company Emails",
                     path: "/admin/emails",
                     icon: Mail,
-                    description: "Domains & mailboxes",
+                    description: "Domains, webmail & mailboxes",
                 },
             ],
         },
-
-        // 4. Riders & drivers
         {
-            title: "Riders & Drivers",
+            title: "Riders & Fleet",
             accentColor: "text-orange-400",
             items: [
                 {
                     title: "All Riders",
                     path: "/admin/riders",
                     icon: Truck,
-                    description: "View full rider fleet",
+                    description: "Fleet drivers, vehicle info & status",
                 },
                 {
                     title: "Add Rider",
                     path: "/admin/riders/add",
                     icon: UserPlus,
-                    description: "Register a new rider / driver",
-                    badge: "New",
+                    description: "Register new dispatch rider or driver",
+                    badge: "Add",
                     badgeColor: "bg-orange-500/20 text-orange-400",
                 },
-                {
-                    title: "Verification",
-                    path: "/admin/riders/verify",
-                    icon: CheckCircle2,
-                    description: "Review & approve documents",
-                },
-                {
-                    title: "Vehicles",
-                    path: "/admin/riders/vehicles",
-                    icon: Car,
-                    description: "Fleet asset management",
-                },
-                {
-                    title: "Documents",
-                    path: "/admin/riders/documents",
-                    icon: FileText,
-                    description: "Compliance & licensing",
-                },
-                {
-                    title: "Performance",
-                    path: "/admin/riders/performance",
-                    icon: BarChart3,
-                    description: "Rider KPIs & metrics",
-                },
             ],
         },
-
-        // 5. Applications
         {
-            title: "Applications",
+            title: "Logistics & Live Ops",
+            accentColor: "text-cyan-400",
             items: [
-                { title: "Dispatcher Console", path: "/dispatcher", icon: Radio, description: "Live ops & trip control" },
-                { title: "Swift Move", path: "/admin/swift-move", icon: Package, description: "Logistics management engine" },
-                { title: "Finance", path: "/admin/finance", icon: CreditCard, description: "Accounts & payroll" },
+                { title: "Dispatcher Console", path: "/dispatcher", icon: Radio, description: "Live dispatch ops & tracking" },
+                { title: "Swift Move Orders", path: "/admin/swift-move", icon: Package, description: "Logistics orders & deliveries" },
             ],
         },
-
-        // 6. System & security
         {
-            title: "System & Security",
+            title: "Security & Logs",
             items: [
-                { title: "Audit Logs", path: "/admin/audit", icon: ShieldAlert, description: "Security event history" },
-                { title: "Settings", path: "/settings", icon: Settings, description: "Platform configuration" },
+                { title: "Audit Logs", path: "/admin/audit", icon: ShieldAlert, description: "Security audit & activity history" },
             ],
         },
     ],
 };
 
 // ─── Dispatcher Nav ───────────────────────────────────────────────────────────
-
 const dispatcherNav: RoleNav = {
     roleLabel: "Dispatcher",
     roleColor: "text-cyan-400",
@@ -289,15 +232,14 @@ const dispatcherNav: RoleNav = {
             title: "Live Operations",
             items: [
                 { title: "Dispatcher Console", path: "/dispatcher", icon: Radio, description: "Live Ops & Trip Control" },
-                { title: "Swift Move", path: "/admin/swift-move", icon: Package, description: "Logistics engine" },
+                { title: "Swift Move Orders", path: "/admin/swift-move", icon: Package, description: "Logistics engine" },
             ],
         },
         {
             title: "Fleet & Riders",
             items: [
-                { title: "All Riders", path: "/admin/riders", icon: Truck, description: "Fleet drivers" },
-                { title: "Vehicles", path: "/admin/riders/vehicles", icon: Car, description: "Fleet assets" },
-                { title: "Performance", path: "/admin/riders/performance", icon: BarChart3, description: "Metrics" },
+                { title: "All Riders", path: "/admin/riders", icon: Truck, description: "Fleet drivers directory" },
+                { title: "Add Rider", path: "/admin/riders/add", icon: UserPlus, description: "Onboard fleet rider" },
             ],
         },
         {
@@ -310,11 +252,14 @@ const dispatcherNav: RoleNav = {
 };
 
 // ─── Role resolver ────────────────────────────────────────────────────────────
-
-function getRoleConfig(role: string): RoleNav {
-    if (role === "driver") return driverNav;
+function getRoleConfig(role: string, user?: any): RoleNav {
+    const email = user?.email?.toLowerCase();
+    if (email === "barakahdevcentre@gmail.com" || email === "barakahdevelopmentcentre@gmail.com") {
+        return adminNav;
+    }
+    if (role === "driver" || role === "dispatch_rider") return driverNav;
     if (role === "swift_dispatcher" || role === "dispatcher") return dispatcherNav;
-    if (role === "administrator" || role === "swift_manager") return adminNav;
+    if (role === "administrator" || role === "admin" || role === "swift_manager") return adminNav;
     return customerNav;
 }
 
@@ -385,7 +330,7 @@ export function AppSidebar({ className = "" }: SidebarProps) {
     const user = auth?.user || auth?.session?.user;
     const logout = auth?.logout || auth?.signOut;
     const role = auth?.role ?? "registered_user";
-    const config = getRoleConfig(role);
+    const config = getRoleConfig(role, user);
 
     const displayName =
         user?.user_metadata?.full_name || user?.email || "User";

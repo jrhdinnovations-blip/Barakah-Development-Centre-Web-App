@@ -42,25 +42,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
+import { requireAdminRouteAccess } from '@/lib/admin-auth';
+
 export const Route = createFileRoute('/_authenticated/admin/staff/add')({
   ssr: false,
   beforeLoad: async () => {
-    try {
-      const { data, error } = await supabase.auth.getUser();
-      const user = data?.user;
-      if (error || !user) throw redirect({ to: '/auth', search: { mode: 'login' } });
-      const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      const role = roleData?.role ?? user.user_metadata?.['role'] ?? 'registered_user';
-      if (role !== 'administrator' && role !== 'swift_manager')
-        throw redirect({ to: '/my-barakah' });
-    } catch (err: any) {
-      if (err?.isRedirect || err?.to || err?.statusCode) throw err;
-      throw redirect({ to: '/auth', search: { mode: 'login' } });
-    }
+    await requireAdminRouteAccess();
   },
   head: () => ({
     meta: [
@@ -555,10 +542,27 @@ function AddStaffAdminPage() {
 
           {/* Login Credentials */}
           <section className="rounded-2xl border border-slate-800 bg-[#0a0f1c] p-6 space-y-5">
-            <h2 className="text-xs font-bold text-amber-400 uppercase tracking-widest flex items-center gap-2">
-              <Lock className="h-3.5 w-3.5" />
-              Login Credentials
-            </h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-xs font-bold text-amber-400 uppercase tracking-widest flex items-center gap-2">
+                <Lock className="h-3.5 w-3.5" />
+                Login Credentials
+              </h2>
+              <button
+                type="button"
+                onClick={() => {
+                  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#';
+                  let r = '';
+                  for (let i = 0; i < 8; i++) r += chars.charAt(Math.floor(Math.random() * chars.length));
+                  const pass = `Staff@${r}`;
+                  set('password')(pass);
+                  setShowPass(true);
+                  toast.info('Temporary password auto-generated!');
+                }}
+                className="text-[11px] font-semibold text-amber-400 hover:text-amber-300 flex items-center gap-1 transition-colors"
+              >
+                <Sparkles className="h-3 w-3" /> Auto-Generate
+              </button>
+            </div>
             <Field label="Temporary Password" icon={Lock} required>
               <div className="relative">
                 <Input
@@ -567,7 +571,7 @@ function AddStaffAdminPage() {
                   value={form.password}
                   onChange={(e) => set('password')(e.target.value)}
                   placeholder="Min 8 characters"
-                  className="bg-slate-900 border-slate-700 h-11 pr-11"
+                  className="bg-slate-900 border-slate-700 h-11 pr-11 font-mono"
                 />
                 <button
                   type="button"
@@ -577,6 +581,26 @@ function AddStaffAdminPage() {
                   {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
+              {form.password && (
+                <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                  {[
+                    ['Length ≥ 8', form.password.length >= 8],
+                    ['Has uppercase', /[A-Z]/.test(form.password)],
+                    ['Has number', /\d/.test(form.password)],
+                  ].map(([hint, ok]) => (
+                    <span
+                      key={hint as string}
+                      className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                        ok
+                          ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                          : 'bg-slate-800 text-slate-500'
+                      }`}
+                    >
+                      {ok ? '✓' : '○'} {hint}
+                    </span>
+                  ))}
+                </div>
+              )}
               <p className="text-xs text-slate-500 mt-1.5">
                 The staff member should change this password after their first login.
               </p>

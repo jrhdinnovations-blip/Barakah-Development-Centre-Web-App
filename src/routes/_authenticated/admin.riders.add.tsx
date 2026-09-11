@@ -1,34 +1,40 @@
 import { useState } from 'react';
-import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Truck, ArrowLeft, Loader2, Eye, EyeOff, UserPlus, Bike, Car, Shield, Palette } from 'lucide-react';
+import { Truck, ArrowLeft, Loader2, Eye, EyeOff, UserPlus, Bike, Car, CheckCircle2, Copy, Check, Sparkles, Phone, Mail, Lock } from 'lucide-react';
 import { createUserAdmin } from '@/lib/admin.functions';
+import { requireAdminRouteAccess } from '@/lib/admin-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 export const Route = createFileRoute('/_authenticated/admin/riders/add')({
   ssr: false,
   beforeLoad: async () => {
-    try {
-      const { data, error } = await supabase.auth.getUser();
-      const user = data?.user;
-      if (error || !user) throw redirect({ to: '/auth', search: { mode: 'login' } });
-      const { data: roleData } = await supabase.from('user_roles').select('role').eq('user_id', user.id).maybeSingle();
-      const role = roleData?.role ?? user.user_metadata?.['role'] ?? 'registered_user';
-      if (role !== 'administrator' && role !== 'swift_manager') throw redirect({ to: '/my-swift-move' });
-    } catch (err: any) {
-      if (err?.isRedirect || err?.to || err?.statusCode) throw err;
-      throw redirect({ to: '/auth', search: { mode: 'login' } });
-    }
+    await requireAdminRouteAccess(['administrator', 'admin', 'swift_manager', 'swift_dispatcher', 'dispatcher']);
   },
+  head: () => ({
+    meta: [
+      { title: 'Onboard Fleet Personnel — Barakah Admin' },
+      { name: 'robots', content: 'noindex' },
+    ],
+  }),
   component: AddRiderPage,
 });
+
+function generatePassword() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  let r = '';
+  for (let i = 0; i < 8; i++) r += chars.charAt(Math.floor(Math.random() * chars.length));
+  return `Fleet@${r}`;
+}
 
 function AddRiderPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
+  const [done, setDone] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [form, setForm] = useState({
     full_name: '',
     email: '',
@@ -133,13 +139,97 @@ function AddRiderPage() {
       toast.success(
         `${form.category === 'dispatch_rider' ? 'Dispatch Rider' : 'Driver'} ${form.full_name} (${form.vehicle_make || form.vehicle_type}) onboarded successfully!`
       );
-      navigate({ to: '/admin/riders' as any });
+      setDone(true);
     } catch (e: any) {
       toast.error('Failed to add personnel: ' + (e.message || e.toString()));
     } finally {
       setLoading(false);
     }
   };
+
+  const handleCopyCredentials = () => {
+    const text = [
+      '=== Barakah Fleet Personnel Account ===',
+      `Name: ${form.full_name}`,
+      `Category: ${form.category === 'dispatch_rider' ? 'Dispatch Rider' : 'Vehicle Driver'}`,
+      `Email: ${form.email}`,
+      `Phone: ${form.phone}`,
+      `Password: ${form.password}`,
+      `Vehicle: ${form.vehicle_color} ${form.vehicle_make} (${form.vehicle_type})`,
+      `Plate: ${form.plate_number || 'N/A'}`,
+      `Login: https://barakahdevcentre.com/auth`,
+      '======================================',
+    ].join('\n');
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    toast.success('Personnel credentials copied!');
+    setTimeout(() => setCopied(false), 3000);
+  };
+
+  /* ─── Success Screen ─── */
+  if (done) {
+    const isRider = form.category === 'dispatch_rider';
+    return (
+      <div className="min-h-screen bg-[#070b14] flex items-center justify-center p-6">
+        <div className="w-full max-w-md">
+          <div className={`rounded-2xl border ${isRider ? 'border-amber-500/30 shadow-amber-500/10' : 'border-blue-500/30 shadow-blue-500/10'} bg-[#0a0f1c] p-8 space-y-6 shadow-2xl text-center`}>
+            <div className={`h-20 w-20 rounded-full ${isRider ? 'bg-amber-500/10 border-amber-500/30' : 'bg-blue-500/10 border-blue-500/30'} border-2 flex items-center justify-center mx-auto`}>
+              <CheckCircle2 className={`h-10 w-10 ${isRider ? 'text-amber-400' : 'text-blue-400'}`} />
+            </div>
+            <div>
+              <h2 className="text-2xl font-black text-white">Personnel Onboarded!</h2>
+              <p className="text-slate-400 text-sm mt-2">
+                <span className="text-white font-semibold">{form.full_name}</span> is now active as a{' '}
+                <span className={`font-semibold ${isRider ? 'text-amber-400' : 'text-blue-400'}`}>
+                  {isRider ? 'Dispatch Rider' : 'Vehicle Driver'}
+                </span>.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2 text-left text-xs">
+              {[
+                { label: 'Name', value: form.full_name },
+                { label: 'Email', value: form.email },
+                { label: 'Phone', value: form.phone },
+                { label: 'Vehicle', value: `${form.vehicle_color} ${form.vehicle_make || form.vehicle_type}` },
+                { label: 'Plate No.', value: form.plate_number || 'Not provided' },
+              ].map(({ label, value }) => (
+                <div key={label} className="flex items-center justify-between gap-4 pb-1.5 border-b border-slate-800 last:border-0 last:pb-0">
+                  <span className="font-bold text-slate-500 uppercase tracking-wider shrink-0">{label}</span>
+                  <span className="font-mono text-slate-200 text-right truncate">{value}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="space-y-3">
+              <Button onClick={handleCopyCredentials} className={`w-full font-bold gap-2 ${isRider ? 'bg-amber-600 hover:bg-amber-500' : 'bg-blue-600 hover:bg-blue-500'}`}>
+                {copied ? <><Check className="h-4 w-4" />Copied!</> : <><Copy className="h-4 w-4" />Copy Credentials</>}
+              </Button>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="outline"
+                  className="border-slate-700 text-slate-300 hover:text-white text-xs gap-1.5"
+                  onClick={() => {
+                    setForm({ full_name: '', email: '', phone: '', password: '', category: 'driver', vehicle_type: 'Sedan', vehicle_make: '', plate_number: '', vehicle_color: 'Silver' });
+                    setDone(false);
+                  }}
+                >
+                  <UserPlus className="h-3.5 w-3.5" /> Add Another
+                </Button>
+                <Button
+                  variant="outline"
+                  className="border-slate-700 text-slate-300 hover:text-white text-xs"
+                  onClick={() => navigate({ to: '/admin/riders' as any })}
+                >
+                  Fleet Directory
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#070b14] p-6">
@@ -254,7 +344,21 @@ function AddRiderPage() {
                 />
               </div>
               <div className="sm:col-span-2">
-                <label className="text-xs font-medium text-slate-300">Temporary Password <span className="text-red-400">*</span></label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-medium text-slate-300">Temporary Password <span className="text-red-400">*</span></label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const p = generatePassword();
+                      setForm(prev => ({ ...prev, password: p }));
+                      setShowPass(true);
+                      toast.info('Password auto-generated!');
+                    }}
+                    className="text-[11px] font-semibold text-amber-400 hover:text-amber-300 flex items-center gap-1"
+                  >
+                    <Sparkles className="h-3 w-3" /> Auto-Generate
+                  </button>
+                </div>
                 <div className="relative mt-1">
                   <Input
                     type={showPass ? 'text' : 'password'}

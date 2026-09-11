@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { createFileRoute, redirect } from '@tanstack/react-router';
-import { supabase } from '@/integrations/supabase/client';
+import { createFileRoute } from '@tanstack/react-router';
 import { toast } from 'sonner';
 import { ShieldCheck, Plus, Trash2, Shield, Truck, User, Settings, Radio } from 'lucide-react';
+import { requireAdminRouteAccess } from '@/lib/admin-auth';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -10,17 +10,7 @@ import { Input } from '@/components/ui/input';
 export const Route = createFileRoute('/_authenticated/admin/users/roles')({
   ssr: false,
   beforeLoad: async () => {
-    try {
-      const { data, error } = await supabase.auth.getUser();
-      const user = data?.user;
-      if (error || !user) throw redirect({ to: '/auth', search: { mode: 'login' } });
-      const { data: roleData } = await supabase.from('user_roles').select('role').eq('user_id', user.id).maybeSingle();
-      const role = roleData?.role ?? user.user_metadata?.['role'] ?? 'registered_user';
-      if (role !== 'administrator') throw redirect({ to: '/my-swift-move' });
-    } catch (err: any) {
-      if (err?.isRedirect || err?.to || err?.statusCode) throw err;
-      throw redirect({ to: '/auth', search: { mode: 'login' } });
-    }
+    await requireAdminRouteAccess();
   },
   component: RolesPage,
 });

@@ -3,43 +3,56 @@ import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+const SUPER_ADMIN_EMAILS = [
+  "barakahdevcentre@gmail.com",
+  "barakahdevelopmentcentre@gmail.com",
+];
+
+async function checkAdminPermissions(userId: string, user?: any) {
+  const email = user?.email?.toLowerCase();
+  if (email && SUPER_ADMIN_EMAILS.includes(email)) {
+    return { isAdmin: true, isManager: true, isDispatcher: true };
+  }
+
+  const metaRole = user?.user_metadata?.['role'];
+  if (metaRole === "administrator" || metaRole === "admin") {
+    return { isAdmin: true, isManager: true, isDispatcher: true };
+  }
+  if (metaRole === "swift_manager") {
+    return { isAdmin: false, isManager: true, isDispatcher: true };
+  }
+  if (metaRole === "swift_dispatcher" || metaRole === "dispatcher") {
+    return { isAdmin: false, isManager: false, isDispatcher: true };
+  }
+
+  try {
+    const { hasServiceRoleKey, supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    if (hasServiceRoleKey) {
+      const { data: roles } = await supabaseAdmin
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId)
+        .eq("status", "active");
+      const list = (roles || []).map((r: any) => r.role);
+      const isAdmin = list.includes("administrator") || list.includes("admin");
+      const isManager = isAdmin || list.includes("swift_manager");
+      const isDispatcher = isManager || list.includes("swift_dispatcher") || list.includes("dispatcher");
+      return { isAdmin, isManager, isDispatcher };
+    }
+  } catch {}
+
+  return { isAdmin: false, isManager: false, isDispatcher: false };
+}
+
 async function requireAdmin(supabase: any, userId: string, user?: any) {
-  if (user?.user_metadata?.role === "administrator") return;
-
-  try {
-    const { data: isAdmin, error } = await supabase.rpc("has_role", {
-      _user_id: userId,
-      _role: "administrator",
-    });
-    if (!error && isAdmin) return;
-  } catch {}
-
-  try {
-    const { data: roles } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .eq("status", "active");
-    if (roles?.some((r: any) => r.role === "administrator")) return;
-  } catch {}
-
-  throw new Error("Forbidden");
+  const perm = await checkAdminPermissions(userId, user);
+  if (perm.isAdmin) return;
+  throw new Error("Forbidden: Administrator access required");
 }
 
 async function requireAdminOrManager(supabase: any, userId: string, user?: any) {
-  const metaRole = user?.user_metadata?.role;
-  if (metaRole === "administrator" || metaRole === "swift_manager") return;
-
-  try {
-    const { data: roles } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .eq("status", "active");
-    const roleList = (roles || []).map((r: any) => r.role);
-    if (roleList.includes("administrator") || roleList.includes("swift_manager")) return;
-  } catch {}
-
+  const perm = await checkAdminPermissions(userId, user);
+  if (perm.isAdmin || perm.isManager) return;
   throw new Error("Forbidden: Administrator or Manager access required");
 }
 
@@ -49,43 +62,10 @@ async function requireAuthorizedToCreateUser(
   targetRole: string,
   user?: any
 ) {
-  const metaRole = user?.user_metadata?.role;
-  if (metaRole === "administrator") return;
-  if (targetRole === "driver" && (metaRole === "swift_manager" || metaRole === "swift_dispatcher")) {
-    return;
-  }
-
-  // Check database user_roles table
-  try {
-    const { data: roles } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .eq("status", "active");
-    const roleList = (roles || []).map((r: any) => r.role);
-    if (roleList.includes("administrator")) return;
-    if (targetRole === "driver" && (roleList.includes("swift_manager") || roleList.includes("swift_dispatcher"))) {
-      return;
-    }
-  } catch {}
-
-  // Also check RPCs
-  if (targetRole === "driver") {
-    try {
-      const { data: isSwift } = await supabase.rpc("is_swift_staff", { _user_id: userId });
-      if (isSwift) return;
-    } catch {}
-  }
-
-  try {
-    const { data: isAdmin } = await supabase.rpc("has_role", {
-      _user_id: userId,
-      _role: "administrator",
-    });
-    if (isAdmin) return;
-  } catch {}
-
-  throw new Error("Forbidden");
+  const perm = await checkAdminPermissions(userId, user);
+  if (perm.isAdmin) return;
+  if (targetRole === "driver" && (perm.isManager || perm.isDispatcher)) return;
+  throw new Error("Forbidden: You are not authorized to create this type of user");
 }
 
 export const getAdminOverview = createServerFn({ method: "GET" })
@@ -343,18 +323,7 @@ export const createStaffAdmin = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId, user } = context;
-    const metaRole = user?.user_metadata?.['role'] as string | undefined;
-    let isAllowed = metaRole === "administrator" || metaRole === "swift_manager";
-    if (!isAllowed) {
-      const { data: roles } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", userId)
-        .eq("status", "active");
-      const roleList = (roles || []).map((r: any) => r.role);
-      isAllowed = roleList.includes("administrator") || roleList.includes("swift_manager");
-    }
-    if (!isAllowed) throw new Error("Forbidden: Only administrators and managers can add staff");
+    await requireAdminOrManager(supabase, userId, user);
 
     const { hasServiceRoleKey, supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -456,18 +425,7 @@ export const getStaffMembersAdmin = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId, user } = context;
-    const metaRole = user?.user_metadata?.['role'] as string | undefined;
-    let isAllowed = metaRole === "administrator" || metaRole === "swift_manager";
-    if (!isAllowed) {
-      const { data: roles } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", userId)
-        .eq("status", "active");
-      const roleList = (roles || []).map((r: any) => r.role);
-      isAllowed = roleList.includes("administrator") || roleList.includes("swift_manager");
-    }
-    if (!isAllowed) throw new Error("Forbidden");
+    await requireAdminOrManager(supabase, userId, user);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -513,19 +471,30 @@ export const getStaffMembersAdmin = createServerFn({ method: "GET" })
       }
     }
 
+    // Fetch real emails and user_metadata from auth admin API
+    let authUserMap = new Map<string, any>();
+    try {
+      const { data: authData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+      for (const u of (authData?.users || [])) {
+        authUserMap.set(u.id, u);
+      }
+    } catch {}
+
     return staffUserIds.map(uid => {
       const profile = allProfiles.find((p: any) => p.user_id === uid);
+      const authUser = authUserMap.get(uid);
+      const meta = authUser?.user_metadata || {};
       return {
         user_id: uid,
-        full_name: profile?.full_name || 'Unnamed Staff',
-        email: 'N/A',
-        phone: profile?.phone || null,
-        department: null,
-        designation: null,
-        branch: null,
-        employee_id: null,
+        full_name: profile?.full_name || meta['full_name'] || 'Unnamed Staff',
+        email: authUser?.email || 'N/A',
+        phone: profile?.phone || meta['phone'] || null,
+        department: meta['department'] || null,
+        designation: meta['designation'] || null,
+        branch: meta['branch'] || null,
+        employee_id: meta['employee_id'] || null,
         role: roleMap.get(uid) || 'staff',
-        created_at: profile?.created_at || new Date().toISOString(),
+        created_at: profile?.created_at || authUser?.created_at || new Date().toISOString(),
         status: profile?.status || 'active',
       };
     }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
@@ -718,14 +687,7 @@ export const getAllUsersAdmin = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId, user } = context;
-    const metaRole = user?.user_metadata?.['role'] as string | undefined;
-    let isAllowed = metaRole === "administrator" || metaRole === "swift_manager";
-    if (!isAllowed) {
-      const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId).eq("status", "active");
-      const roleList = (roles || []).map((r: any) => r.role);
-      isAllowed = roleList.includes("administrator") || roleList.includes("swift_manager");
-    }
-    if (!isAllowed) throw new Error("Forbidden");
+    await requireAdminOrManager(supabase, userId, user);
 
     const rolePriority: Record<string, number> = {
       administrator: 100,

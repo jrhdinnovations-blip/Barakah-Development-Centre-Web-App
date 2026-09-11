@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
-import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { resetUserPassword, getAllUsersAdmin, updateUserRoleAdmin } from "@/lib/admin.functions";
+import { requireAdminRouteAccess } from "@/lib/admin-auth";
 import { toast } from "sonner";
 import {
   Users,
@@ -35,24 +36,7 @@ import {
 export const Route = createFileRoute("/_authenticated/admin/users/")({
   ssr: false,
   beforeLoad: async () => {
-    try {
-      const { data, error } = await supabase.auth.getUser();
-      const user = data?.user;
-      if (error || !user) throw redirect({ to: "/auth", search: { mode: "login" } });
-      const { data: rolesData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("status", "active");
-      const roles = (rolesData || []).map((r: any) => r.role);
-      const metaRole = user.user_metadata?.['role'] as string | undefined;
-      if (metaRole) roles.push(metaRole);
-      const isAdmin = roles.includes("administrator") || roles.includes("swift_manager");
-      if (!isAdmin) throw redirect({ to: "/my-swift-move" });
-    } catch (err: any) {
-      if (err?.isRedirect || err?.to || err?.statusCode) throw err;
-      throw redirect({ to: "/auth", search: { mode: "login" } });
-    }
+    await requireAdminRouteAccess();
   },
   component: AllUsersPage,
 });
@@ -189,7 +173,7 @@ function AllUsersPage() {
         if (newScore > currentScore) roleMap.set(r.user_id, r.role);
       }
 
-      const merged = profiles.map((p) => ({
+      const merged = profiles.map((p: any) => ({
         user_id: p.user_id,
         full_name: p.full_name || "Unnamed User",
         phone: p.phone || null,

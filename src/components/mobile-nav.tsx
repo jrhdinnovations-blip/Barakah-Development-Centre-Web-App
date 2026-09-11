@@ -19,6 +19,7 @@ import {
     Radio,
     Key,
     ShieldAlert,
+    LogOut,
 } from 'lucide-react';
 
 import { useAuth } from '@/hooks/use-auth';
