@@ -30,18 +30,33 @@ function isNewSupabaseApiKey(value: string): boolean {
 }
 
 function createSupabaseFetch(supabaseKey: string): typeof fetch {
+  const isOpaque = isNewSupabaseApiKey(supabaseKey);
+
   return (input, init) => {
+    const url =
+      typeof input === 'string'
+        ? input
+        : input instanceof URL
+          ? input.href
+          : (input as Request).url;
+
     const headers = new Headers(
       typeof Request !== 'undefined' && input instanceof Request ? input.headers : undefined,
     );
 
     if (init?.headers) {
-      new Headers(init.headers).forEach((value, key) => headers.set(key, value));
+      new Headers(init.headers as HeadersInit).forEach((value, key) => headers.set(key, value));
     }
 
-    // New Supabase API keys are opaque strings, not bearer JWTs.
-    if (isNewSupabaseApiKey(supabaseKey) && headers.get('Authorization') === `Bearer ${supabaseKey}`) {
-      headers.delete('Authorization');
+    if (isOpaque) {
+      const authHeader = headers.get('Authorization');
+      const isAuthEndpoint = url.includes('/auth/v1/');
+      if (!isAuthEndpoint && authHeader === `Bearer ${supabaseKey}`) {
+        // Strip the opaque API key when it was incorrectly sent as a Bearer token
+        // to PostgREST / Storage endpoints — they only accept `apikey` header.
+        // Auth endpoints always keep their header (could be a user JWT).
+        headers.delete('Authorization');
+      }
     }
 
     headers.set('apikey', supabaseKey);
