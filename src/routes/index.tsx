@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { ArrowRight, Truck, BookOpen, HeartHandshake, Globe2, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Truck, BookOpen, HeartHandshake, Globe2, ShieldCheck, Image as ImageIcon, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -152,7 +152,7 @@ function BarakahHomePage() {
             </Card>
 
             {/* Peace & Institutional Card */}
-            <Card className="bg-slate-900 border-slate-800 hover:border-rose-500/50 transition-colors group lg:col-span-2">
+            <Card className="bg-slate-900 border-slate-800 hover:border-rose-500/50 transition-colors group">
               <CardHeader>
                 <div className="h-12 w-12 rounded-lg bg-rose-500/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <ShieldCheck className="h-6 w-6 text-rose-400" />
@@ -168,6 +168,75 @@ function BarakahHomePage() {
                 </Link>
               </CardContent>
             </Card>
+
+            {/* Media & Insights Card */}
+            <Card className="bg-slate-900 border-slate-800 hover:border-amber-500/50 transition-colors group">
+              <CardHeader>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="h-12 w-12 rounded-lg bg-amber-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <ImageIcon className="h-6 w-6 text-amber-400" />
+                  </div>
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400/90 border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 rounded-md">
+                    Galleries &amp; Films
+                  </span>
+                </div>
+                <CardTitle className="text-white text-xl">Media &amp; Insights</CardTitle>
+                <CardDescription className="text-slate-400">
+                  Watch official documentaries, browse field galleries, and read thought leadership articles.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Link to="/media-and-insights" className="text-sm text-amber-400 hover:text-amber-300 font-medium inline-flex items-center">
+                  Explore Media &amp; Insights <ArrowRight className="ml-1 h-4 w-4" />
+                </Link>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* FEATURED MEDIA & STORIES BANNER */}
+      <section className="py-16 sm:py-20 bg-gradient-to-b from-slate-900/40 via-[#070b14] to-slate-950 border-t border-slate-800/80">
+        <div className="container mx-auto px-4 sm:px-6">
+          <div className="max-w-5xl mx-auto rounded-3xl bg-gradient-to-r from-slate-900 via-slate-900/90 to-blue-950/40 border border-slate-800 p-8 sm:p-12 flex flex-col md:flex-row items-center justify-between gap-8">
+            <div className="max-w-xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold mb-4">
+                <Sparkles className="h-3.5 w-3.5" />
+                Official Media Stream
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+                Experience Barakah's Work in High Definition
+              </h2>
+              <p className="mt-3 text-sm sm:text-base text-slate-400 leading-relaxed">
+                From emergency relief convoys and community convocation ceremonies to pilgrimage orientations and fleet logistics — discover our stories captured live.
+              </p>
+              <div className="mt-6 flex flex-wrap gap-4">
+                <Link to="/media-and-insights">
+                  <Button className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold">
+                    View Photo &amp; Video Gallery <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 shrink-0 w-full sm:w-auto">
+              <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 text-center">
+                <p className="text-2xl font-black text-amber-400">HD</p>
+                <p className="text-xs text-slate-400 mt-1">Photo Gallery</p>
+              </div>
+              <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 text-center">
+                <p className="text-2xl font-black text-emerald-400">4K</p>
+                <p className="text-xs text-slate-400 mt-1">Video Stories</p>
+              </div>
+              <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 text-center">
+                <p className="text-2xl font-black text-blue-400">Live</p>
+                <p className="text-xs text-slate-400 mt-1">Admin Updates</p>
+              </div>
+              <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 text-center">
+                <p className="text-2xl font-black text-purple-400">100%</p>
+                <p className="text-xs text-slate-400 mt-1">Authentic</p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
