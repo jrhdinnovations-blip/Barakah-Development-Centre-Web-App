@@ -82,13 +82,13 @@ const mapOptions = {
   disableDefaultUI: true,
   zoomControl: false,
   styles: [
-    { elementType: 'geometry', stylers: [{ color: '#0d1117' }] },
-    { elementType: 'labels.text.stroke', stylers: [{ color: '#1a2234' }] },
-    { elementType: 'labels.text.fill', stylers: [{ color: '#556780' }] },
-    { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#1e293b' }] },
-    { featureType: 'road.arterial', elementType: 'geometry', stylers: [{ color: '#243047' }] },
-    { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#2d3d55' }] },
-    { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0c1f33' }] },
+    { elementType: 'geometry', stylers: [{ color: '#f8fafc' }] },
+    { elementType: 'labels.text.stroke', stylers: [{ color: '#ffffff' }] },
+    { elementType: 'labels.text.fill', stylers: [{ color: '#475569' }] },
+    { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#ffffff' }] },
+    { featureType: 'road.arterial', elementType: 'geometry', stylers: [{ color: '#ffffff' }] },
+    { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#f1f5f9' }] },
+    { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#bae6fd' }] },
     { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] },
     { featureType: 'transit', elementType: 'labels', stylers: [{ visibility: 'off' }] },
   ],
@@ -904,10 +904,10 @@ function RideHailingDashboard() {
     <div className="space-y-4">
       {/* Location Input Box */}
       <div className="relative">
-        <div className="p-3.5 rounded-2xl bg-slate-800/70 border border-slate-700/60 space-y-3 shadow-sm">
+        <div className="p-3.5 rounded-2xl bg-white border border-slate-200/90 space-y-3 shadow-sm">
           {/* Pickup Input */}
           <div className="relative flex items-center gap-3">
-            <div className="w-3 h-3 rounded-full bg-blue-400 shrink-0 shadow-[0_0_8px_rgba(59,130,246,0.6)]" />
+            <div className="w-3 h-3 rounded-full bg-blue-500 shrink-0 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
             <input
               ref={pickupInputRef}
               type="text"
@@ -957,7 +957,7 @@ function RideHailingDashboard() {
                 }
               }}
               placeholder="Pickup location (e.g. Terminus, Rayfield, UNIJOS)..."
-              className="w-full py-2 bg-transparent text-sm text-white placeholder-white/40 focus:outline-none"
+              className="w-full py-2 bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
             />
             {pickupText ? (
               <button
@@ -967,7 +967,7 @@ function RideHailingDashboard() {
                   setPickup(null);
                   if (pickupInputRef.current) pickupInputRef.current.value = '';
                 }}
-                className="text-white/40 hover:text-white p-1"
+                className="text-slate-400 hover:text-slate-700 p-1"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -976,11 +976,11 @@ function RideHailingDashboard() {
                 type="button"
                 onClick={handleLocateMe}
                 disabled={isLocatingGps}
-                className="text-blue-400 hover:text-blue-300 p-1 transition-colors flex items-center gap-1"
+                className="text-blue-600 hover:text-blue-700 p-1 transition-colors flex items-center gap-1"
                 title="Use Live GPS Location"
               >
                 {isLocatingGps ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
+                  <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
                 ) : (
                   <Locate className="w-4 h-4" />
                 )}
@@ -990,12 +990,12 @@ function RideHailingDashboard() {
 
           {/* Divider with Swap Action */}
           <div className="flex items-center gap-2 pl-1.5 pr-1">
-            <div className="w-px h-3 bg-white/20 ml-[5px]" />
-            <div className="flex-1 h-px bg-white/8" />
+            <div className="w-px h-3 bg-slate-300 ml-[5px]" />
+            <div className="flex-1 h-px bg-slate-200" />
             <button
               type="button"
               onClick={handleSwapLocations}
-              className="p-1 rounded-full bg-white/5 hover:bg-white/10 text-white/50 hover:text-white transition-all text-xs flex items-center gap-1 px-2"
+              className="p-1 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition-all text-xs flex items-center gap-1 px-2"
               title="Swap locations"
             >
               <ArrowUpDown className="w-3 h-3" />
@@ -1005,7 +1005,7 @@ function RideHailingDashboard() {
 
           {/* Dropoff Input */}
           <div className="relative flex items-center gap-3">
-            <div className="w-3 h-3 rounded-full bg-orange-400 shrink-0 shadow-[0_0_8px_rgba(249,115,22,0.6)]" />
+            <div className="w-3 h-3 rounded-full bg-orange-500 shrink-0 shadow-[0_0_8px_rgba(249,115,22,0.5)]" />
             <input
               ref={dropoffInputRef}
               type="text"
@@ -1055,7 +1055,7 @@ function RideHailingDashboard() {
                 }
               }}
               placeholder="Where to? (e.g. Airport, Bukuru, JUTH)..."
-              className="w-full py-2 bg-transparent text-sm text-white placeholder-white/40 focus:outline-none"
+              className="w-full py-2 bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
             />
             {dropoffText && (
               <button
@@ -1065,7 +1065,7 @@ function RideHailingDashboard() {
                   setDropoff(null);
                   if (dropoffInputRef.current) dropoffInputRef.current.value = '';
                 }}
-                className="text-white/40 hover:text-white p-1"
+                className="text-slate-400 hover:text-slate-700 p-1"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -1075,15 +1075,15 @@ function RideHailingDashboard() {
 
         {/* Real-time Suggestions Overlay */}
         {activeSuggestionField && liveSuggestions.length > 0 && (
-          <div className="absolute top-full left-0 right-0 mt-2 z-50 rounded-2xl bg-slate-900/95 border border-slate-800 backdrop-blur-xl shadow-2xl overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150">
-            <div className="px-3.5 py-2 border-b border-slate-800/60 flex items-center justify-between bg-slate-950/40">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                <MapPin className="h-3 w-3 text-orange-400" />
+          <div className="absolute top-full left-0 right-0 mt-2 z-50 rounded-2xl bg-white/95 border border-slate-200 backdrop-blur-xl shadow-2xl overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150">
+            <div className="px-3.5 py-2 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                <MapPin className="h-3 w-3 text-orange-500" />
                 Suggested Locations
               </span>
               {isLoadingSuggestions && <Loader2 className="h-3 w-3 animate-spin text-slate-400" />}
             </div>
-            <div className="max-h-52 overflow-y-auto divide-y divide-slate-800/40 custom-scrollbar">
+            <div className="max-h-52 overflow-y-auto divide-y divide-slate-100 custom-scrollbar">
               {liveSuggestions.map((item) => (
                 <button
                   key={item.id}
@@ -1120,14 +1120,14 @@ function RideHailingDashboard() {
                       setDropoff({ address: fullAddress, lat, lng });
                     }
                   }}
-                  className="w-full text-left px-3.5 py-2.5 flex items-start gap-2.5 hover:bg-white/[0.06] active:bg-orange-500/10 transition-colors group"
+                  className="w-full text-left px-3.5 py-2.5 flex items-start gap-2.5 hover:bg-slate-50 active:bg-orange-50 transition-colors group"
                 >
                   <span className="text-sm shrink-0 mt-0.5">{item.iconEmoji || '📍'}</span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold text-white group-hover:text-orange-300 transition-colors truncate">
+                    <p className="text-xs font-semibold text-slate-900 group-hover:text-orange-600 transition-colors truncate">
                       {item.label}
                     </p>
-                    <p className="text-[11px] text-slate-400 truncate mt-0.5">{item.sublabel}</p>
+                    <p className="text-[11px] text-slate-500 truncate mt-0.5">{item.sublabel}</p>
                   </div>
                 </button>
               ))}
@@ -1139,13 +1139,13 @@ function RideHailingDashboard() {
       {/* Quick Destination Chips */}
       {!dropoffText && (
         <div className="space-y-1.5">
-          <p className="text-[11px] text-white/40 font-semibold uppercase tracking-wider">Popular Destinations</p>
+          <p className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider">Popular Destinations</p>
           <div className="flex flex-wrap gap-1.5">
             {POPULAR_DESTINATIONS.map((dest) => (
               <button
                 key={dest.label}
                 onClick={() => handleQuickDestination(dest)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-white/80 hover:bg-blue-600/20 hover:border-blue-500/50 hover:text-white transition-all active:scale-95"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-slate-200 text-xs text-slate-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-900 shadow-sm transition-all active:scale-95"
               >
                 <span>{dest.iconEmoji}</span>
                 <span>{dest.label}</span>
@@ -1157,25 +1157,25 @@ function RideHailingDashboard() {
 
       {/* Route Info Badge (Distance & Duration) */}
       {hasBothLocations && (
-        <div className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-blue-600/10 border border-blue-500/20 text-xs">
-          <div className="flex items-center gap-2 text-white">
-            <Navigation className="w-3.5 h-3.5 text-blue-400" />
+        <div className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-blue-50 border border-blue-200 text-xs">
+          <div className="flex items-center gap-2 text-slate-800">
+            <Navigation className="w-3.5 h-3.5 text-blue-600" />
             {distanceKm > 0 ? (
               <>
-                <span className="font-semibold">{distanceKm} km</span>
-                {durationText && <span className="text-white/40">·</span>}
-                <span className="text-white/70">{durationText}</span>
+                <span className="font-semibold text-slate-900">{distanceKm} km</span>
+                {durationText && <span className="text-slate-300">·</span>}
+                <span className="text-slate-600">{durationText}</span>
               </>
             ) : isCalculatingRoute ? (
-              <span className="flex items-center gap-1.5 text-blue-300 font-medium">
+              <span className="flex items-center gap-1.5 text-blue-700 font-medium">
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 Calculating road route…
               </span>
             ) : (
-              <span className="text-white/50">Resolving route…</span>
+              <span className="text-slate-500">Resolving route…</span>
             )}
           </div>
-          <span className="text-[10px] text-blue-300 font-medium uppercase tracking-wide bg-blue-500/20 px-2 py-0.5 rounded-full">
+          <span className="text-[10px] text-blue-800 font-medium uppercase tracking-wide bg-blue-100 px-2 py-0.5 rounded-full">
             Live Route
           </span>
         </div>
@@ -1184,8 +1184,8 @@ function RideHailingDashboard() {
       {/* Vehicle Tier Picker (Always visible or when locations are entered) */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <p className="text-[11px] text-white/40 font-semibold uppercase tracking-wider">Available Ride Tiers</p>
-          <span className="text-[11px] text-white/40">5 nearby</span>
+          <p className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider">Available Ride Tiers</p>
+          <span className="text-[11px] text-slate-400">5 nearby</span>
         </div>
 
         <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin' }}>
@@ -1200,55 +1200,55 @@ function RideHailingDashboard() {
                 }}
                 className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${
                   isSelected
-                    ? 'bg-blue-600/20 border-blue-500/70 shadow-md shadow-blue-500/10 scale-[1.01]'
-                    : 'bg-white/[0.03] border-white/8 hover:bg-white/[0.06] hover:border-white/15'
+                    ? 'bg-blue-50/90 border-blue-500 shadow-sm shadow-blue-500/10 scale-[1.01]'
+                    : 'bg-white border-slate-200 hover:bg-slate-50/80 hover:border-slate-300 shadow-sm'
                 }`}
               >
-                <div className={`shrink-0 ${isSelected ? 'text-blue-400' : 'text-white/50'}`}>
+                <div className={`shrink-0 ${isSelected ? 'text-blue-600' : 'text-slate-500'}`}>
                   <TierIcon type={tier.iconType} className="w-9 h-9" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className={`font-semibold text-sm ${isSelected ? 'text-white' : 'text-white/90'}`}>
+                    <span className={`font-semibold text-sm ${isSelected ? 'text-slate-900' : 'text-slate-800'}`}>
                       {tier.name}
                     </span>
                     {tier.popular && (
-                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-orange-500/20 text-orange-400 border border-orange-500/30">
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-orange-50 text-orange-700 border border-orange-200">
                         POPULAR
                       </span>
                     )}
                     {tier.tag && !tier.popular && (
-                      <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-blue-500/15 text-blue-300">
+                      <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-800">
                         {tier.tag}
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-white/40 truncate">{tier.subTitle}</p>
+                  <p className="text-xs text-slate-500 truncate">{tier.subTitle}</p>
                   <div className="flex items-center gap-3 mt-1">
-                    <span className="text-[11px] text-white/50 flex items-center gap-1">
+                    <span className="text-[11px] text-slate-500 flex items-center gap-1">
                       <User className="w-3 h-3" /> {tier.capacity} seats
                     </span>
-                    <span className="text-[11px] text-white/50 flex items-center gap-1">
+                    <span className="text-[11px] text-slate-500 flex items-center gap-1">
                       <Clock className="w-3 h-3" /> {tier.etaMinutes} min away
                     </span>
                   </div>
                 </div>
                 <div className="shrink-0 text-right">
                   {isCalculatingRoute ? (
-                    <div className="flex items-center justify-end py-1 text-blue-300">
+                    <div className="flex items-center justify-end py-1 text-blue-600">
                       <Loader2 className="w-4 h-4 animate-spin" />
                     </div>
                   ) : (
                     <>
-                      <p className={`font-bold text-base ${isSelected ? 'text-blue-300' : 'text-white'}`}>
+                      <p className={`font-bold text-base ${isSelected ? 'text-blue-700' : 'text-slate-900'}`}>
                         ₦{tier.fare.toLocaleString()}
                       </p>
                       {distanceKm <= 0 && (
-                        <p className="text-[9px] text-white/40">base fare</p>
+                        <p className="text-[9px] text-slate-400">base fare</p>
                       )}
                     </>
                   )}
-                  {isSelected && <Check className="w-4 h-4 text-blue-400 ml-auto mt-0.5" />}
+                  {isSelected && <Check className="w-4 h-4 text-blue-600 ml-auto mt-0.5" />}
                 </div>
               </button>
             );
@@ -1257,13 +1257,13 @@ function RideHailingDashboard() {
       </div>
 
       {/* InDrive Negotiable Fare Toggle */}
-      <div className="p-3 rounded-xl bg-white/[0.03] border border-white/8 space-y-2">
+      <div className="p-3 rounded-xl bg-white border border-slate-200/90 space-y-2 shadow-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-orange-400" />
+            <Sparkles className="w-4 h-4 text-orange-500" />
             <div>
-              <p className="text-xs font-semibold text-white/90">Offer Your Fare (InDrive style)</p>
-              <p className="text-[10px] text-white/40">Negotiate your own price with nearby drivers</p>
+              <p className="text-xs font-semibold text-slate-900">Offer Your Fare (InDrive style)</p>
+              <p className="text-[10px] text-slate-500">Negotiate your own price with nearby drivers</p>
             </div>
           </div>
           <button
@@ -1273,7 +1273,7 @@ function RideHailingDashboard() {
               if (next && customFare <= 0) setCustomFare(activeFare);
             }}
             className={`relative w-10 h-5 rounded-full transition-all ${
-              useInDriveMode ? 'bg-orange-500' : 'bg-white/15'
+              useInDriveMode ? 'bg-orange-500' : 'bg-slate-200'
             }`}
           >
             <div
@@ -1285,21 +1285,21 @@ function RideHailingDashboard() {
         </div>
 
         {useInDriveMode && (
-          <div className="pt-2 border-t border-white/8 space-y-2">
+          <div className="pt-2 border-t border-slate-100 space-y-2">
             <div className="flex items-center justify-between gap-3">
               <button
                 onClick={() => setCustomFare((prev) => Math.max(500, prev - 200))}
-                className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 text-white active:scale-95 transition-all"
+                className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 flex items-center justify-center active:scale-95 transition-all"
               >
                 <Minus className="w-4 h-4" />
               </button>
               <div className="text-center">
-                <p className="text-xl font-bold text-orange-400">₦{customFare.toLocaleString()}</p>
-                <p className="text-[10px] text-white/40">Rec: ₦{activeFare.toLocaleString()}</p>
+                <p className="text-xl font-bold text-orange-600">₦{customFare.toLocaleString()}</p>
+                <p className="text-[10px] text-slate-500">Rec: ₦{activeFare.toLocaleString()}</p>
               </div>
               <button
                 onClick={() => setCustomFare((prev) => prev + 200)}
-                className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 text-white active:scale-95 transition-all"
+                className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 flex items-center justify-center active:scale-95 transition-all"
               >
                 <Plus className="w-4 h-4" />
               </button>
@@ -1312,7 +1312,7 @@ function RideHailingDashboard() {
                   className={`flex-1 text-[11px] py-1 rounded-lg transition-all ${
                     activeFare + diff === customFare
                       ? 'bg-orange-500 text-white font-bold'
-                      : 'bg-white/5 text-white/60 hover:bg-white/10'
+                      : 'bg-slate-100 border border-slate-200 text-slate-700 hover:bg-slate-200'
                   }`}
                 >
                   {diff === 0 ? 'Standard' : diff > 0 ? `+₦${diff}` : `-₦${Math.abs(diff)}`}
@@ -1324,16 +1324,16 @@ function RideHailingDashboard() {
       </div>
 
       {/* Payment Selector Pill */}
-      <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-800/70 border border-slate-700/60 text-xs text-white/80">
-        <span className="text-white/50">Payment:</span>
+      <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs text-slate-700 shadow-sm">
+        <span className="text-slate-500">Payment:</span>
         <div className="flex items-center gap-1.5">
           <button
             type="button"
             onClick={() => setPaymentMethod('paystack')}
             className={`px-3 py-1.5 rounded-lg font-medium transition-all flex items-center gap-1.5 ${
               paymentMethod === 'paystack'
-                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
-                : 'text-white/50 hover:text-white hover:bg-white/5'
+                ? 'bg-emerald-50 text-emerald-800 border border-emerald-300 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
           >
             <span>💳</span> Paystack (Card / Transfer)
@@ -1343,8 +1343,8 @@ function RideHailingDashboard() {
             onClick={() => setPaymentMethod('wallet')}
             className={`px-3 py-1.5 rounded-lg font-medium transition-all flex items-center gap-1.5 ${
               paymentMethod === 'wallet'
-                ? 'bg-blue-600/30 text-blue-300 border border-blue-500/40 shadow-sm'
-                : 'text-white/50 hover:text-white hover:bg-white/5'
+                ? 'bg-blue-50 text-blue-800 border border-blue-300 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
           >
             <span>⚡</span> Swift Wallet
@@ -1359,8 +1359,8 @@ function RideHailingDashboard() {
           disabled={isResolvingLocation || isCalculatingRoute || !hasBothLocations}
           className={`w-full py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98] ${
             hasBothLocations && !isCalculatingRoute && !isResolvingLocation
-              ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white shadow-[0_0_25px_rgba(59,130,246,0.5)] hover:shadow-[0_0_35px_rgba(59,130,246,0.7)] hover:scale-[1.01] border border-blue-400/30 cursor-pointer'
-              : 'bg-slate-800/80 text-slate-500 border border-slate-700/50 cursor-not-allowed opacity-50 shadow-none'
+              ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg shadow-blue-500/30 hover:scale-[1.01] border border-blue-400/30 cursor-pointer'
+              : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-60 shadow-none'
           }`}
         >
           {isResolvingLocation ? (
@@ -1404,43 +1404,43 @@ function RideHailingDashboard() {
     <div className="flex flex-col items-center justify-center py-6 space-y-6">
       <RadarPulse />
       <div className="text-center space-y-1">
-        <p className="font-bold text-lg text-white">Broadcasting request to nearby drivers...</p>
-        <p className="text-sm text-white/50">
-          Waiting for a <span className="text-blue-400 font-semibold">{selectedTier.name}</span> driver to accept ({isSearchingTimer}s)
+        <p className="font-bold text-lg text-slate-900">Broadcasting request to nearby drivers...</p>
+        <p className="text-sm text-slate-500">
+          Waiting for a <span className="text-blue-600 font-semibold">{selectedTier.name}</span> driver to accept ({isSearchingTimer}s)
         </p>
       </div>
 
       {/* Indeterminate Scanning Pulse Bar */}
-      <div className="w-full bg-white/8 rounded-full h-1.5 overflow-hidden relative">
+      <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden relative">
         <div className="h-full bg-gradient-to-r from-blue-500 via-indigo-400 to-blue-500 rounded-full w-2/3 animate-[pulse_1.5s_ease-in-out_infinite]" />
       </div>
 
       <div className="w-full space-y-2 text-sm">
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-white/4 border border-white/6">
-          <MapPin className="w-4 h-4 text-blue-400 shrink-0" />
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200">
+          <MapPin className="w-4 h-4 text-blue-600 shrink-0" />
           <div className="min-w-0">
-            <p className="text-[10px] text-white/40 uppercase font-semibold">Pickup</p>
-            <p className="text-white/80 truncate text-xs">{pickup?.address || pickupText}</p>
+            <p className="text-[10px] text-slate-400 uppercase font-semibold">Pickup</p>
+            <p className="text-slate-800 truncate text-xs">{pickup?.address || pickupText}</p>
           </div>
         </div>
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-white/4 border border-white/6">
-          <MapPin className="w-4 h-4 text-orange-400 shrink-0" />
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200">
+          <MapPin className="w-4 h-4 text-orange-500 shrink-0" />
           <div className="min-w-0">
-            <p className="text-[10px] text-white/40 uppercase font-semibold">Destination</p>
-            <p className="text-white/80 truncate text-xs">{dropoff?.address || dropoffText}</p>
+            <p className="text-[10px] text-slate-400 uppercase font-semibold">Destination</p>
+            <p className="text-slate-800 truncate text-xs">{dropoff?.address || dropoffText}</p>
           </div>
         </div>
       </div>
 
-      <div className="w-full p-3 rounded-xl bg-white/[0.03] border border-white/8 flex items-center justify-between text-xs">
-        <span className="text-white/50">Offered Fare:</span>
-        <span className="font-bold text-blue-300 text-sm">₦{currentFareToDisplay.toLocaleString()}</span>
+      <div className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
+        <span className="text-slate-500">Offered Fare:</span>
+        <span className="font-bold text-blue-700 text-sm">₦{currentFareToDisplay.toLocaleString()}</span>
       </div>
 
       <div className="w-full flex flex-col items-center gap-2 pt-2">
         <button
           onClick={handleCancelSearch}
-          className="text-sm font-semibold text-red-400 hover:text-red-300 transition-colors py-2 px-4 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 w-full cursor-pointer"
+          className="text-sm font-semibold text-red-600 hover:text-red-700 transition-colors py-2 px-4 rounded-xl bg-red-50 hover:bg-red-100 border border-red-200 w-full cursor-pointer"
         >
           Cancel Ride Request
         </button>
@@ -1449,7 +1449,7 @@ function RideHailingDashboard() {
         <button
           type="button"
           onClick={handleSimulateDriverAcceptForTesting}
-          className="text-[11px] text-slate-400 hover:text-blue-300 transition-colors border border-dashed border-slate-700 hover:border-blue-500/40 rounded-lg px-3 py-1.5 mt-1 cursor-pointer"
+          className="text-[11px] text-slate-500 hover:text-blue-600 transition-colors border border-dashed border-slate-300 hover:border-blue-400 rounded-lg px-3 py-1.5 mt-1 cursor-pointer"
         >
           🧪 Demo Test: Simulate Driver Acceptance
         </button>
@@ -1461,13 +1461,13 @@ function RideHailingDashboard() {
   const renderMatchedPanel = () =>
     matchedDriver && (
       <div className="space-y-4">
-        <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-4">
+        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 shadow-sm space-y-4">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shrink-0 shadow-lg shadow-blue-500/20">
               <span className="text-2xl font-bold text-white">{matchedDriver.name[0]}</span>
             </div>
             <div className="flex-1">
-              <p className="font-bold text-white text-lg leading-tight">{matchedDriver.name}</p>
+              <p className="font-bold text-slate-900 text-lg leading-tight">{matchedDriver.name}</p>
               <div className="flex items-center gap-2 mt-1">
                 <div className="flex items-center gap-0.5">
                   {[1, 2, 3, 4, 5].map((s) => (
@@ -1476,35 +1476,35 @@ function RideHailingDashboard() {
                       className={`w-3.5 h-3.5 ${
                         s <= Math.round(matchedDriver.rating)
                           ? 'text-yellow-400 fill-yellow-400'
-                          : 'text-white/20'
+                          : 'text-slate-300'
                       }`}
                     />
                   ))}
                 </div>
-                <span className="text-xs text-white/60">
+                <span className="text-xs text-slate-500">
                   {matchedDriver.rating} · {matchedDriver.trips.toLocaleString()} trips
                 </span>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-[10px] text-white/40 uppercase font-semibold">Arriving in</p>
-              <p className="font-bold text-blue-400 text-base">{selectedTier.etaMinutes} mins</p>
+              <p className="text-[10px] text-slate-400 uppercase font-semibold">Arriving in</p>
+              <p className="font-bold text-blue-600 text-base">{selectedTier.etaMinutes} mins</p>
             </div>
           </div>
 
           {/* Vehicle Credentials Card (Type, Make, Plate, Color) */}
-          <div className="p-3.5 rounded-xl bg-gradient-to-br from-slate-900/90 to-slate-950 border border-white/10 space-y-2.5 shadow-inner">
+          <div className="p-3.5 rounded-xl bg-white border border-slate-200/90 space-y-2.5 shadow-sm">
             <div className="flex items-start justify-between gap-3">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30 flex items-center gap-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1">
                     <Car className="w-3 h-3" />
                     {matchedDriver.vehicleType || selectedTier.name}
                   </span>
                   {matchedDriver.vehicleColor && (
-                    <span className="text-[11px] font-medium text-white/70 flex items-center gap-1.5">
+                    <span className="text-[11px] font-medium text-slate-600 flex items-center gap-1.5">
                       <span
-                        className="w-2.5 h-2.5 rounded-full border border-white/30 shrink-0"
+                        className="w-2.5 h-2.5 rounded-full border border-slate-300 shrink-0"
                         style={{
                           backgroundColor:
                             matchedDriver.vehicleColor.toLowerCase().includes('black')
@@ -1524,10 +1524,10 @@ function RideHailingDashboard() {
                     </span>
                   )}
                 </div>
-                <p className="text-sm font-bold text-white leading-tight">
+                <p className="text-sm font-bold text-slate-900 leading-tight">
                   {matchedDriver.vehicleMake || matchedDriver.vehicleModel}
                 </p>
-                <p className="text-[11px] text-white/40">
+                <p className="text-[11px] text-slate-500">
                   Assigned {matchedDriver.vehicleType || 'Vehicle'} for this trip
                 </p>
               </div>
@@ -1551,22 +1551,22 @@ function RideHailingDashboard() {
             </div>
 
             {/* Vehicle Quick Specs Grid */}
-            <div className="grid grid-cols-3 gap-1.5 pt-2 border-t border-white/8 text-center text-xs">
-              <div className="p-1 rounded-lg bg-white/5">
-                <p className="text-[9px] text-white/40 uppercase">Make</p>
-                <p className="font-semibold text-white truncate text-[11px]">
+            <div className="grid grid-cols-3 gap-1.5 pt-2 border-t border-slate-100 text-center text-xs">
+              <div className="p-1 rounded-lg bg-slate-50 border border-slate-100">
+                <p className="text-[9px] text-slate-400 uppercase">Make</p>
+                <p className="font-semibold text-slate-800 truncate text-[11px]">
                   {matchedDriver.vehicleMake?.split(' ')[0] || 'Toyota'}
                 </p>
               </div>
-              <div className="p-1 rounded-lg bg-white/5">
-                <p className="text-[9px] text-white/40 uppercase">Colour</p>
-                <p className="font-semibold text-white truncate text-[11px]">
+              <div className="p-1 rounded-lg bg-slate-50 border border-slate-100">
+                <p className="text-[9px] text-slate-400 uppercase">Colour</p>
+                <p className="font-semibold text-slate-800 truncate text-[11px]">
                   {matchedDriver.vehicleColor || 'Silver'}
                 </p>
               </div>
-              <div className="p-1 rounded-lg bg-white/5">
-                <p className="text-[9px] text-white/40 uppercase">Type</p>
-                <p className="font-semibold text-white truncate text-[11px]">
+              <div className="p-1 rounded-lg bg-slate-50 border border-slate-100">
+                <p className="text-[9px] text-slate-400 uppercase">Type</p>
+                <p className="font-semibold text-slate-800 truncate text-[11px]">
                   {matchedDriver.vehicleType || 'Sedan'}
                 </p>
               </div>
@@ -1574,26 +1574,26 @@ function RideHailingDashboard() {
           </div>
 
           {/* Safety PIN */}
-          <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between">
+          <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Shield className="w-5 h-5 text-emerald-400 shrink-0" />
+              <Shield className="w-5 h-5 text-emerald-600 shrink-0" />
               <div>
-                <p className="text-xs text-emerald-400 font-semibold">Safety PIN: {safetyPin}</p>
-                <p className="text-[10px] text-white/40">Share with driver before departure</p>
+                <p className="text-xs text-emerald-700 font-semibold">Safety PIN: {safetyPin}</p>
+                <p className="text-[10px] text-slate-500">Share with driver before departure</p>
               </div>
             </div>
-            <p className="text-2xl font-mono font-bold text-emerald-300 tracking-widest">{safetyPin}</p>
+            <p className="text-2xl font-mono font-bold text-emerald-700 tracking-widest">{safetyPin}</p>
           </div>
 
           {/* Fare Summary */}
-          <div className="flex items-center justify-between pt-1 border-t border-white/8 text-sm">
+          <div className="flex items-center justify-between pt-1 border-t border-slate-200 text-sm">
             <div>
-              <p className="text-xs text-white/40">Trip Fare</p>
-              <p className="text-lg font-bold text-white">₦{currentFareToDisplay.toLocaleString()}</p>
+              <p className="text-xs text-slate-400">Trip Fare</p>
+              <p className="text-lg font-bold text-slate-900">₦{currentFareToDisplay.toLocaleString()}</p>
             </div>
             <div className="text-right">
-              <p className="text-xs text-white/40">Distance</p>
-              <p className="text-sm font-semibold text-white/80">
+              <p className="text-xs text-slate-400">Distance</p>
+              <p className="text-sm font-semibold text-slate-700">
                 {distanceKm > 0 ? `${distanceKm} km` : 'Direct Route'}
               </p>
             </div>
@@ -1604,16 +1604,16 @@ function RideHailingDashboard() {
         <div className="grid grid-cols-2 gap-3">
           <a
             href={`tel:${matchedDriver.phone}`}
-            className="flex items-center justify-center gap-2 py-3 rounded-xl bg-white/8 border border-white/10 hover:bg-white/12 transition-all text-white font-medium text-sm"
+            className="flex items-center justify-center gap-2 py-3 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 transition-all text-slate-800 font-medium text-sm shadow-sm"
           >
-            <Phone className="w-4 h-4 text-emerald-400" />
+            <Phone className="w-4 h-4 text-emerald-600" />
             Call Driver
           </a>
           <button
             onClick={() => toast.info(`Driver ${matchedDriver.name} has been notified and is en-route.`)}
-            className="flex items-center justify-center gap-2 py-3 rounded-xl bg-white/8 border border-white/10 hover:bg-white/12 transition-all text-white font-medium text-sm"
+            className="flex items-center justify-center gap-2 py-3 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 transition-all text-slate-800 font-medium text-sm shadow-sm cursor-pointer"
           >
-            <MessageCircle className="w-4 h-4 text-blue-400" />
+            <MessageCircle className="w-4 h-4 text-blue-600" />
             Message
           </button>
         </div>
@@ -1621,7 +1621,7 @@ function RideHailingDashboard() {
         {/* Start Trip Action */}
         <button
           onClick={handleStartTrip}
-          className="w-full py-4 rounded-2xl bg-blue-600 hover:bg-blue-500 transition-all font-bold text-white flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25"
+          className="w-full py-4 rounded-2xl bg-blue-600 hover:bg-blue-500 transition-all font-bold text-white flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25 cursor-pointer"
         >
           <Check className="w-4 h-4" />
           Driver Has Arrived – Start Trip
@@ -1630,7 +1630,7 @@ function RideHailingDashboard() {
         {/* Cancel Action */}
         <button
           onClick={handleCancelSearch}
-          className="w-full py-2.5 text-xs text-white/40 hover:text-red-400 transition-colors cursor-pointer"
+          className="w-full py-2.5 text-xs text-slate-400 hover:text-red-600 transition-colors cursor-pointer"
         >
           Cancel Ride
         </button>
@@ -1641,59 +1641,59 @@ function RideHailingDashboard() {
   const renderInTransitPanel = () => (
     <div className="space-y-4">
       <div className="text-center">
-        <p className="font-bold text-lg text-white">Trip in progress...</p>
-        <p className="text-sm text-white/50 mt-1">Heading to {dropoffText || dropoff?.address?.split(',')[0]}</p>
+        <p className="font-bold text-lg text-slate-900">Trip in progress...</p>
+        <p className="text-sm text-slate-500 mt-1">Heading to {dropoffText || dropoff?.address?.split(',')[0]}</p>
       </div>
 
       {/* Progress Bar */}
       <div className="space-y-2">
-        <div className="flex justify-between text-[11px] text-white/40">
+        <div className="flex justify-between text-[11px] text-slate-400">
           <span className="truncate max-w-[140px]">{pickupText || 'Pickup'}</span>
           <span className="truncate max-w-[140px] text-right">{dropoffText || 'Destination'}</span>
         </div>
-        <div className="relative h-3 bg-white/8 rounded-full overflow-hidden">
+        <div className="relative h-3 bg-slate-200 rounded-full overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-blue-600 to-emerald-400 rounded-full transition-all duration-300"
+            className="h-full bg-gradient-to-r from-blue-600 to-emerald-500 rounded-full transition-all duration-300"
             style={{ width: `${tripProgress}%` }}
           />
         </div>
         <div className="text-center">
-          <span className="text-xs text-white/60 font-mono font-medium">{Math.round(tripProgress)}% completed</span>
+          <span className="text-xs text-slate-600 font-mono font-medium">{Math.round(tripProgress)}% completed</span>
         </div>
       </div>
 
       {/* Driver & Vehicle Mini Card */}
       {matchedDriver && (
-        <div className="p-3.5 rounded-xl bg-white/4 border border-white/8 space-y-2.5">
+        <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shrink-0">
               <span className="text-base font-bold text-white">{matchedDriver.name[0]}</span>
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <p className="text-sm font-bold text-white">{matchedDriver.name}</p>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 font-medium">
+                <p className="text-sm font-bold text-slate-900">{matchedDriver.name}</p>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 font-medium">
                   {matchedDriver.vehicleType || 'Sedan'}
                 </span>
               </div>
-              <p className="text-xs text-white/70 truncate mt-0.5">
+              <p className="text-xs text-slate-600 truncate mt-0.5">
                 {matchedDriver.vehicleColor ? matchedDriver.vehicleColor + ' ' : ''}{matchedDriver.vehicleMake || matchedDriver.vehicleModel}
               </p>
             </div>
             <a
               href={`tel:${matchedDriver.phone}`}
-              className="p-2 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition-colors shrink-0"
+              className="p-2 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors shrink-0"
             >
               <Phone className="w-4 h-4" />
             </a>
           </div>
           {/* Plate strip */}
-          <div className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-black/40 border border-white/8 text-xs">
+          <div className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-xs shadow-sm">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] text-white/40 uppercase font-semibold">Plate:</span>
-              <span className="font-mono font-bold text-white tracking-wider">🇳🇬 {matchedDriver.plateNumber}</span>
+              <span className="text-[10px] text-slate-400 uppercase font-semibold">Plate:</span>
+              <span className="font-mono font-bold text-slate-900 tracking-wider">🇳🇬 {matchedDriver.plateNumber}</span>
             </div>
-            <span className="text-[11px] text-white/60">Colour: {matchedDriver.vehicleColor || 'Silver'}</span>
+            <span className="text-[11px] text-slate-600">Colour: {matchedDriver.vehicleColor || 'Silver'}</span>
           </div>
         </div>
       )}
@@ -1701,7 +1701,7 @@ function RideHailingDashboard() {
       {/* Emergency SOS Button */}
       <button
         onClick={() => toast.error('🆘 Emergency SOS signal sent to security dispatch!')}
-        className="w-full py-3 rounded-xl bg-red-500/15 border border-red-500/30 text-red-400 font-bold flex items-center justify-center gap-2 hover:bg-red-500/25 transition-all text-xs"
+        className="w-full py-3 rounded-xl bg-red-50 border border-red-200 text-red-600 font-bold flex items-center justify-center gap-2 hover:bg-red-100 transition-all text-xs cursor-pointer"
       >
         <AlertTriangle className="w-4 h-4" />
         Emergency Safety SOS
@@ -1714,43 +1714,43 @@ function RideHailingDashboard() {
     <div className="space-y-5">
       <div className="text-center space-y-2">
         <div className="w-16 h-16 rounded-full bg-emerald-500/20 border-2 border-emerald-500/40 flex items-center justify-center mx-auto">
-          <Check className="w-8 h-8 text-emerald-400" />
+          <Check className="w-8 h-8 text-emerald-600" />
         </div>
-        <p className="font-bold text-xl text-white">Ride Completed!</p>
-        <p className="text-xs text-white/50">You have safely arrived at your destination</p>
+        <p className="font-bold text-xl text-slate-900">Ride Completed!</p>
+        <p className="text-xs text-slate-500">You have safely arrived at your destination</p>
       </div>
 
       {/* Trip Receipt */}
-      <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3">
+      <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-3">
         <div className="flex items-center gap-2 mb-1">
-          <ReceiptText className="w-4 h-4 text-blue-400" />
-          <p className="text-sm font-semibold text-white/80">Trip Receipt</p>
+          <ReceiptText className="w-4 h-4 text-blue-600" />
+          <p className="text-sm font-semibold text-slate-800">Trip Receipt</p>
         </div>
         <div className="space-y-2 text-xs">
           <div className="flex justify-between">
-            <span className="text-white/50">Vehicle</span>
-            <span className="text-white/80 font-medium">{selectedTier.name}</span>
+            <span className="text-slate-500">Vehicle</span>
+            <span className="text-slate-800 font-medium">{selectedTier.name}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-white/50">Distance</span>
-            <span className="text-white/80">{distanceKm > 0 ? `${distanceKm} km` : 'City Route'}</span>
+            <span className="text-slate-500">Distance</span>
+            <span className="text-slate-800">{distanceKm > 0 ? `${distanceKm} km` : 'City Route'}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-white/50">Payment Method</span>
-            <span className="text-white/80 capitalize">{paymentMethod}</span>
+            <span className="text-slate-500">Payment Method</span>
+            <span className="text-slate-800 capitalize">{paymentMethod}</span>
           </div>
-          <div className="border-t border-white/8 pt-2 flex justify-between text-sm">
-            <span className="font-semibold text-white">Total Paid</span>
-            <span className="font-bold text-blue-300 text-base">₦{currentFareToDisplay.toLocaleString()}</span>
+          <div className="border-t border-slate-100 pt-2 flex justify-between text-sm">
+            <span className="font-semibold text-slate-900">Total Paid</span>
+            <span className="font-bold text-blue-700 text-base">₦{currentFareToDisplay.toLocaleString()}</span>
           </div>
         </div>
       </div>
 
       {/* Driver Rating */}
       <div className="text-center space-y-3">
-        <p className="text-sm font-medium text-white/70">Rate your driver</p>
+        <p className="text-sm font-medium text-slate-700">Rate your driver</p>
         {matchedDriver && (
-          <p className="text-xs text-white/40">
+          <p className="text-xs text-slate-500">
             {matchedDriver.name} · {matchedDriver.vehicleModel}
           </p>
         )}
@@ -1761,13 +1761,13 @@ function RideHailingDashboard() {
               onMouseEnter={() => setHoveredStar(star)}
               onMouseLeave={() => setHoveredStar(0)}
               onClick={() => setRatingGiven(star)}
-              className="transition-transform hover:scale-125"
+              className="transition-transform hover:scale-125 cursor-pointer"
             >
               <Star
                 className={`w-8 h-8 transition-colors ${
                   star <= (hoveredStar || ratingGiven)
                     ? 'text-yellow-400 fill-yellow-400'
-                    : 'text-white/20'
+                    : 'text-slate-300'
                 }`}
               />
             </button>
@@ -1776,14 +1776,14 @@ function RideHailingDashboard() {
         {ratingGiven > 0 ? (
           <button
             onClick={handleSubmitRating}
-            className="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 transition-all font-bold text-white text-sm"
+            className="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 transition-all font-bold text-white text-sm cursor-pointer shadow-md"
           >
             Submit Rating & Done
           </button>
         ) : (
           <button
             onClick={handleResetAll}
-            className="w-full py-3.5 rounded-xl bg-white/10 hover:bg-white/15 transition-all text-white/80 text-sm font-medium"
+            className="w-full py-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 transition-all text-slate-700 text-sm font-medium cursor-pointer"
           >
             Skip & Book Another Ride
           </button>
@@ -1797,64 +1797,64 @@ function RideHailingDashboard() {
     <div className="space-y-3">
       {loadingHistory ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
+          <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
         </div>
       ) : bookings.length === 0 ? (
         <div className="text-center py-12 space-y-3">
-          <History className="w-12 h-12 text-white/15 mx-auto" />
-          <p className="text-white/40 text-sm">No trips yet. Book your first ride!</p>
+          <History className="w-12 h-12 text-slate-300 mx-auto" />
+          <p className="text-slate-500 text-sm">No trips yet. Book your first ride!</p>
           <button
             onClick={() => setMainTab('ride')}
-            className="text-blue-400 text-sm font-semibold hover:text-blue-300"
+            className="text-blue-600 text-sm font-semibold hover:text-blue-700 cursor-pointer"
           >
             Order a Ride →
           </button>
         </div>
       ) : (
         bookings.map((b) => (
-          <div key={b.id} className="p-4 rounded-xl bg-white/4 border border-white/8 space-y-3">
+          <div key={b.id} className="p-4 rounded-xl bg-white border border-slate-200 shadow-sm space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Car className="w-4 h-4 text-blue-400" />
-                <span className="text-sm font-semibold text-white capitalize">
+                <Car className="w-4 h-4 text-blue-600" />
+                <span className="text-sm font-semibold text-slate-900 capitalize">
                   {b.sub_category} {b.category !== 'private' ? `(${b.category})` : ''}
                 </span>
               </div>
               <span
-                className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
+                className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border ${
                   b.status === 'completed'
-                    ? 'bg-emerald-500/15 text-emerald-400'
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                     : b.status === 'active'
-                    ? 'bg-blue-500/15 text-blue-400'
+                    ? 'bg-blue-50 text-blue-700 border-blue-200'
                     : b.status === 'cancelled'
-                    ? 'bg-red-500/15 text-red-400'
-                    : 'bg-yellow-500/15 text-yellow-400'
+                    ? 'bg-red-50 text-red-700 border-red-200'
+                    : 'bg-amber-50 text-amber-700 border-amber-200'
                 }`}
               >
                 {b.status.charAt(0).toUpperCase() + b.status.slice(1)}
               </span>
             </div>
-            <div className="space-y-1.5 text-xs text-white/60">
+            <div className="space-y-1.5 text-xs text-slate-600">
               <div className="flex items-start gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-1.5 shrink-0" />
+                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" />
                 <span className="truncate">{b.pickup_location}</span>
               </div>
               {b.destination && (
                 <div className="flex items-start gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-orange-400 mt-1.5 shrink-0" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-orange-500 mt-1.5 shrink-0" />
                   <span className="truncate">{b.destination}</span>
                 </div>
               )}
             </div>
-            <div className="flex items-center justify-between pt-1 border-t border-white/6 text-xs">
-              <span className="text-white/40">
+            <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-xs">
+              <span className="text-slate-400">
                 {new Date(b.created_at).toLocaleDateString('en-NG', {
                   day: 'numeric',
                   month: 'short',
                   year: 'numeric',
                 })}
               </span>
-              <span className="text-sm font-bold text-blue-300">
+              <span className="text-sm font-bold text-blue-700">
                 ₦{Number(b.total_price).toLocaleString()}
               </span>
             </div>
@@ -1882,10 +1882,10 @@ function RideHailingDashboard() {
         return (
           <div className="flex flex-col items-center justify-center py-12 space-y-3">
             <div className="w-14 h-14 rounded-full bg-emerald-500/20 flex items-center justify-center">
-              <Check className="w-7 h-7 text-emerald-400" />
+              <Check className="w-7 h-7 text-emerald-600" />
             </div>
-            <p className="text-white font-semibold">Thanks for riding with us!</p>
-            <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
+            <p className="text-slate-900 font-semibold">Thanks for riding with us!</p>
+            <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
           </div>
         );
     }
@@ -1893,7 +1893,7 @@ function RideHailingDashboard() {
 
   // ── MAIN RENDER ──────────────────────────────────────────────────────────
   return (
-    <div className="relative flex h-[calc(100vh-4rem)] overflow-hidden bg-[#0f172a]">
+    <div className="relative flex h-[calc(100vh-4rem)] overflow-hidden bg-slate-100">
       {/* ── Map Background ─────────────────────────────────────────────── */}
       <div className="absolute inset-0 z-0">
         <InteractiveMap
@@ -1905,11 +1905,11 @@ function RideHailingDashboard() {
         />
 
         {/* Map gradient overlay for panel readability */}
-        <div className="absolute inset-y-0 left-0 w-full lg:w-[460px] bg-gradient-to-r from-[#0f172a] via-[#0f172acc] to-transparent pointer-events-none" />
+        <div className="absolute inset-y-0 left-0 w-full lg:w-[460px] bg-gradient-to-r from-slate-100/95 via-slate-100/80 to-transparent pointer-events-none" />
       </div>
 
       {/* ── Floating Panel ─────────────────────────────────────────────── */}
-      <div className="relative z-10 w-full lg:w-[420px] lg:max-w-md flex flex-col h-full bg-[#0f172a]/95 lg:bg-transparent backdrop-blur-md lg:backdrop-blur-none border-r border-slate-700/60">
+      <div className="relative z-10 w-full lg:w-[420px] lg:max-w-md flex flex-col h-full bg-white/95 lg:bg-white/90 backdrop-blur-xl border-r border-slate-200/90 shadow-2xl">
         {/* Panel Header */}
         <div className="flex-shrink-0 px-4 pt-4 pb-2">
           {/* Branding */}
@@ -1919,20 +1919,20 @@ function RideHailingDashboard() {
                 <Zap className="w-4 h-4 text-white fill-current" />
               </div>
               <div>
-                <p className="text-white font-bold text-sm leading-tight">SwiftRide</p>
-                <p className="text-white/40 text-[10px] leading-tight">by Barakah</p>
+                <p className="text-slate-900 font-bold text-sm leading-tight">SwiftRide</p>
+                <p className="text-slate-500 text-[10px] leading-tight">by Barakah</p>
               </div>
             </div>
             {phase === 'idle' && (
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/20">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-[10px] font-semibold text-emerald-400">Drivers Active</span>
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-[10px] font-semibold text-emerald-700">Drivers Active</span>
               </div>
             )}
             {phase !== 'idle' && phase !== 'rated' && (
               <button
                 onClick={handleResetAll}
-                className="p-1.5 rounded-lg bg-white/8 hover:bg-white/12 text-white/50 hover:text-white/80 transition-all"
+                className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition-all cursor-pointer"
                 title="Cancel"
               >
                 <X className="w-4 h-4" />
@@ -1944,13 +1944,13 @@ function RideHailingDashboard() {
           <PaymentReturn />
 
           {/* Main Tabs */}
-          <div className="flex rounded-xl bg-white/5 border border-white/8 p-1">
+          <div className="flex rounded-xl bg-slate-100 border border-slate-200 p-1">
             <button
               onClick={() => setMainTab('ride')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
                 mainTab === 'ride'
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'text-white/50 hover:text-white/70'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <Car className="w-4 h-4" />
@@ -1961,16 +1961,18 @@ function RideHailingDashboard() {
                 setMainTab('history');
                 fetchHistory();
               }}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
                 mainTab === 'history'
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'text-white/50 hover:text-white/70'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <History className="w-4 h-4" />
               My Trips
               {bookings.length > 0 && (
-                <span className="w-4 h-4 rounded-full bg-white/20 text-[10px] flex items-center justify-center">
+                <span className={`w-4 h-4 rounded-full text-[10px] flex items-center justify-center ${
+                  mainTab === 'history' ? 'bg-blue-700 text-white' : 'bg-slate-200 text-slate-700'
+                }`}>
                   {bookings.length > 9 ? '9+' : bookings.length}
                 </span>
               )}

@@ -50,12 +50,12 @@ const mapOptions = {
   disableDefaultUI: true,
   zoomControl: true,
   styles: [
-    { elementType: 'geometry', stylers: [{ color: '#0f172a' }] },
-    { elementType: 'labels.text.stroke', stylers: [{ color: '#1e293b' }] },
-    { elementType: 'labels.text.fill', stylers: [{ color: '#64748b' }] },
-    { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#1e293b' }] },
-    { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#334155' }] },
-    { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0c4a6e' }] },
+    { elementType: 'geometry', stylers: [{ color: '#f8fafc' }] },
+    { elementType: 'labels.text.stroke', stylers: [{ color: '#ffffff' }] },
+    { elementType: 'labels.text.fill', stylers: [{ color: '#475569' }] },
+    { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#ffffff' }] },
+    { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#e2e8f0' }] },
+    { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#bae6fd' }] },
     { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] },
   ],
 };
@@ -520,38 +520,38 @@ function CustomerBookingPage() {
   const showMap = mapsLoaded && !mapError;
 
   return (
-    <div className="relative min-h-dvh bg-[#0f172a] overflow-hidden flex flex-col md:flex-row">
+    <div className="relative min-h-dvh bg-slate-100 overflow-hidden flex flex-col md:flex-row">
 
       {/* ═══════════ PAYMENT MODAL OVERLAY ═══════════ */}
       {showPayment && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-sm bg-slate-900 border border-slate-700/70 rounded-[28px] overflow-hidden shadow-2xl animate-in slide-in-from-bottom-8 duration-300">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-white border border-slate-200/90 rounded-[28px] overflow-hidden shadow-2xl animate-in slide-in-from-bottom-8 duration-300">
             
             {paymentDone ? (
               /* ——— Payment Confirmed: Awaiting Dispatcher Assignment ——— */
               <div className="p-8 flex flex-col items-center text-center space-y-5">
-                <div className="w-20 h-20 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                  <CheckCircle2 className="h-10 w-10 text-emerald-400" />
+                <div className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center">
+                  <CheckCircle2 className="h-10 w-10 text-emerald-600" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-black text-white">Payment Verified! 🎉</h2>
-                  <p className="text-slate-400 text-sm mt-2 leading-relaxed">
+                  <h2 className="text-2xl font-black text-slate-900">Payment Verified! 🎉</h2>
+                  <p className="text-slate-600 text-sm mt-2 leading-relaxed">
                     Your order is now in the dispatcher queue.
                     <br />
-                    <span className="text-orange-400 font-semibold">
+                    <span className="text-orange-600 font-semibold">
                       You’ll get a notification once a rider is assigned.
                     </span>
                   </p>
                 </div>
-                <div className="w-full flex items-center gap-3 p-4 bg-amber-500/10 border border-amber-500/25 rounded-2xl">
+                <div className="w-full flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-2xl">
                   <span className="text-2xl">📡</span>
                   <div className="text-left">
-                    <p className="text-amber-400 font-bold text-sm">Dispatcher on standby</p>
-                    <p className="text-amber-300/70 text-xs mt-0.5">A rider will be assigned and you’ll be notified instantly.</p>
+                    <p className="text-amber-800 font-bold text-sm">Dispatcher on standby</p>
+                    <p className="text-amber-700/80 text-xs mt-0.5">A rider will be assigned and you’ll be notified instantly.</p>
                   </div>
                 </div>
                 <Button
-                  className="w-full h-12 bg-white hover:bg-slate-200 text-slate-950 font-black rounded-xl"
+                  className="w-full h-12 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-xl"
                   onClick={() => setShowPayment(false)}
                 >
                   Close & Track My Order
@@ -560,14 +560,14 @@ function CustomerBookingPage() {
             ) : (
               <>
                 {/* Modal Header */}
-                <div className="p-5 border-b border-slate-800 flex items-center justify-between">
+                <div className="p-5 border-b border-slate-100 flex items-center justify-between">
                   <div>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Amount Due</p>
-                    <p className="text-3xl font-black text-white">₦{(activeOrder?.estimated_price || fare).toLocaleString()}</p>
+                    <p className="text-3xl font-black text-slate-900">₦{(activeOrder?.estimated_price || fare).toLocaleString()}</p>
                   </div>
                   <button
                     onClick={() => { setShowPayment(false); setPaymentMethod(null); }}
-                    className="h-9 w-9 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+                    className="h-9 w-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-900 transition-colors"
                   >
                     ✕
                   </button>
@@ -575,7 +575,7 @@ function CustomerBookingPage() {
 
                 {/* Payment Method Selection */}
                 <div className="p-5 space-y-3">
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Choose Payment Method</p>
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Choose Payment Method</p>
 
                   {/* Paystack Option */}
                   <button
@@ -583,21 +583,21 @@ function CustomerBookingPage() {
                     onClick={() => setPaymentMethod('paystack')}
                     className={`w-full flex items-center gap-4 p-4 rounded-2xl border transition-all ${
                       paymentMethod === 'paystack'
-                        ? 'bg-emerald-500/15 border-emerald-500/60 ring-1 ring-emerald-500/30'
-                        : 'bg-slate-800/60 border-slate-700 hover:border-slate-600'
+                        ? 'bg-emerald-50/80 border-emerald-500 ring-1 ring-emerald-500/30'
+                        : 'bg-slate-50 border-slate-200 hover:border-slate-300'
                     }`}
                   >
-                    <div className="h-10 w-10 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+                    <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
                       <span className="text-xl">💳</span>
                     </div>
                     <div className="text-left flex-1">
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-bold text-white">Paystack Checkout</p>
-                        <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-semibold px-2 py-0.5 rounded-full border border-emerald-500/30">Instant</span>
+                        <p className="text-sm font-bold text-slate-900">Paystack Checkout</p>
+                        <span className="text-[10px] bg-emerald-100 text-emerald-800 font-semibold px-2 py-0.5 rounded-full border border-emerald-300">Instant</span>
                       </div>
-                      <p className="text-[11px] text-slate-400">Debit Card, Instant Bank Transfer, USSD</p>
+                      <p className="text-[11px] text-slate-500">Debit Card, Instant Bank Transfer, USSD</p>
                     </div>
-                    {paymentMethod === 'paystack' && <CheckCircle2 className="h-5 w-5 text-emerald-400 ml-auto shrink-0" />}
+                    {paymentMethod === 'paystack' && <CheckCircle2 className="h-5 w-5 text-emerald-600 ml-auto shrink-0" />}
                   </button>
 
                   {/* Bank Transfer Option */}
@@ -605,32 +605,32 @@ function CustomerBookingPage() {
                     onClick={() => setPaymentMethod('transfer')}
                     className={`w-full flex items-center gap-4 p-4 rounded-2xl border transition-all ${
                       paymentMethod === 'transfer'
-                        ? 'bg-orange-500/10 border-orange-500/50 ring-1 ring-orange-500/30'
-                        : 'bg-slate-800/50 border-slate-700 hover:border-slate-600'
+                        ? 'bg-orange-50/80 border-orange-500 ring-1 ring-orange-500/30'
+                        : 'bg-slate-50 border-slate-200 hover:border-slate-300'
                     }`}
                   >
-                    <div className="h-10 w-10 rounded-full bg-orange-500/20 flex items-center justify-center shrink-0">
+                    <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
                       <span className="text-xl">🏦</span>
                     </div>
                     <div className="text-left">
-                      <p className="text-sm font-bold text-white">Bank Transfer</p>
-                      <p className="text-[11px] text-slate-400">Transfer to driver's account</p>
+                      <p className="text-sm font-bold text-slate-900">Bank Transfer</p>
+                      <p className="text-[11px] text-slate-500">Transfer to driver's account</p>
                     </div>
-                    {paymentMethod === 'transfer' && <CheckCircle2 className="h-5 w-5 text-orange-400 ml-auto shrink-0" />}
+                    {paymentMethod === 'transfer' && <CheckCircle2 className="h-5 w-5 text-orange-600 ml-auto shrink-0" />}
                   </button>
 
                   {/* Transfer Details (shown when transfer is selected) */}
                   {paymentMethod === 'transfer' && (
                     <div className="space-y-3 animate-in fade-in duration-200">
                       {/* Account Details Card */}
-                      <div className="bg-orange-500/8 border border-orange-500/25 rounded-2xl p-4 space-y-3">
-                        <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest">SwiftMove Account Details</p>
+                      <div className="bg-orange-50/70 border border-orange-200/90 rounded-2xl p-4 space-y-3">
+                        <p className="text-[10px] font-bold text-orange-700 uppercase tracking-widest">SwiftMove Account Details</p>
 
                         {/* Zenith Bank Account */}
                         <div className="flex items-center justify-between gap-3">
                           <div>
                             <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-0.5">Zenith Bank</p>
-                            <p className="text-xl font-black text-white tracking-widest">1310765201</p>
+                            <p className="text-xl font-black text-slate-900 tracking-widest">1310765201</p>
                           </div>
                           <button
                             type="button"
@@ -638,20 +638,20 @@ function CustomerBookingPage() {
                               navigator.clipboard.writeText('1310765201');
                               toast.success('Zenith Bank account number copied!');
                             }}
-                            className="shrink-0 px-3 py-1.5 rounded-lg bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/30 text-orange-300 text-[11px] font-bold transition-all active:scale-95"
+                            className="shrink-0 px-3 py-1.5 rounded-lg bg-orange-100 hover:bg-orange-200 border border-orange-200 text-orange-800 text-[11px] font-bold transition-all active:scale-95"
                           >
                             Copy
                           </button>
                         </div>
 
                         {/* Divider */}
-                        <div className="h-px bg-slate-800" />
+                        <div className="h-px bg-orange-100" />
 
                         {/* Moniepoint Account */}
                         <div className="flex items-center justify-between gap-3">
                           <div>
                             <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-0.5">Moniepoint</p>
-                            <p className="text-xl font-black text-white tracking-widest">7066252731</p>
+                            <p className="text-xl font-black text-slate-900 tracking-widest">7066252731</p>
                           </div>
                           <button
                             type="button"
@@ -659,25 +659,25 @@ function CustomerBookingPage() {
                               navigator.clipboard.writeText('7066252731');
                               toast.success('Moniepoint account number copied!');
                             }}
-                            className="shrink-0 px-3 py-1.5 rounded-lg bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/30 text-orange-300 text-[11px] font-bold transition-all active:scale-95"
+                            className="shrink-0 px-3 py-1.5 rounded-lg bg-orange-100 hover:bg-orange-200 border border-orange-200 text-orange-800 text-[11px] font-bold transition-all active:scale-95"
                           >
                             Copy
                           </button>
                         </div>
 
                         {/* Divider */}
-                        <div className="h-px bg-slate-800" />
+                        <div className="h-px bg-orange-100" />
 
                         {/* Account Name */}
                         <div className="flex justify-between items-center text-sm">
-                          <span className="text-slate-400 text-[11px]">Account Name</span>
-                          <span className="text-white font-bold">SwiftMove Logistics</span>
+                          <span className="text-slate-600 text-[11px]">Account Name</span>
+                          <span className="text-slate-900 font-bold">SwiftMove Logistics</span>
                         </div>
 
                         {/* Amount */}
                         <div className="flex justify-between items-center text-sm">
-                          <span className="text-slate-400 text-[11px]">Amount to Transfer</span>
-                          <span className="text-orange-300 font-black text-base">
+                          <span className="text-slate-600 text-[11px]">Amount to Transfer</span>
+                          <span className="text-orange-600 font-black text-base">
                             ₦{(activeOrder?.estimated_price || fare).toLocaleString()}
                           </span>
                         </div>
@@ -690,7 +690,7 @@ function CustomerBookingPage() {
                         )}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="w-full flex items-center justify-center gap-2.5 py-3.5 rounded-2xl bg-[#25D366]/15 hover:bg-[#25D366]/25 border border-[#25D366]/40 text-[#25D366] font-bold text-sm transition-all active:scale-[0.98]"
+                        className="w-full flex items-center justify-center gap-2.5 py-3.5 rounded-2xl bg-[#25D366]/10 hover:bg-[#25D366]/20 border border-[#25D366]/30 text-[#15803d] font-bold text-sm transition-all active:scale-[0.98]"
                       >
                         <span className="text-lg">💬</span>
                         Send Receipt on WhatsApp
@@ -699,7 +699,7 @@ function CustomerBookingPage() {
                       {/* Call Us */}
                       <a
                         href="tel:+2347041626545"
-                        className="w-full flex items-center justify-center gap-2.5 py-3 rounded-2xl bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-300 font-bold text-sm transition-all active:scale-[0.98]"
+                        className="w-full flex items-center justify-center gap-2.5 py-3 rounded-2xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 font-bold text-sm transition-all active:scale-[0.98]"
                       >
                         <span className="text-lg">📞</span>
                         Call Us: 07041626545
@@ -719,7 +719,7 @@ function CustomerBookingPage() {
                   <Button
                     onClick={handleConfirmPayment}
                     disabled={!paymentMethod || isConfirmingPayment}
-                    className="w-full h-14 bg-white hover:bg-slate-200 text-slate-950 font-black rounded-xl disabled:opacity-40 transition-all"
+                    className="w-full h-14 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-xl disabled:opacity-40 transition-all"
                   >
                     {isConfirmingPayment
                       ? <><Loader2 className="animate-spin mr-2 h-5 w-5" /> Connecting…</>
@@ -737,15 +737,15 @@ function CustomerBookingPage() {
       
       {/* ═══════════ RIDER ASSIGNED NOTIFICATION MODAL ═══════════ */}
       {showRiderAssigned && assignedRider && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
-          <div className="w-full max-w-sm bg-gradient-to-b from-slate-900 to-[#0a0f1c] border border-emerald-500/40 rounded-[32px] overflow-hidden shadow-2xl shadow-emerald-500/10 animate-in zoom-in-95 duration-300">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+          <div className="w-full max-w-sm bg-white border border-emerald-300 rounded-[32px] overflow-hidden shadow-2xl shadow-emerald-500/10 animate-in zoom-in-95 duration-300">
             {/* Celebration Header */}
-            <div className="relative overflow-hidden p-6 text-center border-b border-emerald-500/20">
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-orange-500/5 pointer-events-none" />
+            <div className="relative overflow-hidden p-6 text-center border-b border-emerald-100">
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-orange-500/5 pointer-events-none" />
               <div className="relative">
                 <div className="text-5xl mb-3">🎉</div>
-                <h2 className="text-2xl font-black text-white">Rider Assigned!</h2>
-                <p className="text-emerald-400 text-sm font-semibold mt-1">
+                <h2 className="text-2xl font-black text-slate-900">Rider Assigned!</h2>
+                <p className="text-emerald-700 text-sm font-semibold mt-1">
                   {assignedRider.name} is heading to your pickup!
                 </p>
               </div>
@@ -754,15 +754,15 @@ function CustomerBookingPage() {
             {/* Rider Details Card */}
             <div className="p-5 space-y-4">
               {/* Rider Profile Row */}
-              <div className="flex items-center gap-4 p-4 bg-slate-800/60 border border-slate-700/60 rounded-2xl">
+              <div className="flex items-center gap-4 p-4 bg-slate-50 border border-slate-200/80 rounded-2xl">
                 <div className="h-14 w-14 rounded-full bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-2xl font-black text-white shrink-0 shadow-lg shadow-orange-500/20">
                   {assignedRider.name.charAt(0)}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-black text-white text-base truncate">{assignedRider.name}</p>
+                  <p className="font-black text-slate-900 text-base truncate">{assignedRider.name}</p>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="text-amber-400 text-sm">★</span>
-                    <span className="text-amber-300 text-sm font-bold">{assignedRider.rating.toFixed(1)}</span>
+                    <span className="text-amber-500 text-sm">★</span>
+                    <span className="text-slate-800 text-sm font-bold">{assignedRider.rating.toFixed(1)}</span>
                     <span className="text-slate-500 text-xs">· Verified SwiftMove Rider</span>
                   </div>
                 </div>
@@ -770,16 +770,16 @@ function CustomerBookingPage() {
 
               {/* Vehicle & Plate */}
               <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 bg-slate-800/50 border border-slate-700/50 rounded-xl">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">🚗 Vehicle</p>
-                  <p className="text-white font-bold text-sm">{assignedRider.vehicleMake}</p>
+                <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl">
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">🚗 Vehicle</p>
+                  <p className="text-slate-900 font-bold text-sm">{assignedRider.vehicleMake}</p>
                   {assignedRider.vehicleType && assignedRider.vehicleType !== assignedRider.vehicleMake && (
-                    <p className="text-slate-400 text-[11px] mt-0.5">{assignedRider.vehicleType}</p>
+                    <p className="text-slate-500 text-[11px] mt-0.5">{assignedRider.vehicleType}</p>
                   )}
                 </div>
-                <div className="p-3 bg-slate-800/50 border border-slate-700/50 rounded-xl">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">🪪 Plate No.</p>
-                  <p className="text-orange-400 font-black text-sm font-mono">{assignedRider.plateNumber || 'N/A'}</p>
+                <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl">
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">🪪 Plate No.</p>
+                  <p className="text-orange-600 font-black text-sm font-mono">{assignedRider.plateNumber || 'N/A'}</p>
                 </div>
               </div>
 
@@ -787,7 +787,7 @@ function CustomerBookingPage() {
               {assignedRider.phone ? (
                 <a
                   href={`tel:${assignedRider.phone}`}
-                  className="flex items-center justify-center gap-3 w-full py-4 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-400 font-black text-sm rounded-2xl transition-all active:scale-[0.98]"
+                  className="flex items-center justify-center gap-3 w-full py-4 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 font-black text-sm rounded-2xl transition-all active:scale-[0.98]"
                 >
                   <PhoneCall className="h-5 w-5" />
                   Call {assignedRider.name.split(' ')[0]} — {assignedRider.phone}
@@ -796,7 +796,7 @@ function CustomerBookingPage() {
 
               {/* Close Button */}
               <Button
-                className="w-full h-12 bg-white hover:bg-slate-100 text-slate-950 font-black rounded-xl"
+                className="w-full h-12 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-xl"
                 onClick={() => setShowRiderAssigned(false)}
               >
                 Got it! Track My Parcel
@@ -816,52 +816,52 @@ function CustomerBookingPage() {
           routePolyline={routePolyline}
         />
         
-        {/* Dark gradient overlay so the floating card stands out */}
-        <div className="absolute inset-0 pointer-events-none bg-gradient-to-r from-slate-900 via-slate-900/70 to-transparent lg:w-3/5" />
+        {/* Soft light gradient overlay so the floating card stands out */}
+        <div className="absolute inset-0 pointer-events-none bg-gradient-to-r from-slate-100/95 via-slate-100/75 to-transparent lg:w-3/5" />
       </div>
 
       {/* ═══════════ FOREGROUND: FLOATING BOOKING CARD ═══════════ */}
       <div className="relative z-10 w-full lg:w-[460px] flex flex-col p-4 md:p-6 lg:p-8 h-[100dvh] overflow-hidden pointer-events-none">
-        <div className="bg-slate-900/90 backdrop-blur-2xl border border-slate-700/70 rounded-[32px] shadow-2xl flex flex-col flex-1 pointer-events-auto overflow-hidden">
+        <div className="bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-[32px] shadow-2xl flex flex-col flex-1 pointer-events-auto overflow-hidden">
           
           <div className="p-6 space-y-6 flex-1 overflow-y-auto custom-scrollbar">
             {/* Header */}
             {!activeOrder ? (
               <div className="space-y-4">
                 <div className="text-center">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/20 text-xs font-semibold text-orange-400">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-50 border border-orange-200 text-xs font-semibold text-orange-600">
                     <Package className="h-3.5 w-3.5" /> Express Delivery
                   </div>
-                  <h1 className="text-2xl font-black text-white tracking-tight mt-3">Send a Parcel</h1>
-                  <p className="text-xs text-slate-400 font-medium mt-1">Fast, reliable dispatch across the city.</p>
+                  <h1 className="text-2xl font-black text-slate-900 tracking-tight mt-3">Send a Parcel</h1>
+                  <p className="text-xs text-slate-500 font-medium mt-1">Fast, reliable dispatch across the city.</p>
                 </div>
 
                 {/* Step Progress */}
                 <div className="flex items-center gap-2">
                   {[{ n: 1, label: 'Locations' }, { n: 2, label: 'Parcel' }, { n: 3, label: 'Review' }].map(({ n, label }, idx) => (
                     <div key={n} className="flex items-center gap-2 flex-1">
-                      <div className={`flex items-center gap-1.5 ${step === n ? 'text-white' : step > n ? 'text-emerald-400' : 'text-slate-600'}`}>
+                      <div className={`flex items-center gap-1.5 ${step === n ? 'text-slate-900' : step > n ? 'text-emerald-600' : 'text-slate-400'}`}>
                         <div className={`h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-black border transition-all ${
-                          step === n ? 'bg-orange-600 border-orange-500 text-white shadow-[0_0_12px_rgba(59,130,246,0.5)]'
-                          : step > n ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400'
-                          : 'bg-slate-900 border-slate-700 text-slate-600'
+                          step === n ? 'bg-orange-600 border-orange-500 text-white shadow-[0_0_12px_rgba(249,115,22,0.35)]'
+                          : step > n ? 'bg-emerald-100 border-emerald-500 text-emerald-700'
+                          : 'bg-slate-100 border-slate-200 text-slate-400'
                         }`}>
                           {step > n ? '✓' : n}
                         </div>
                         <span className="text-[10px] font-bold uppercase tracking-wide hidden sm:block">{label}</span>
                       </div>
-                      {idx < 2 && <div className={`flex-1 h-[2px] rounded-full transition-all ${step > n ? 'bg-emerald-500' : 'bg-slate-800'}`} />}
+                      {idx < 2 && <div className={`flex-1 h-[2px] rounded-full transition-all ${step > n ? 'bg-emerald-500' : 'bg-slate-200'}`} />}
                     </div>
                   ))}
                 </div>
               </div>
             ) : (
               <div className="text-center space-y-1">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/20 text-xs font-semibold text-orange-400">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-50 border border-orange-200 text-xs font-semibold text-orange-600">
                   <Truck className="h-3.5 w-3.5" /> Live Tracking
                 </div>
-                <h1 className="text-2xl font-black text-white tracking-tight mt-3">Order Dispatched</h1>
-                <p className="text-xs text-slate-400 font-medium">Your parcel is being handled by SwiftMove.</p>
+                <h1 className="text-2xl font-black text-slate-900 tracking-tight mt-3">Order Dispatched</h1>
+                <p className="text-xs text-slate-500 font-medium">Your parcel is being handled by SwiftMove.</p>
               </div>
             )}
 
@@ -873,7 +873,7 @@ function CustomerBookingPage() {
                   <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
                     <div className="relative space-y-4">
                       {/* Vertical connecting line */}
-                      <div className="absolute left-6 top-8 bottom-8 w-[2px] bg-slate-800 rounded-full z-0" />
+                      <div className="absolute left-6 top-8 bottom-8 w-[2px] bg-slate-200 rounded-full z-0" />
                       
                       {/* Pickup Input with Live GPS & Real-time Suggestions */}
                       <div className="relative z-30">
@@ -922,7 +922,7 @@ function CustomerBookingPage() {
 
                       {/* Popular Jos Destinations Chips */}
                       <div className="relative z-10 space-y-2 pt-1">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Popular Jos Destinations</p>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Popular Jos Destinations</p>
                         <div className="flex flex-wrap gap-1.5">
                           {POPULAR_DESTINATIONS.map((dest) => (
                             <button
@@ -938,7 +938,7 @@ function CustomerBookingPage() {
                                   setPickupText('Jos Main Market / Terminus');
                                 }
                               }}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900 border border-slate-800 text-xs text-slate-300 hover:bg-orange-500/10 hover:border-orange-500/30 hover:text-white transition-all text-left active:scale-95"
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-xs text-slate-700 hover:bg-orange-50 hover:border-orange-300 hover:text-orange-950 transition-all text-left active:scale-95"
                             >
                               <span>{dest.iconEmoji}</span>
                               <span>{dest.label}</span>
@@ -950,12 +950,12 @@ function CustomerBookingPage() {
 
                     {/* Route Details Banner */}
                     {distanceKm > 0 && (
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-orange-500/10 border border-orange-500/20 text-xs animate-in fade-in-0 duration-200">
-                        <span className="text-slate-300 flex items-center gap-1.5 font-medium">
-                          <span>🛣️</span> Road Distance: <strong className="text-white">{distanceKm} km</strong>
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-orange-50 border border-orange-200 text-xs animate-in fade-in-0 duration-200">
+                        <span className="text-slate-700 flex items-center gap-1.5 font-medium">
+                          <span>🛣️</span> Road Distance: <strong className="text-slate-900">{distanceKm} km</strong>
                         </span>
                         {durationText && (
-                          <span className="text-orange-400 font-semibold flex items-center gap-1">
+                          <span className="text-orange-600 font-semibold flex items-center gap-1">
                             <span>⏱️</span> {durationText}
                           </span>
                         )}
@@ -963,8 +963,8 @@ function CustomerBookingPage() {
                     )}
 
                     {isCalculatingRoute && distanceKm <= 0 && (
-                      <div className="flex items-center justify-center gap-2 p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-xs text-orange-400">
-                        <Loader2 className="h-4 w-4 animate-spin text-orange-400" />
+                      <div className="flex items-center justify-center gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-orange-600">
+                        <Loader2 className="h-4 w-4 animate-spin text-orange-600" />
                         <span>Calculating road route & distance…</span>
                       </div>
                     )}
@@ -977,8 +977,8 @@ function CustomerBookingPage() {
                           disabled={!isStep1Ready}
                           className={`w-full h-14 text-sm font-black rounded-xl transition-all duration-300 flex items-center justify-center gap-2 ${
                             isStep1Ready
-                              ? 'bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white shadow-[0_0_25px_rgba(249,115,22,0.45)] hover:shadow-[0_0_35px_rgba(249,115,22,0.65)] hover:scale-[1.01] active:scale-[0.99] border border-orange-400/30 ring-2 ring-orange-500/20 cursor-pointer'
-                              : 'bg-slate-800/80 text-slate-500 border border-slate-700/50 cursor-not-allowed opacity-50 shadow-none'
+                              ? 'bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:scale-[1.01] active:scale-[0.99] border border-orange-400/30 cursor-pointer'
+                              : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-60 shadow-none'
                           }`}
                         >
                           {isCalculatingRoute ? (
@@ -1004,14 +1004,14 @@ function CustomerBookingPage() {
                     <div className="space-y-4">
                       {/* Weight */}
                       <div>
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 mb-1.5 ml-2">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 mb-1.5 ml-2">
                           <Weight className="h-3 w-3" /> Estimated Weight (kg)
                         </label>
                         <div className="relative">
                           <input type="number" min={0.5} max={500} step={0.5} value={weightKg}
                             onChange={(e) => setWeightKg(e.target.value === '' ? '' : Number(e.target.value))}
                             placeholder="e.g., 2.5 kg"
-                            className="w-full h-14 pl-10 pr-4 rounded-2xl bg-slate-900/80 border border-slate-800 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 transition-all"
+                            className="w-full h-14 pl-10 pr-4 rounded-2xl bg-slate-50 border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-orange-500/30 focus:border-orange-400 transition-all"
                           />
                           <Package className="absolute left-4 top-4 h-5 w-5 text-slate-400" />
                         </div>
@@ -1019,26 +1019,26 @@ function CustomerBookingPage() {
 
                       {/* Description */}
                       <div>
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 mb-1.5 ml-2">
-                          <Info className="h-3 w-3" /> What are you sending? <span className="text-red-400">*</span>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 mb-1.5 ml-2">
+                          <Info className="h-3 w-3" /> What are you sending? <span className="text-red-500">*</span>
                         </label>
                         <textarea
                           value={parcelDescription}
                           onChange={(e) => setParcelDescription(e.target.value)}
                           placeholder="Describe the items securely..."
-                          className="w-full h-24 p-4 rounded-2xl bg-slate-900/80 border border-slate-800 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 transition-all resize-none"
+                          className="w-full h-24 p-4 rounded-2xl bg-slate-50 border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-orange-500/30 focus:border-orange-400 transition-all resize-none"
                         />
                       </div>
                     </div>
 
                     <div className="flex gap-3">
-                      <Button variant="outline" onClick={() => setStep(1)} className="h-14 px-6 border-slate-700 text-slate-300 rounded-xl">
+                      <Button variant="outline" onClick={() => setStep(1)} className="h-14 px-6 border-slate-200 text-slate-700 hover:bg-slate-100 rounded-xl">
                         Back
                       </Button>
                       <Button
                         onClick={() => setStep(3)}
                         disabled={!weightKg || !parcelDescription.trim()}
-                        className="flex-1 h-14 bg-white hover:bg-slate-200 text-slate-950 text-sm font-black rounded-xl shadow-[0_0_20px_rgba(255,255,255,0.1)] transition-all"
+                        className="flex-1 h-14 bg-slate-900 hover:bg-slate-800 text-white text-sm font-black rounded-xl shadow-md transition-all"
                       >
                         Review Fare & Book
                       </Button>
@@ -1049,17 +1049,17 @@ function CustomerBookingPage() {
                 {/* ═══ STEP 3: REVIEW & BOOK ═══ */}
                 {step === 3 && isFormComplete && (
                   <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
-                    <div className="bg-slate-900 rounded-[24px] border border-slate-800 p-6 space-y-5 shadow-lg">
+                    <div className="bg-slate-50 rounded-[24px] border border-slate-200/90 p-6 space-y-5 shadow-sm">
                       
                       {/* Price header */}
-                      <div className="flex justify-between items-end border-b border-slate-800 pb-5">
+                      <div className="flex justify-between items-end border-b border-slate-200/80 pb-5">
                         <div>
                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Guaranteed Fare</p>
-                          <span className="text-4xl font-black text-white">₦{breakdown?.total.toLocaleString()}</span>
+                          <span className="text-4xl font-black text-slate-900">₦{breakdown?.total.toLocaleString()}</span>
                         </div>
                         <div className="text-right pb-1">
                           {durationText && (
-                            <p className="text-sm text-emerald-400 font-semibold mb-1">~{durationText} delivery</p>
+                            <p className="text-sm text-emerald-600 font-semibold mb-1">~{durationText} delivery</p>
                           )}
                           <p className="text-xs text-slate-500 font-medium">{distanceKm} km • {weightKg} kg</p>
                         </div>
@@ -1067,32 +1067,32 @@ function CustomerBookingPage() {
 
                       {/* Transparent Fare Breakdown (Price per km & kg) */}
                       {breakdown && (
-                        <div className="p-4 rounded-2xl bg-slate-800/60 border border-slate-700/70 space-y-2.5 text-xs">
+                        <div className="p-4 rounded-2xl bg-white border border-slate-200/80 space-y-2.5 text-xs shadow-sm">
                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Fare Breakdown</p>
                           
-                          <div className="flex justify-between items-center text-slate-300">
+                          <div className="flex justify-between items-center text-slate-600">
                             <span className="flex items-center gap-1.5">
                               <span>🏁</span> Base Dispatch Fare
                             </span>
-                            <span className="font-semibold text-white">₦{breakdown.baseFare.toLocaleString()}</span>
+                            <span className="font-semibold text-slate-900">₦{breakdown.baseFare.toLocaleString()}</span>
                           </div>
 
-                          <div className="flex justify-between items-center text-slate-300">
+                          <div className="flex justify-between items-center text-slate-600">
                             <span className="flex items-center gap-1.5">
                               <span>🛣️</span> Distance ({breakdown.distanceKm} km @ ₦{breakdown.ratePerKm}/km)
                             </span>
-                            <span className="font-semibold text-white">₦{breakdown.distanceCost.toLocaleString()}</span>
+                            <span className="font-semibold text-slate-900">₦{breakdown.distanceCost.toLocaleString()}</span>
                           </div>
 
-                          <div className="flex justify-between items-center text-slate-300">
+                          <div className="flex justify-between items-center text-slate-600">
                             <span className="flex items-center gap-1.5">
                               <span>⚖️</span> Weight ({breakdown.weightKg} kg @ ₦{breakdown.ratePerKg}/kg)
                             </span>
-                            <span className="font-semibold text-white">₦{breakdown.weightCost.toLocaleString()}</span>
+                            <span className="font-semibold text-slate-900">₦{breakdown.weightCost.toLocaleString()}</span>
                           </div>
 
                           {breakdown.subtotal < breakdown.minFare && (
-                            <div className="flex justify-between items-center text-amber-400/90 pt-1 border-t border-slate-800/60 text-[11px]">
+                            <div className="flex justify-between items-center text-amber-700 pt-1 border-t border-slate-100 text-[11px]">
                               <span>Minimum Fare Threshold Applied</span>
                               <span className="font-semibold">₦{breakdown.minFare.toLocaleString()}</span>
                             </div>
@@ -1102,23 +1102,23 @@ function CustomerBookingPage() {
 
                       {/* Trust Signals */}
                       <div className="space-y-3 pt-2">
-                        <div className="flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl">
-                          <div className="h-8 w-8 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
-                            <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                        <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200/80 p-3 rounded-xl">
+                          <div className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                           </div>
                           <div>
-                            <p className="text-xs font-bold text-emerald-400">100% Safe & Verified Drivers</p>
-                            <p className="text-[10px] text-emerald-500/80">Every dispatch rider is fully vetted by SwiftMove.</p>
+                            <p className="text-xs font-bold text-emerald-800">100% Safe & Verified Drivers</p>
+                            <p className="text-[10px] text-emerald-700/80">Every dispatch rider is fully vetted by SwiftMove.</p>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-3 bg-amber-500/10 border border-amber-500/20 p-3 rounded-xl">
-                          <div className="h-8 w-8 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
-                            <Banknote className="h-4 w-4 text-amber-400" />
+                        <div className="flex items-center gap-3 bg-amber-50 border border-amber-200/80 p-3 rounded-xl">
+                          <div className="h-8 w-8 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+                            <Banknote className="h-4 w-4 text-amber-600" />
                           </div>
                           <div>
-                            <p className="text-xs font-bold text-amber-400">Secure Upfront Payment</p>
-                            <p className="text-[10px] text-amber-500/80">Pay securely now. Drivers receive request upon verification.</p>
+                            <p className="text-xs font-bold text-amber-800">Secure Upfront Payment</p>
+                            <p className="text-[10px] text-amber-700/80">Pay securely now. Drivers receive request upon verification.</p>
                           </div>
                         </div>
                       </div>
@@ -1127,7 +1127,7 @@ function CustomerBookingPage() {
                         <Button
                           onClick={handleBookDispatch}
                           disabled={isBooking}
-                          className="w-full h-14 bg-orange-600 hover:bg-orange-500 text-white text-sm font-black rounded-xl shadow-[0_0_20px_rgba(59,130,246,0.3)] transition-all"
+                          className="w-full h-14 bg-orange-600 hover:bg-orange-500 text-white text-sm font-black rounded-xl shadow-lg shadow-orange-500/25 transition-all"
                         >
                           {isBooking ? (
                             <><Loader2 className="animate-spin mr-2 h-5 w-5" /> Preparing Payment…</>
@@ -1135,7 +1135,7 @@ function CustomerBookingPage() {
                             <><Banknote className="mr-2 h-5 w-5" /> Pay & Request Dispatch</>
                           )}
                         </Button>
-                        <Button variant="ghost" onClick={() => setStep(2)} disabled={isBooking} className="w-full mt-2 text-slate-400 hover:text-white">
+                        <Button variant="ghost" onClick={() => setStep(2)} disabled={isBooking} className="w-full mt-2 text-slate-500 hover:text-slate-900">
                           Make Changes
                         </Button>
                       </div>
@@ -1146,22 +1146,22 @@ function CustomerBookingPage() {
             ) : showDelivered ? (
               /* ═══ Delivery Celebration ═══ */
               <div className="flex flex-col items-center justify-center py-10 space-y-6 text-center animate-in zoom-in-95 duration-500">
-                <div className="w-24 h-24 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                  <CheckCircle2 className="h-12 w-12 text-emerald-400" />
+                <div className="w-24 h-24 rounded-full bg-emerald-100 flex items-center justify-center">
+                  <CheckCircle2 className="h-12 w-12 text-emerald-600" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-black text-white tracking-tight">Delivered! 🎉</h2>
-                  <p className="text-slate-400 text-sm mt-1">Your package has arrived safely.</p>
+                  <h2 className="text-2xl font-black text-slate-900 tracking-tight">Delivered! 🎉</h2>
+                  <p className="text-slate-500 text-sm mt-1">Your package has arrived safely.</p>
                 </div>
                 
-                <div className="w-full bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-5 space-y-3">
-                  <p className="text-emerald-400 font-bold text-sm">Final Fare</p>
-                  <p className="text-3xl font-black text-white">₦{(activeOrder?.estimated_price || 0).toLocaleString()}</p>
-                  <p className="text-slate-400 text-xs mt-2">Payment was verified upfront.</p>
-                  <p className="text-slate-300 text-sm mt-4 font-semibold">Receipt & Driver Earnings Sent.</p>
+                <div className="w-full bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-3">
+                  <p className="text-emerald-700 font-bold text-sm">Final Fare</p>
+                  <p className="text-3xl font-black text-slate-900">₦{(activeOrder?.estimated_price || 0).toLocaleString()} </p>
+                  <p className="text-slate-500 text-xs mt-2">Payment was verified upfront.</p>
+                  <p className="text-slate-700 text-sm mt-4 font-semibold">Receipt & Driver Earnings Sent.</p>
                 </div>
                 
-                <Button variant="ghost" className="text-slate-400 hover:text-white"
+                <Button variant="ghost" className="text-slate-500 hover:text-slate-900"
                   onClick={() => { setShowDelivered(false); handleReset(); }}>
                   Book Another Dispatch
                 </Button>
@@ -1172,20 +1172,20 @@ function CustomerBookingPage() {
                 {/* Status Banner */}
                 <div className={`rounded-2xl p-4 flex items-center gap-4 border ${
                   activeOrder.status === 'pending'
-                    ? 'bg-amber-500/10 border-amber-500/30'
+                    ? 'bg-amber-50 border-amber-200'
                     : activeOrder.status === 'accepted'
-                    ? 'bg-emerald-500/10 border-emerald-500/30'
-                    : 'bg-orange-600/10 border-orange-500/30'
+                    ? 'bg-emerald-50 border-emerald-200'
+                    : 'bg-orange-50 border-orange-200'
                 }`}>
                   <div className={`h-12 w-12 rounded-full flex items-center justify-center flex-shrink-0 ${
-                    activeOrder.status === 'pending' ? 'bg-amber-500/20' : 'bg-emerald-500/20'
+                    activeOrder.status === 'pending' ? 'bg-amber-100' : 'bg-emerald-100'
                   }`}>
                     {activeOrder.status === 'pending'
-                      ? <Loader2 className="h-6 w-6 text-amber-400 animate-spin" />
-                      : <Truck className="h-6 w-6 text-emerald-400" />}
+                      ? <Loader2 className="h-6 w-6 text-amber-600 animate-spin" />
+                      : <Truck className="h-6 w-6 text-emerald-600" />}
                   </div>
                   <div>
-                    <h3 className="text-white font-bold text-sm">
+                    <h3 className="text-slate-900 font-bold text-sm">
                       {activeOrder.status === 'pending'
                         ? '💳 Payment Received · Awaiting Dispatcher'
                         : activeOrder.status === 'accepted'
@@ -1194,7 +1194,7 @@ function CustomerBookingPage() {
                         ? '🚚 Parcel In Transit!'
                         : 'Rider Assigned!'}
                     </h3>
-                    <p className="text-slate-400 text-xs mt-0.5">
+                    <p className="text-slate-600 text-xs mt-0.5">
                       {activeOrder.status === 'pending'
                         ? 'A dispatcher is reviewing your order and will assign a rider.'
                         : activeOrder.status === 'accepted'
@@ -1205,7 +1205,7 @@ function CustomerBookingPage() {
                 </div>
 
                 {/* Progress Tracker */}
-                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+                <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-5">
                   {(() => {
                     const steps = [
                       { key: 'accepted',  label: 'Rider Assigned & En Route' },
@@ -1217,20 +1217,20 @@ function CustomerBookingPage() {
                     const pending = activeOrder.status === 'pending';
                     
                     return (
-                      <div className="space-y-6 relative before:absolute before:inset-0 before:ml-2.5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-800 before:to-transparent">
+                      <div className="space-y-6 relative before:absolute before:inset-0 before:ml-2.5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-200 before:to-transparent">
                         {steps.map((step, i) => {
                           const done = !pending && i <= idx;
                           const active = !pending && i === idx;
                           return (
                             <div key={step.key} className="relative flex items-center gap-4">
-                              <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center bg-slate-900 z-10 ${
-                                active ? 'border-orange-500' : done ? 'border-emerald-500' : 'border-slate-800'
+                              <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center bg-white z-10 ${
+                                active ? 'border-orange-500' : done ? 'border-emerald-500' : 'border-slate-300'
                               }`}>
                                 {active ? <div className="h-2 w-2 rounded-full bg-orange-500 animate-ping" /> : 
                                  done ? <div className="h-2 w-2 rounded-full bg-emerald-500" /> : null}
                               </div>
                               <p className={`text-sm font-semibold ${
-                                active ? 'text-white' : done ? 'text-slate-300' : 'text-slate-600'
+                                active ? 'text-slate-900 font-bold' : done ? 'text-slate-700' : 'text-slate-400'
                               }`}>{step.label}</p>
                             </div>
                           );
@@ -1241,42 +1241,42 @@ function CustomerBookingPage() {
                 </div>
 
                 {/* Order Details Card */}
-                <div className="bg-slate-900/50 rounded-2xl p-4 border border-slate-800 space-y-3 text-sm">
+                <div className="bg-white rounded-2xl p-4 border border-slate-200/90 space-y-3 text-sm shadow-sm">
                 {/* Driver phone - extracted from package_type where driver writes it on accept */}
                 {(() => {
                   const driverPhoneMatch = activeOrder?.package_type?.match(/\|\|\|DPHONE:([\d\+\-\(\)\s]+)/);
                   const driverPhone = driverPhoneMatch ? driverPhoneMatch[1] : null;
                   return driverPhone ? (
-                    <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+                    <div className="flex justify-between items-center border-b border-slate-100 pb-3">
                       <div>
-                        <p className="text-slate-400 text-xs">Driver Phone</p>
-                        <p className="font-bold text-white mt-0.5">{driverPhone}</p>
+                        <p className="text-slate-500 text-xs">Driver Phone</p>
+                        <p className="font-bold text-slate-900 mt-0.5">{driverPhone}</p>
                       </div>
-                      <Button variant="outline" size="sm" className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/30" asChild>
+                      <Button variant="outline" size="sm" className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200" asChild>
                         <a href={`tel:${driverPhone}`}><PhoneCall className="h-4 w-4 mr-2" /> Call Driver</a>
                       </Button>
                     </div>
                   ) : null;
                 })()}
-                  <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-                    <span className="text-slate-400">Tracking ID</span>
-                    <span className="font-mono text-orange-400 font-bold">{activeOrder.payment_reference}</span>
+                  <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                    <span className="text-slate-500">Tracking ID</span>
+                    <span className="font-mono text-orange-600 font-bold">{activeOrder.payment_reference}</span>
                   </div>
-                  <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-                    <span className="text-slate-400">Fare (Paid)</span>
-                    <span className="font-black text-white">₦{(activeOrder.estimated_price||0).toLocaleString()}</span>
+                  <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                    <span className="text-slate-500">Fare (Paid)</span>
+                    <span className="font-black text-slate-900">₦{(activeOrder.estimated_price||0).toLocaleString()}</span>
                   </div>
                   
                   {activeOrder.status === 'pending' && (
                     <Button variant="ghost" onClick={handleCancelOrder} disabled={isCancelling}
-                      className="w-full text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded-xl mt-2">
+                      className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl mt-2">
                       {isCancelling ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                       Cancel Order
                     </Button>
                   )}
                   
                   {activeOrder.status === 'delivered' && (
-                    <div className="text-center p-3 mt-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400 text-xs font-bold">
+                    <div className="text-center p-3 mt-2 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-xs font-bold">
                       Payment Completed
                     </div>
                   )}

@@ -248,12 +248,12 @@ function RootComponent() {
     }
   }, []);
 
-  // Apply dark background to body tag
+  // Apply light Swiftmove theme when active
   useEffect(() => {
     if (isSwiftmove) {
       document.documentElement.classList.add("swiftmove-theme");
-      document.body.style.backgroundColor = "#0f172a";
-      document.body.style.color = "#f1f5f9";
+      document.body.style.backgroundColor = "#f8fafc";
+      document.body.style.color = "#0f172a";
     } else {
       document.documentElement.classList.remove("swiftmove-theme");
       document.body.style.backgroundColor = "";
@@ -265,7 +265,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       {isStandaloneApp ? (
         /* ── Standalone Layout (Driver / Admin): pure full-screen shell, zero ecosystem chrome ── */
-        <div className="flex min-h-screen flex-col bg-[#0f172a] text-slate-200">
+        <div className="flex min-h-screen flex-col bg-slate-50 text-slate-800">
           <Outlet />
         </div>
       ) : (
@@ -285,17 +285,17 @@ function RootComponent() {
           {isSwiftmove && !isLanding && (
             <>
               <div
-                className="absolute inset-0 -z-20 w-full h-full opacity-20 pointer-events-none"
+                className="absolute inset-0 -z-20 w-full h-full opacity-10 pointer-events-none"
                 style={{
                   backgroundImage: `url('https://images.unsplash.com/photo-1519003722824-194d4455a60c?q=80&w=2074&auto=format&fit=crop')`,
                   backgroundSize: 'cover',
                   backgroundPosition: 'center',
                 }}
               />
-              <div className="absolute inset-0 -z-10 bg-gradient-to-b from-slate-950/70 via-[#0f172a]/95 to-[#0f172a] pointer-events-none" />
-              <div className="absolute inset-0 -z-10 opacity-10 mix-blend-overlay pointer-events-none" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 40L40 0H20L0 20M40 40V20L20 40' stroke='%23ea580c' stroke-width='1' fill='none' stroke-opacity='0.15'/%3E%3C/svg%3E")`, backgroundSize: '40px 40px' }} />
-              <div className="absolute -top-[10%] -right-[10%] w-[600px] h-[600px] rounded-full bg-blue-800/25 blur-[120px] pointer-events-none -z-10" />
-              <div className="absolute top-[50%] -left-[10%] w-[400px] h-[400px] rounded-full bg-orange-500/15 blur-[120px] pointer-events-none -z-10" />
+              <div className="absolute inset-0 -z-10 bg-gradient-to-b from-slate-50/90 via-white/80 to-slate-100/90 pointer-events-none" />
+              <div className="absolute inset-0 -z-10 opacity-5 pointer-events-none" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 40L40 0H20L0 20M40 40V20L20 40' stroke='%23ea580c' stroke-width='1' fill='none' stroke-opacity='0.2'/%3E%3C/svg%3E")`, backgroundSize: '40px 40px' }} />
+              <div className="absolute -top-[10%] -right-[10%] w-[600px] h-[600px] rounded-full bg-blue-100/50 blur-[120px] pointer-events-none -z-10" />
+              <div className="absolute top-[50%] -left-[10%] w-[400px] h-[400px] rounded-full bg-orange-100/50 blur-[120px] pointer-events-none -z-10" />
             </>
           )}
 

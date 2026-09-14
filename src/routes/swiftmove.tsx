@@ -33,33 +33,33 @@ const SERVICES = [
     icon: Bike,
     title: 'Express Dispatch',
     desc: 'Motorbike couriers for small packages, documents, and same-day deliveries across the city.',
-    color: 'text-orange-400',
-    bg: 'bg-orange-500/10',
-    border: 'border-orange-500/20',
+    color: 'text-orange-600',
+    bg: 'bg-orange-50',
+    border: 'border-orange-200/80 hover:border-orange-400',
   },
   {
     icon: Truck,
     title: 'Vehicle Hire',
     desc: 'Hire a van or truck for large cargo, furniture, equipment, or bulk business deliveries.',
-    color: 'text-blue-400',
-    bg: 'bg-blue-500/10',
-    border: 'border-blue-500/20',
+    color: 'text-blue-600',
+    bg: 'bg-blue-50',
+    border: 'border-blue-200/80 hover:border-blue-400',
   },
   {
     icon: Package,
     title: 'Package Delivery',
     desc: 'Safe, tracked delivery for fragile items, electronics, food, and anything in between.',
-    color: 'text-emerald-400',
-    bg: 'bg-emerald-500/10',
-    border: 'border-emerald-500/20',
+    color: 'text-emerald-600',
+    bg: 'bg-emerald-50',
+    border: 'border-emerald-200/80 hover:border-emerald-400',
   },
   {
     icon: Globe2,
     title: 'Inter-City Runs',
     desc: 'Long-distance deliveries between cities. Reliable, insured, with real-time tracking.',
-    color: 'text-violet-400',
-    bg: 'bg-violet-500/10',
-    border: 'border-violet-500/20',
+    color: 'text-purple-600',
+    bg: 'bg-purple-50',
+    border: 'border-purple-200/80 hover:border-purple-400',
   },
 ];
 
@@ -84,7 +84,7 @@ export function SwiftMoveLanding() {
   const isDispatcher = role === 'swift_dispatcher' || role === 'dispatcher';
   const isAdmin = role === 'administrator' || role === 'admin' || role === 'swift_manager';
 
-  const userDisplayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Customer';
+  const userDisplayName = (user?.user_metadata as Record<string, any> | undefined)?.['full_name'] || user?.email?.split('@')[0] || 'Customer';
 
   async function handleSignOut() {
     await logout();
@@ -92,74 +92,92 @@ export function SwiftMoveLanding() {
   }
 
   return (
-    <div className="min-h-screen bg-[#080c17] text-slate-200 overflow-x-hidden">
+    <div className="min-h-screen bg-slate-50 text-slate-800 overflow-x-hidden">
 
       {/* ── Navbar ─────────────────────────────────────────────────── */}
-      <nav className="sticky top-0 z-50 border-b border-slate-800/60 bg-[#080c17]/85 backdrop-blur-xl">
+      <nav className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <Link to="/swiftmove" className="flex items-center gap-3 group">
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-400 flex items-center justify-center shadow-lg shadow-orange-500/30 group-hover:scale-105 transition-transform">
+            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-400 flex items-center justify-center shadow-md shadow-orange-500/20 group-hover:scale-105 transition-transform">
               <Truck className="h-5 w-5 text-white" />
             </div>
             <div>
-              <span className="text-lg font-black text-white tracking-tight">SwiftMove</span>
-              <span className="text-xs text-orange-400 font-semibold block -mt-1">Logistics &amp; Rides</span>
+              <span className="text-lg font-black text-slate-900 tracking-tight">SwiftMove</span>
+              <span className="text-xs text-orange-600 font-bold block -mt-1">Logistics &amp; Rides</span>
             </div>
           </Link>
 
           {/* Quick service navigation */}
-          <div className="hidden md:flex items-center gap-6 text-sm text-slate-300">
-            <Link to={user ? "/my-swift-move" : "/auth"} search={user ? undefined : { redirect: "/my-swift-move", mode: "login" }} className="hover:text-orange-400 font-medium transition-colors">
-              Send a Parcel
-            </Link>
-            <Link to={user ? "/my-vehicle-hires" : "/auth"} search={user ? undefined : { redirect: "/my-vehicle-hires", mode: "login" }} className="hover:text-blue-400 font-medium transition-colors">
-              Request a Ride
-            </Link>
-            <Link to={user ? "/history" : "/auth"} search={user ? undefined : { redirect: "/history", mode: "login" }} className="hover:text-emerald-400 font-medium transition-colors">
-              History
-            </Link>
-            <a href="#services" className="text-slate-400 hover:text-white transition-colors">Services</a>
-            <a href="#how-it-works" className="text-slate-400 hover:text-white transition-colors">How It Works</a>
+          <div className="hidden md:flex items-center gap-6 text-sm text-slate-600">
+            {user ? (
+              <Link to="/my-swift-move" className="hover:text-orange-600 font-medium transition-colors">
+                Send a Parcel
+              </Link>
+            ) : (
+              <Link to="/auth" search={{ redirect: "/my-swift-move", mode: "login" }} className="hover:text-orange-600 font-medium transition-colors">
+                Send a Parcel
+              </Link>
+            )}
+            {user ? (
+              <Link to="/my-vehicle-hires" className="hover:text-blue-600 font-medium transition-colors">
+                Request a Ride
+              </Link>
+            ) : (
+              <Link to="/auth" search={{ redirect: "/my-vehicle-hires", mode: "login" }} className="hover:text-blue-600 font-medium transition-colors">
+                Request a Ride
+              </Link>
+            )}
+            {user ? (
+              <Link to="/history" className="hover:text-emerald-600 font-medium transition-colors">
+                History
+              </Link>
+            ) : (
+              <Link to="/auth" search={{ redirect: "/history", mode: "login" }} className="hover:text-emerald-600 font-medium transition-colors">
+                History
+              </Link>
+            )}
+            <a href="#services" className="text-slate-500 hover:text-slate-900 transition-colors">Services</a>
+            <a href="#how-it-works" className="text-slate-500 hover:text-slate-900 transition-colors">How It Works</a>
           </div>
 
           <div className="flex items-center gap-3">
             {user ? (
               <div className="flex items-center gap-3">
-                <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-800/90 border border-slate-700 text-xs font-semibold text-slate-200">
-                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-700">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
                   {userDisplayName}
                 </span>
 
                 {isDispatcher && (
                   <Link
                     to="/dispatcher"
-                    className="hidden lg:flex items-center gap-1 px-3 py-1.5 rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/25 transition-colors"
+                    className="hidden lg:flex items-center gap-1 px-3 py-1.5 rounded-lg bg-cyan-50 border border-cyan-200 text-xs font-semibold text-cyan-700 hover:bg-cyan-100 transition-colors"
                   >
-                    <Radio className="h-3.5 w-3.5" /> Dispatcher
+                    <Radio className="h-3.5 w-3.5 text-cyan-600" /> Dispatcher
                   </Link>
                 )}
 
                 {isDriver && (
                   <Link
                     to="/drive"
-                    className="hidden lg:flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/25 transition-colors"
+                    className="hidden lg:flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors"
                   >
-                    <Truck className="h-3.5 w-3.5" /> Driver Console
+                    <Truck className="h-3.5 w-3.5 text-emerald-600" /> Driver Console
                   </Link>
                 )}
 
                 {isAdmin && (
                   <Link
                     to="/admin"
-                    className="hidden lg:flex items-center gap-1 px-3 py-1.5 rounded-lg bg-purple-500/15 border border-purple-500/30 text-xs font-semibold text-purple-300 hover:bg-purple-500/25 transition-colors"
+                    className="hidden lg:flex items-center gap-1 px-3 py-1.5 rounded-lg bg-purple-50 border border-purple-200 text-xs font-semibold text-purple-700 hover:bg-purple-100 transition-colors"
                   >
-                    <Shield className="h-3.5 w-3.5" /> Admin
+                    <Shield className="h-3.5 w-3.5 text-purple-600" /> Admin
                   </Link>
                 )}
 
                 <button
                   onClick={handleSignOut}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-900/60 text-xs font-semibold text-slate-300 hover:text-red-400 hover:border-red-500/40 transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-600 hover:text-red-600 hover:border-red-200 transition-colors shadow-sm"
                   title="Sign out"
                 >
                   <LogOut className="h-3.5 w-3.5" />
@@ -171,14 +189,14 @@ export function SwiftMoveLanding() {
                 <Link
                   to="/auth"
                   search={{ mode: 'login', redirect: '/swiftmove' }}
-                  className="px-4 py-2 text-xs sm:text-sm font-semibold text-slate-300 hover:text-white transition-colors"
+                  className="px-4 py-2 text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors"
                 >
                   Sign In
                 </Link>
                 <Link
                   to="/auth"
                   search={{ mode: 'register', redirect: '/swiftmove' }}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-400 rounded-xl text-xs sm:text-sm font-bold text-white shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50 transition-all hover:scale-105"
+                  className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-400 rounded-xl text-xs sm:text-sm font-bold text-white shadow-md shadow-orange-500/20 hover:shadow-orange-500/40 transition-all hover:scale-105"
                 >
                   Register
                 </Link>
@@ -192,12 +210,12 @@ export function SwiftMoveLanding() {
       <section className="relative min-h-[90vh] flex items-center justify-center px-4 sm:px-6 pt-12 pb-20">
         {/* Background glow */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 h-[600px] w-[900px] rounded-full bg-orange-500/10 blur-[140px]" />
-          <div className="absolute top-1/3 right-0 h-[400px] w-[500px] rounded-full bg-blue-500/10 blur-[120px]" />
-          <div className="absolute bottom-1/4 left-0 h-[350px] w-[450px] rounded-full bg-emerald-500/10 blur-[120px]" />
-          {/* Animated grid */}
+          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 h-[600px] w-[900px] rounded-full bg-orange-100/70 blur-[140px]" />
+          <div className="absolute top-1/3 right-0 h-[400px] w-[500px] rounded-full bg-blue-100/50 blur-[120px]" />
+          <div className="absolute bottom-1/4 left-0 h-[350px] w-[450px] rounded-full bg-emerald-100/50 blur-[120px]" />
+          {/* Animated subtle grid */}
           <div
-            className="absolute inset-0 opacity-[0.03]"
+            className="absolute inset-0 opacity-[0.04]"
             style={{
               backgroundImage: 'linear-gradient(rgba(249,115,22,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(249,115,22,0.5) 1px, transparent 1px)',
               backgroundSize: '64px 64px',
@@ -208,25 +226,25 @@ export function SwiftMoveLanding() {
         <div className="relative max-w-6xl mx-auto text-center w-full">
           {/* Status / Welcome Badge */}
           {user ? (
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-xs font-semibold text-emerald-300 mb-6 backdrop-blur">
-              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-emerald-200 bg-emerald-50 text-xs font-semibold text-emerald-800 mb-6 backdrop-blur shadow-sm">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
               Welcome back, {userDisplayName}! Select an action to begin:
             </div>
           ) : (
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-orange-500/30 bg-orange-500/10 text-xs font-semibold text-orange-300 mb-6 backdrop-blur">
-              <span className="h-2 w-2 rounded-full bg-orange-400 animate-ping" />
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-orange-200 bg-orange-50 text-xs font-semibold text-orange-800 mb-6 backdrop-blur shadow-sm">
+              <span className="h-2 w-2 rounded-full bg-orange-500 animate-ping" />
               Couriers &amp; Verified Drivers Active — Book Directly Online
             </div>
           )}
 
           <h1 className="text-4xl sm:text-6xl md:text-7xl font-black tracking-tight mb-4 leading-tight">
-            <span className="text-white">Delivery &amp; Rides, </span>
-            <span className="bg-gradient-to-r from-orange-400 via-amber-300 to-orange-500 bg-clip-text text-transparent">
+            <span className="text-slate-900">Delivery &amp; Rides, </span>
+            <span className="bg-gradient-to-r from-orange-600 via-amber-500 to-orange-500 bg-clip-text text-transparent">
               Done Swift.
             </span>
           </h1>
 
-          <p className="text-base sm:text-lg md:text-xl text-slate-400 max-w-2xl mx-auto mb-12 leading-relaxed">
+          <p className="text-base sm:text-lg md:text-xl text-slate-600 max-w-2xl mx-auto mb-12 leading-relaxed">
             Same-day package dispatch, on-demand passenger rides, and live tracking across Jos and Nigeria.
             No phone calls needed — click a service below:
           </p>
@@ -235,114 +253,210 @@ export function SwiftMoveLanding() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left max-w-5xl mx-auto">
             
             {/* Action 1: Send a Parcel */}
-            <Link
-              to={user ? "/my-swift-move" : "/auth"}
-              search={user ? undefined : { redirect: "/my-swift-move", mode: "login" }}
-              className="group relative flex flex-col justify-between p-6 sm:p-8 rounded-3xl border border-orange-500/30 bg-gradient-to-b from-orange-950/30 via-slate-900/80 to-slate-950 backdrop-blur-xl shadow-2xl shadow-orange-950/20 hover:border-orange-500/70 hover:shadow-orange-500/20 hover:-translate-y-1.5 transition-all duration-300"
-            >
-              <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-2xl pointer-events-none -mr-8 -mt-8 group-hover:bg-orange-500/20 transition-all" />
-              <div>
-                <div className="flex items-center justify-between mb-6">
-                  <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center text-white shadow-lg shadow-orange-500/30 group-hover:scale-110 transition-transform">
-                    <Package className="h-7 w-7" />
+            {user ? (
+              <Link
+                to="/my-swift-move"
+                className="group relative flex flex-col justify-between p-6 sm:p-8 rounded-3xl border border-orange-200/90 bg-white hover:border-orange-400 shadow-xl shadow-orange-500/5 hover:shadow-orange-500/15 hover:-translate-y-1.5 transition-all duration-300"
+              >
+                <div className="absolute top-0 right-0 w-32 h-32 bg-orange-50 rounded-full blur-2xl pointer-events-none -mr-8 -mt-8 group-hover:bg-orange-100 transition-all" />
+                <div>
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center text-white shadow-lg shadow-orange-500/25 group-hover:scale-110 transition-transform">
+                      <Package className="h-7 w-7" />
+                    </div>
+                    <span className="px-3 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-orange-50 border border-orange-200 text-orange-700">
+                      Dispatch
+                    </span>
                   </div>
-                  <span className="px-3 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-orange-500/15 border border-orange-500/30 text-orange-400">
-                    Dispatch
+                  <h3 className="text-2xl font-black text-slate-900 mb-2 group-hover:text-orange-600 transition-colors flex items-center gap-2">
+                    Send a Parcel
+                    <ArrowRight className="h-5 w-5 text-orange-500 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                  </h3>
+                  <p className="text-sm text-slate-600 leading-relaxed mb-6">
+                    Express motorbike courier for documents, food, packages, and cargo vans with instant fare calculation.
+                  </p>
+                </div>
+                <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-sm font-bold text-orange-600 group-hover:text-orange-700">
+                  <span>Book Parcel Delivery</span>
+                  <span className="h-8 w-8 rounded-full bg-orange-50 flex items-center justify-center group-hover:bg-orange-500 group-hover:text-white transition-all">
+                    <ArrowRight className="h-4 w-4" />
                   </span>
                 </div>
-                <h3 className="text-2xl font-black text-white mb-2 group-hover:text-orange-300 transition-colors flex items-center gap-2">
-                  Send a Parcel
-                  <ArrowRight className="h-5 w-5 text-orange-400 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-                </h3>
-                <p className="text-sm text-slate-400 leading-relaxed mb-6">
-                  Express motorbike courier for documents, food, packages, and cargo vans with instant fare calculation.
-                </p>
-              </div>
-              <div className="pt-4 border-t border-slate-800/80 flex items-center justify-between text-sm font-bold text-orange-400 group-hover:text-orange-300">
-                <span>Book Parcel Delivery</span>
-                <span className="h-8 w-8 rounded-full bg-orange-500/20 flex items-center justify-center group-hover:bg-orange-500 group-hover:text-white transition-all">
-                  <ArrowRight className="h-4 w-4" />
-                </span>
-              </div>
-            </Link>
+              </Link>
+            ) : (
+              <Link
+                to="/auth"
+                search={{ redirect: "/my-swift-move", mode: "login" }}
+                className="group relative flex flex-col justify-between p-6 sm:p-8 rounded-3xl border border-orange-200/90 bg-white hover:border-orange-400 shadow-xl shadow-orange-500/5 hover:shadow-orange-500/15 hover:-translate-y-1.5 transition-all duration-300"
+              >
+                <div className="absolute top-0 right-0 w-32 h-32 bg-orange-50 rounded-full blur-2xl pointer-events-none -mr-8 -mt-8 group-hover:bg-orange-100 transition-all" />
+                <div>
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center text-white shadow-lg shadow-orange-500/25 group-hover:scale-110 transition-transform">
+                      <Package className="h-7 w-7" />
+                    </div>
+                    <span className="px-3 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-orange-50 border border-orange-200 text-orange-700">
+                      Dispatch
+                    </span>
+                  </div>
+                  <h3 className="text-2xl font-black text-slate-900 mb-2 group-hover:text-orange-600 transition-colors flex items-center gap-2">
+                    Send a Parcel
+                    <ArrowRight className="h-5 w-5 text-orange-500 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                  </h3>
+                  <p className="text-sm text-slate-600 leading-relaxed mb-6">
+                    Express motorbike courier for documents, food, packages, and cargo vans with instant fare calculation.
+                  </p>
+                </div>
+                <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-sm font-bold text-orange-600 group-hover:text-orange-700">
+                  <span>Book Parcel Delivery</span>
+                  <span className="h-8 w-8 rounded-full bg-orange-50 flex items-center justify-center group-hover:bg-orange-500 group-hover:text-white transition-all">
+                    <ArrowRight className="h-4 w-4" />
+                  </span>
+                </div>
+              </Link>
+            )}
 
             {/* Action 2: Request a Ride */}
-            <Link
-              to={user ? "/my-vehicle-hires" : "/auth"}
-              search={user ? undefined : { redirect: "/my-vehicle-hires", mode: "login" }}
-              className="group relative flex flex-col justify-between p-6 sm:p-8 rounded-3xl border border-blue-500/30 bg-gradient-to-b from-blue-950/30 via-slate-900/80 to-slate-950 backdrop-blur-xl shadow-2xl shadow-blue-950/20 hover:border-blue-500/70 hover:shadow-blue-500/20 hover:-translate-y-1.5 transition-all duration-300"
-            >
-              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl pointer-events-none -mr-8 -mt-8 group-hover:bg-blue-500/20 transition-all" />
-              <div>
-                <div className="flex items-center justify-between mb-6">
-                  <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/30 group-hover:scale-110 transition-transform">
-                    <Car className="h-7 w-7" />
+            {user ? (
+              <Link
+                to="/my-vehicle-hires"
+                className="group relative flex flex-col justify-between p-6 sm:p-8 rounded-3xl border border-blue-200/90 bg-white hover:border-blue-400 shadow-xl shadow-blue-500/5 hover:shadow-blue-500/15 hover:-translate-y-1.5 transition-all duration-300"
+              >
+                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full blur-2xl pointer-events-none -mr-8 -mt-8 group-hover:bg-blue-100 transition-all" />
+                <div>
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/25 group-hover:scale-110 transition-transform">
+                      <Car className="h-7 w-7" />
+                    </div>
+                    <span className="px-3 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-blue-50 border border-blue-200 text-blue-700">
+                      Ride Hailing
+                    </span>
                   </div>
-                  <span className="px-3 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-blue-500/15 border border-blue-500/30 text-blue-400">
-                    Ride Hailing
+                  <h3 className="text-2xl font-black text-slate-900 mb-2 group-hover:text-blue-600 transition-colors flex items-center gap-2">
+                    Request a Ride
+                    <ArrowRight className="h-5 w-5 text-blue-500 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                  </h3>
+                  <p className="text-sm text-slate-600 leading-relaxed mb-6">
+                    On-demand passenger transport, executive city rides, and airport drop-offs with verified nearby drivers.
+                  </p>
+                </div>
+                <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-sm font-bold text-blue-600 group-hover:text-blue-700">
+                  <span>Book a Ride</span>
+                  <span className="h-8 w-8 rounded-full bg-blue-50 flex items-center justify-center group-hover:bg-blue-500 group-hover:text-white transition-all">
+                    <ArrowRight className="h-4 w-4" />
                   </span>
                 </div>
-                <h3 className="text-2xl font-black text-white mb-2 group-hover:text-blue-300 transition-colors flex items-center gap-2">
-                  Request a Ride
-                  <ArrowRight className="h-5 w-5 text-blue-400 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-                </h3>
-                <p className="text-sm text-slate-400 leading-relaxed mb-6">
-                  On-demand passenger transport, executive city rides, and airport drop-offs with verified nearby drivers.
-                </p>
-              </div>
-              <div className="pt-4 border-t border-slate-800/80 flex items-center justify-between text-sm font-bold text-blue-400 group-hover:text-blue-300">
-                <span>Book a Ride</span>
-                <span className="h-8 w-8 rounded-full bg-blue-500/20 flex items-center justify-center group-hover:bg-blue-500 group-hover:text-white transition-all">
-                  <ArrowRight className="h-4 w-4" />
-                </span>
-              </div>
-            </Link>
+              </Link>
+            ) : (
+              <Link
+                to="/auth"
+                search={{ redirect: "/my-vehicle-hires", mode: "login" }}
+                className="group relative flex flex-col justify-between p-6 sm:p-8 rounded-3xl border border-blue-200/90 bg-white hover:border-blue-400 shadow-xl shadow-blue-500/5 hover:shadow-blue-500/15 hover:-translate-y-1.5 transition-all duration-300"
+              >
+                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full blur-2xl pointer-events-none -mr-8 -mt-8 group-hover:bg-blue-100 transition-all" />
+                <div>
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/25 group-hover:scale-110 transition-transform">
+                      <Car className="h-7 w-7" />
+                    </div>
+                    <span className="px-3 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-blue-50 border border-blue-200 text-blue-700">
+                      Ride Hailing
+                    </span>
+                  </div>
+                  <h3 className="text-2xl font-black text-slate-900 mb-2 group-hover:text-blue-600 transition-colors flex items-center gap-2">
+                    Request a Ride
+                    <ArrowRight className="h-5 w-5 text-blue-500 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                  </h3>
+                  <p className="text-sm text-slate-600 leading-relaxed mb-6">
+                    On-demand passenger transport, executive city rides, and airport drop-offs with verified nearby drivers.
+                  </p>
+                </div>
+                <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-sm font-bold text-blue-600 group-hover:text-blue-700">
+                  <span>Book a Ride</span>
+                  <span className="h-8 w-8 rounded-full bg-blue-50 flex items-center justify-center group-hover:bg-blue-500 group-hover:text-white transition-all">
+                    <ArrowRight className="h-4 w-4" />
+                  </span>
+                </div>
+              </Link>
+            )}
 
             {/* Action 3: History & Tracking */}
-            <Link
-              to={user ? "/history" : "/auth"}
-              search={user ? undefined : { redirect: "/history", mode: "login" }}
-              className="group relative flex flex-col justify-between p-6 sm:p-8 rounded-3xl border border-emerald-500/30 bg-gradient-to-b from-emerald-950/30 via-slate-900/80 to-slate-950 backdrop-blur-xl shadow-2xl shadow-emerald-950/20 hover:border-emerald-500/70 hover:shadow-emerald-500/20 hover:-translate-y-1.5 transition-all duration-300"
-            >
-              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none -mr-8 -mt-8 group-hover:bg-emerald-500/20 transition-all" />
-              <div>
-                <div className="flex items-center justify-between mb-6">
-                  <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/30 group-hover:scale-110 transition-transform">
-                    <History className="h-7 w-7" />
+            {user ? (
+              <Link
+                to="/history"
+                className="group relative flex flex-col justify-between p-6 sm:p-8 rounded-3xl border border-emerald-200/90 bg-white hover:border-emerald-400 shadow-xl shadow-emerald-500/5 hover:shadow-emerald-500/15 hover:-translate-y-1.5 transition-all duration-300"
+              >
+                <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-full blur-2xl pointer-events-none -mr-8 -mt-8 group-hover:bg-emerald-100 transition-all" />
+                <div>
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/25 group-hover:scale-110 transition-transform">
+                      <History className="h-7 w-7" />
+                    </div>
+                    <span className="px-3 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-emerald-50 border border-emerald-200 text-emerald-700">
+                      Records
+                    </span>
                   </div>
-                  <span className="px-3 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
-                    Records
+                  <h3 className="text-2xl font-black text-slate-900 mb-2 group-hover:text-emerald-600 transition-colors flex items-center gap-2">
+                    Trip &amp; Order History
+                    <ArrowRight className="h-5 w-5 text-emerald-500 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                  </h3>
+                  <p className="text-sm text-slate-600 leading-relaxed mb-6">
+                    Track your active packages in real time, view past delivery receipts, download PDF receipts, and review trips.
+                  </p>
+                </div>
+                <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-sm font-bold text-emerald-600 group-hover:text-emerald-700">
+                  <span>View My History</span>
+                  <span className="h-8 w-8 rounded-full bg-emerald-50 flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition-all">
+                    <ArrowRight className="h-4 w-4" />
                   </span>
                 </div>
-                <h3 className="text-2xl font-black text-white mb-2 group-hover:text-emerald-300 transition-colors flex items-center gap-2">
-                  Trip &amp; Order History
-                  <ArrowRight className="h-5 w-5 text-emerald-400 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-                </h3>
-                <p className="text-sm text-slate-400 leading-relaxed mb-6">
-                  Track your active packages in real time, view past delivery receipts, download PDF receipts, and review trips.
-                </p>
-              </div>
-              <div className="pt-4 border-t border-slate-800/80 flex items-center justify-between text-sm font-bold text-emerald-400 group-hover:text-emerald-300">
-                <span>View My History</span>
-                <span className="h-8 w-8 rounded-full bg-emerald-500/20 flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition-all">
-                  <ArrowRight className="h-4 w-4" />
-                </span>
-              </div>
-            </Link>
+              </Link>
+            ) : (
+              <Link
+                to="/auth"
+                search={{ redirect: "/history", mode: "login" }}
+                className="group relative flex flex-col justify-between p-6 sm:p-8 rounded-3xl border border-emerald-200/90 bg-white hover:border-emerald-400 shadow-xl shadow-emerald-500/5 hover:shadow-emerald-500/15 hover:-translate-y-1.5 transition-all duration-300"
+              >
+                <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-full blur-2xl pointer-events-none -mr-8 -mt-8 group-hover:bg-emerald-100 transition-all" />
+                <div>
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/25 group-hover:scale-110 transition-transform">
+                      <History className="h-7 w-7" />
+                    </div>
+                    <span className="px-3 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-emerald-50 border border-emerald-200 text-emerald-700">
+                      Records
+                    </span>
+                  </div>
+                  <h3 className="text-2xl font-black text-slate-900 mb-2 group-hover:text-emerald-600 transition-colors flex items-center gap-2">
+                    Trip &amp; Order History
+                    <ArrowRight className="h-5 w-5 text-emerald-500 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                  </h3>
+                  <p className="text-sm text-slate-600 leading-relaxed mb-6">
+                    Track your active packages in real time, view past delivery receipts, download PDF receipts, and review trips.
+                  </p>
+                </div>
+                <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-sm font-bold text-emerald-600 group-hover:text-emerald-700">
+                  <span>View My History</span>
+                  <span className="h-8 w-8 rounded-full bg-emerald-50 flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition-all">
+                    <ArrowRight className="h-4 w-4" />
+                  </span>
+                </div>
+              </Link>
+            )}
 
           </div>
 
           {/* Trust badges */}
-          <div className="mt-14 flex flex-wrap items-center justify-center gap-6 text-xs text-slate-500">
+          <div className="mt-14 flex flex-wrap items-center justify-center gap-4 text-xs text-slate-600">
             {[
               { icon: ShieldCheck, text: 'Insured deliveries' },
               { icon: MapPin, text: 'Live GPS map tracking' },
               { icon: Clock, text: 'Average pickup < 15 mins' },
               { icon: CheckCircle2, text: 'Direct driver/rider contact' },
             ].map(({ icon: Icon, text }) => (
-              <div key={text} className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900/50 border border-slate-800">
-                <Icon className="h-3.5 w-3.5 text-orange-400" />
-                <span className="text-slate-300 font-medium">{text}</span>
+              <div key={text} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-slate-200 shadow-sm">
+                <Icon className="h-3.5 w-3.5 text-orange-500" />
+                <span className="text-slate-700 font-medium">{text}</span>
               </div>
             ))}
           </div>
@@ -350,18 +464,18 @@ export function SwiftMoveLanding() {
       </section>
 
       {/* ── Stats ──────────────────────────────────────────────────── */}
-      <section className="py-16 border-y border-slate-800/60 bg-slate-900/20">
+      <section className="py-16 border-y border-slate-200/80 bg-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {STATS.map(({ value, label, icon: Icon }) => (
               <div key={label} className="text-center">
                 <div className="flex justify-center mb-3">
-                  <div className="h-10 w-10 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
-                    <Icon className="h-5 w-5 text-orange-400" />
+                  <div className="h-10 w-10 rounded-xl bg-orange-50 border border-orange-200/60 flex items-center justify-center">
+                    <Icon className="h-5 w-5 text-orange-600" />
                   </div>
                 </div>
-                <p className="text-3xl sm:text-4xl font-black text-white mb-1">{value}</p>
-                <p className="text-xs text-slate-400 font-medium">{label}</p>
+                <p className="text-3xl sm:text-4xl font-black text-slate-900 mb-1">{value}</p>
+                <p className="text-xs text-slate-500 font-medium">{label}</p>
               </div>
             ))}
           </div>
@@ -372,9 +486,9 @@ export function SwiftMoveLanding() {
       <section id="services" className="py-24 px-4 sm:px-6">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-14">
-            <p className="text-orange-400 text-sm font-bold uppercase tracking-widest mb-3">What We Offer</p>
-            <h2 className="text-4xl sm:text-5xl font-black text-white mb-4">Logistics for every need</h2>
-            <p className="text-slate-400 max-w-xl mx-auto">
+            <p className="text-orange-600 text-sm font-bold uppercase tracking-widest mb-3">What We Offer</p>
+            <h2 className="text-4xl sm:text-5xl font-black text-slate-900 mb-4">Logistics for every need</h2>
+            <p className="text-slate-600 max-w-xl mx-auto">
               From a single envelope to a full truck — SwiftMove handles it all with speed and care.
             </p>
           </div>
@@ -382,13 +496,13 @@ export function SwiftMoveLanding() {
             {SERVICES.map(({ icon: Icon, title, desc, color, bg, border }) => (
               <div
                 key={title}
-                className={`group p-6 rounded-2xl border ${border} ${bg} hover:scale-[1.02] transition-all cursor-default`}
+                className={`group p-6 rounded-2xl border ${border} ${bg} shadow-sm hover:shadow-md hover:scale-[1.02] transition-all cursor-default`}
               >
                 <div className={`h-12 w-12 rounded-xl ${bg} border ${border} flex items-center justify-center mb-5`}>
                   <Icon className={`h-6 w-6 ${color}`} />
                 </div>
                 <h3 className={`text-lg font-bold ${color} mb-2`}>{title}</h3>
-                <p className="text-sm text-slate-400 leading-relaxed">{desc}</p>
+                <p className="text-sm text-slate-600 leading-relaxed">{desc}</p>
               </div>
             ))}
           </div>
@@ -396,22 +510,22 @@ export function SwiftMoveLanding() {
       </section>
 
       {/* ── How it works ───────────────────────────────────────────── */}
-      <section id="how-it-works" className="py-24 px-4 sm:px-6 bg-slate-900/20 border-y border-slate-800/60">
+      <section id="how-it-works" className="py-24 px-4 sm:px-6 bg-slate-100/60 border-y border-slate-200/80">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
-            <p className="text-orange-400 text-sm font-bold uppercase tracking-widest mb-3">Simple Process</p>
-            <h2 className="text-4xl sm:text-5xl font-black text-white mb-4">How SwiftMove works</h2>
-            <p className="text-slate-400 max-w-xl mx-auto">Four easy steps from booking to delivered.</p>
+            <p className="text-orange-600 text-sm font-bold uppercase tracking-widest mb-3">Simple Process</p>
+            <h2 className="text-4xl sm:text-5xl font-black text-slate-900 mb-4">How SwiftMove works</h2>
+            <p className="text-slate-600 max-w-xl mx-auto">Four easy steps from booking to delivered.</p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {HOW_IT_WORKS.map(({ step, title, desc }) => (
               <div key={step} className="relative group">
-                <div className="p-6 rounded-2xl bg-[#0d1221] border border-slate-800 hover:border-orange-500/30 transition-all h-full">
-                  <span className="text-5xl font-black text-orange-500/20 group-hover:text-orange-500/30 transition-colors block mb-4 font-mono">
+                <div className="p-6 rounded-2xl bg-white border border-slate-200/90 shadow-sm hover:border-orange-400 hover:shadow-md transition-all h-full">
+                  <span className="text-5xl font-black text-orange-500/20 group-hover:text-orange-500/35 transition-colors block mb-4 font-mono">
                     {step}
                   </span>
-                  <h3 className="text-base font-bold text-white mb-2">{title}</h3>
-                  <p className="text-sm text-slate-400 leading-relaxed">{desc}</p>
+                  <h3 className="text-base font-bold text-slate-900 mb-2">{title}</h3>
+                  <p className="text-sm text-slate-600 leading-relaxed">{desc}</p>
                 </div>
               </div>
             ))}
@@ -433,20 +547,20 @@ export function SwiftMoveLanding() {
       <section id="reviews" className="py-24 px-4 sm:px-6">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-14">
-            <p className="text-orange-400 text-sm font-bold uppercase tracking-widest mb-3">Customer Stories</p>
-            <h2 className="text-4xl sm:text-5xl font-black text-white mb-4">Loved by our customers</h2>
+            <p className="text-orange-600 text-sm font-bold uppercase tracking-widest mb-3">Customer Stories</p>
+            <h2 className="text-4xl sm:text-5xl font-black text-slate-900 mb-4">Loved by our customers</h2>
           </div>
           <div className="grid sm:grid-cols-3 gap-6">
             {REVIEWS.map(({ name, role, stars, text }) => (
-              <div key={name} className="p-6 rounded-2xl bg-[#0d1221] border border-slate-800 hover:border-slate-700 transition-all">
+              <div key={name} className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm hover:border-slate-300 transition-all">
                 <div className="flex gap-0.5 mb-4">
                   {Array.from({ length: stars }).map((_, i) => (
                     <Star key={i} className="h-4 w-4 fill-amber-400 text-amber-400" />
                   ))}
                 </div>
-                <p className="text-slate-300 text-sm leading-relaxed mb-5">"{text}"</p>
+                <p className="text-slate-700 text-sm leading-relaxed mb-5">"{text}"</p>
                 <div>
-                  <p className="text-white font-bold text-sm">{name}</p>
+                  <p className="text-slate-900 font-bold text-sm">{name}</p>
                   <p className="text-slate-500 text-xs">{role}</p>
                 </div>
               </div>
@@ -459,7 +573,7 @@ export function SwiftMoveLanding() {
       <section className="py-24 px-4 sm:px-6">
         <div className="max-w-4xl mx-auto">
           <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-orange-600 via-amber-500 to-orange-600 p-12 text-center shadow-2xl shadow-orange-500/30">
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),transparent_60%)]" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.2),transparent_60%)]" />
             <div className="relative">
               <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-white/20 mb-6 mx-auto">
                 <Navigation className="h-8 w-8 text-white" />
@@ -483,48 +597,48 @@ export function SwiftMoveLanding() {
       </section>
 
       {/* ── Footer ─────────────────────────────────────────────────── */}
-      <footer id="contact" className="border-t border-slate-800 py-12 px-4 sm:px-6">
+      <footer id="contact" className="border-t border-slate-200 bg-white py-12 px-4 sm:px-6">
         <div className="max-w-6xl mx-auto">
           <div className="grid sm:grid-cols-3 gap-10 mb-10">
             <div>
               <div className="flex items-center gap-3 mb-4">
-                <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-400 flex items-center justify-center">
+                <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-400 flex items-center justify-center shadow-md shadow-orange-500/20">
                   <Truck className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <span className="text-base font-black text-white">SwiftMove</span>
-                  <span className="text-xs text-orange-400 font-semibold block -mt-0.5">by Barakah</span>
+                  <span className="text-base font-black text-slate-900">SwiftMove</span>
+                  <span className="text-xs text-orange-600 font-bold block -mt-0.5">by Barakah</span>
                 </div>
               </div>
-              <p className="text-slate-500 text-sm leading-relaxed">
+              <p className="text-slate-600 text-sm leading-relaxed">
                 Nigeria's fast, reliable logistics service. Part of the Barakah Development Centre family.
               </p>
             </div>
             <div>
-              <h4 className="text-sm font-bold text-white mb-4 uppercase tracking-wider">Quick Links</h4>
-              <ul className="space-y-2 text-sm text-slate-400">
-                <li><Link to="/auth" search={{ mode: 'signup' }} className="hover:text-orange-400 transition-colors">Book a Delivery</Link></li>
-                <li><Link to="/auth" search={{ mode: 'login' }} className="hover:text-orange-400 transition-colors">Sign In</Link></li>
-                <li><a href="https://barakahdevcentre.com" className="hover:text-orange-400 transition-colors">Main Barakah Site</a></li>
+              <h4 className="text-sm font-bold text-slate-900 mb-4 uppercase tracking-wider">Quick Links</h4>
+              <ul className="space-y-2 text-sm text-slate-600">
+                <li><Link to="/auth" search={{ mode: 'signup' }} className="hover:text-orange-600 transition-colors">Book a Delivery</Link></li>
+                <li><Link to="/auth" search={{ mode: 'login' }} className="hover:text-orange-600 transition-colors">Sign In</Link></li>
+                <li><a href="https://barakahdevcentre.com" className="hover:text-orange-600 transition-colors">Main Barakah Site</a></li>
               </ul>
             </div>
             <div>
-              <h4 className="text-sm font-bold text-white mb-4 uppercase tracking-wider">Contact</h4>
-              <ul className="space-y-2 text-sm text-slate-400">
+              <h4 className="text-sm font-bold text-slate-900 mb-4 uppercase tracking-wider">Contact</h4>
+              <ul className="space-y-2 text-sm text-slate-600">
                 <li className="flex items-center gap-2">
-                  <PhoneCall className="h-4 w-4 text-orange-400 shrink-0" />
+                  <PhoneCall className="h-4 w-4 text-orange-600 shrink-0" />
                   <span>+234 (0) 800 BARAKAH</span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <Globe2 className="h-4 w-4 text-orange-400 shrink-0" />
-                  <a href="https://swiftmovelogistics.com" className="hover:text-orange-400 transition-colors">swiftmovelogistics.com</a>
+                  <Globe2 className="h-4 w-4 text-orange-600 shrink-0" />
+                  <a href="https://swiftmovelogistics.com" className="hover:text-orange-600 transition-colors">swiftmovelogistics.com</a>
                 </li>
               </ul>
             </div>
           </div>
-          <div className="border-t border-slate-800 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-600">
+          <div className="border-t border-slate-200 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
             <p>© {new Date().getFullYear()} SwiftMove Logistics · A Barakah Development Centre Service</p>
-            <a href="https://barakahdevcentre.com" className="hover:text-slate-400 transition-colors">barakahdevcentre.com</a>
+            <a href="https://barakahdevcentre.com" className="hover:text-slate-700 transition-colors">barakahdevcentre.com</a>
           </div>
         </div>
       </footer>

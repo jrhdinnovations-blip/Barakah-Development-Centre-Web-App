@@ -22,6 +22,7 @@ interface LocationSearchInputProps {
   showGpsButton?: boolean;
   mapsLoaded?: boolean;
   className?: string;
+  theme?: 'light' | 'dark';
   inputRef?: React.RefObject<HTMLInputElement | null> | React.RefObject<HTMLInputElement>;
 }
 
@@ -35,6 +36,7 @@ export function LocationSearchInput({
   showGpsButton = false,
   mapsLoaded = false,
   className = '',
+  theme = 'light',
   inputRef,
 }: LocationSearchInputProps) {
   const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([]);
@@ -181,7 +183,9 @@ export function LocationSearchInput({
 
   return (
     <div ref={containerRef} className={`relative w-full ${className}`}>
-      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5 ml-2">
+      <label className={`text-[10px] font-bold uppercase tracking-wider block mb-1.5 ml-2 ${
+        theme === 'light' ? 'text-slate-500' : 'text-slate-400'
+      }`}>
         {label}
       </label>
 
@@ -189,11 +193,11 @@ export function LocationSearchInput({
         {/* Leading Pin Icon */}
         <div className="absolute left-4 z-10 flex items-center justify-center pointer-events-none">
           {iconVariant === 'pickup' ? (
-            <div className="h-5 w-5 bg-emerald-500/20 rounded-full flex items-center justify-center">
+            <div className={`h-5 w-5 rounded-full flex items-center justify-center ${theme === 'light' ? 'bg-emerald-100' : 'bg-emerald-500/20'}`}>
               <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
             </div>
           ) : (
-            <div className="h-5 w-5 bg-orange-500/20 rounded-full flex items-center justify-center">
+            <div className={`h-5 w-5 rounded-full flex items-center justify-center ${theme === 'light' ? 'bg-orange-100' : 'bg-orange-500/20'}`}>
               <span className="h-2 w-2 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.8)]" />
             </div>
           )}
@@ -262,14 +266,18 @@ export function LocationSearchInput({
             }
           }}
           placeholder={placeholder}
-          className="w-full h-14 pl-12 pr-20 rounded-2xl bg-slate-900/90 border border-slate-800 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 transition-all shadow-inner"
+          className={`w-full h-14 pl-12 pr-20 rounded-2xl text-sm transition-all ${
+            theme === 'light'
+              ? 'bg-white border border-slate-200/90 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 shadow-sm'
+              : 'bg-slate-900/90 border border-slate-800 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 shadow-inner'
+          }`}
         />
 
         {/* Trailing Action Buttons */}
         <div className="absolute right-2.5 z-10 flex items-center gap-1.5">
           {/* Resolving Spinner */}
           {isResolving && (
-            <div className="h-8 w-8 flex items-center justify-center text-orange-400" title="Resolving coordinates...">
+            <div className="h-8 w-8 flex items-center justify-center text-orange-500" title="Resolving coordinates...">
               <Loader2 className="h-4 w-4 animate-spin" />
             </div>
           )}
@@ -279,7 +287,11 @@ export function LocationSearchInput({
             <button
               type="button"
               onClick={handleClear}
-              className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors"
+              className={`h-8 w-8 rounded-lg flex items-center justify-center transition-colors ${
+                theme === 'light'
+                  ? 'text-slate-400 hover:text-slate-800 hover:bg-slate-100'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/80'
+              }`}
               title="Clear input"
             >
               <X className="h-4 w-4" />
@@ -294,19 +306,21 @@ export function LocationSearchInput({
               disabled={isLocating}
               className={`h-9 px-2.5 rounded-xl flex items-center gap-1.5 text-xs font-semibold transition-all shadow-sm ${
                 isLocating
-                  ? 'bg-blue-600/30 text-blue-300 border border-blue-500/40 cursor-wait'
+                  ? 'bg-blue-600/20 text-blue-500 border border-blue-400 cursor-wait'
+                  : theme === 'light'
+                  ? 'bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200'
                   : 'bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 hover:text-blue-200 border border-blue-500/30 hover:border-blue-400/50'
               }`}
               title="Use current GPS live location"
             >
               {isLocating ? (
                 <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-400" />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-500" />
                   <span className="hidden sm:inline">Locating...</span>
                 </>
               ) : (
                 <>
-                  <Locate className="h-3.5 w-3.5 text-blue-400" />
+                  <Locate className="h-3.5 w-3.5 text-blue-600" />
                   <span className="text-[11px] font-medium hidden sm:inline">GPS</span>
                 </>
               )}
@@ -317,11 +331,19 @@ export function LocationSearchInput({
 
       {/* Real-time Suggestions Dropdown */}
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-2 z-50 rounded-2xl bg-slate-900/95 border border-slate-800 backdrop-blur-xl shadow-2xl overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150">
+        <div className={`absolute top-full left-0 right-0 mt-2 z-50 rounded-2xl border backdrop-blur-xl shadow-2xl overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150 ${
+          theme === 'light'
+            ? 'bg-white/98 border-slate-200 text-slate-800'
+            : 'bg-slate-900/95 border-slate-800 text-white'
+        }`}>
           {/* Quick Header */}
-          <div className="px-4 py-2 border-b border-slate-800/60 flex items-center justify-between bg-slate-950/40">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-              <MapPin className="h-3 w-3 text-orange-400" />
+          <div className={`px-4 py-2 border-b flex items-center justify-between ${
+            theme === 'light' ? 'bg-slate-50 border-slate-100' : 'bg-slate-950/40 border-slate-800/60'
+          }`}>
+            <span className={`text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+              theme === 'light' ? 'text-slate-500' : 'text-slate-400'
+            }`}>
+              <MapPin className="h-3 w-3 text-orange-500" />
               {value ? 'Suggested Locations' : 'Popular Spots in Jos'}
             </span>
             {isLoadingSuggestions && (
@@ -330,7 +352,9 @@ export function LocationSearchInput({
           </div>
 
           {/* List of Suggestions */}
-          <div className="max-h-60 overflow-y-auto divide-y divide-slate-800/40 custom-scrollbar">
+          <div className={`max-h-60 overflow-y-auto divide-y custom-scrollbar ${
+            theme === 'light' ? 'divide-slate-100' : 'divide-slate-800/40'
+          }`}>
             {suggestions.length > 0 ? (
               suggestions.map((item) => (
                 <button
@@ -340,16 +364,26 @@ export function LocationSearchInput({
                     e.preventDefault();
                     handleSelect(item);
                   }}
-                  className="w-full text-left px-4 py-2.5 flex items-start gap-3 hover:bg-white/[0.06] active:bg-orange-500/10 transition-colors group"
+                  className={`w-full text-left px-4 py-2.5 flex items-start gap-3 transition-colors group ${
+                    theme === 'light'
+                      ? 'hover:bg-slate-50 active:bg-orange-50'
+                      : 'hover:bg-white/[0.06] active:bg-orange-500/10'
+                  }`}
                 >
                   <span className="text-base shrink-0 mt-0.5 group-hover:scale-110 transition-transform">
                     {item.iconEmoji || '📍'}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold text-white group-hover:text-orange-300 transition-colors truncate">
+                    <p className={`text-xs font-semibold truncate transition-colors ${
+                      theme === 'light'
+                        ? 'text-slate-900 group-hover:text-orange-600'
+                        : 'text-white group-hover:text-orange-300'
+                    }`}>
                       {item.label}
                     </p>
-                    <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                    <p className={`text-[11px] truncate mt-0.5 ${
+                      theme === 'light' ? 'text-slate-500' : 'text-slate-400'
+                    }`}>
                       {item.sublabel}
                     </p>
                   </div>
@@ -357,8 +391,8 @@ export function LocationSearchInput({
               ))
             ) : (
               <div className="px-4 py-4 text-center">
-                <p className="text-xs text-slate-400">No matching landmark found.</p>
-                <p className="text-[11px] text-slate-500 mt-0.5">
+                <p className={`text-xs ${theme === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>No matching landmark found.</p>
+                <p className={`text-[11px] mt-0.5 ${theme === 'light' ? 'text-slate-500' : 'text-slate-500'}`}>
                   Press enter or click outside to use your custom entered address.
                 </p>
               </div>
@@ -366,7 +400,9 @@ export function LocationSearchInput({
           </div>
 
           {/* Quick Shortcuts Bar */}
-          <div className="p-2 bg-slate-950/60 border-t border-slate-800/60 flex flex-wrap gap-1.5">
+          <div className={`p-2 border-t flex flex-wrap gap-1.5 ${
+            theme === 'light' ? 'bg-slate-50 border-slate-100' : 'bg-slate-950/60 border-slate-800/60'
+          }`}>
             {['Terminus', 'Rayfield', 'UNIJOS', 'Airport', 'Bukuru'].map((shortcut) => (
               <button
                 key={shortcut}
@@ -377,7 +413,11 @@ export function LocationSearchInput({
                   );
                   if (match) handleSelect(match);
                 }}
-                className="px-2.5 py-1 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/5 text-[10px] font-medium text-slate-300 hover:text-white transition-all"
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-medium transition-all ${
+                  theme === 'light'
+                    ? 'bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 hover:text-slate-900 shadow-sm'
+                    : 'bg-white/[0.04] hover:bg-white/[0.08] border border-white/5 text-slate-300 hover:text-white'
+                }`}
               >
                 {shortcut}
               </button>

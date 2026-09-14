@@ -16,6 +16,7 @@ interface InteractiveMapProps {
   onMapClick?: (coords: { lat: number; lng: number }) => void;
   showTileSwitcher?: boolean;
   routePolyline?: [number, number][];
+  defaultTheme?: 'dark' | 'streets';
 }
 
 const DEFAULT_CENTER = { lat: 9.8965, lng: 8.8583 }; // Jos, Plateau State
@@ -28,9 +29,10 @@ export function InteractiveMap({
   className = 'w-full h-full',
   showTileSwitcher = true,
   routePolyline,
+  defaultTheme = 'streets',
 }: InteractiveMapProps) {
   const [isClient, setIsClient] = useState(false);
-  const [tileTheme, setTileTheme] = useState<'dark' | 'streets'>('dark');
+  const [tileTheme, setTileTheme] = useState<'dark' | 'streets'>(defaultTheme);
   const [LeafletKit, setLeafletKit] = useState<{
     MapContainer: ComponentType<any>;
     TileLayer: ComponentType<any>;
@@ -93,17 +95,17 @@ export function InteractiveMap({
   // Loading / SSR fallback
   if (!isClient || !LeafletKit) {
     return (
-      <div className={`relative ${className} bg-[#070b14] flex items-center justify-center`}>
+      <div className={`relative ${className} bg-slate-100 flex items-center justify-center`}>
         <div
-          className="absolute inset-0 opacity-15"
+          className="absolute inset-0 opacity-40"
           style={{
             backgroundImage:
-              'radial-gradient(ellipse at 50% 50%, #1e293b 0%, #020617 100%), linear-gradient(rgba(59,130,246,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(59,130,246,0.3) 1px, transparent 1px)',
+              'radial-gradient(ellipse at 50% 50%, #f1f5f9 0%, #e2e8f0 100%), linear-gradient(rgba(59,130,246,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(59,130,246,0.15) 1px, transparent 1px)',
             backgroundSize: '40px 40px',
           }}
         />
-        <div className="relative z-10 flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900/80 border border-slate-800 text-xs text-slate-400">
-          <Navigation className="h-4 w-4 animate-spin text-orange-400" />
+        <div className="relative z-10 flex items-center gap-2 px-4 py-2 rounded-xl bg-white/90 border border-slate-200 text-xs text-slate-600 shadow-sm">
+          <Navigation className="h-4 w-4 animate-spin text-orange-500" />
           <span>Loading live interactive map…</span>
         </div>
       </div>
@@ -252,8 +254,8 @@ export function InteractiveMap({
 
       {/* Top-Right Badge: Zero Watermark & Live GPS Indicator */}
       <div className="absolute top-4 right-4 z-[400] flex items-center gap-2 pointer-events-auto">
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-950/80 backdrop-blur-md border border-slate-800 text-[11px] font-semibold text-emerald-400 shadow-xl">
-          <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/95 backdrop-blur-md border border-slate-200 text-[11px] font-bold text-emerald-700 shadow-md">
+          <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
           Live GPS Map
         </div>
 
@@ -261,10 +263,10 @@ export function InteractiveMap({
           <button
             type="button"
             onClick={() => setTileTheme((prev) => (prev === 'dark' ? 'streets' : 'dark'))}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-950/80 hover:bg-slate-900 backdrop-blur-md border border-slate-800 text-[11px] font-medium text-slate-300 hover:text-white transition-all shadow-xl"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/95 hover:bg-white backdrop-blur-md border border-slate-200 text-[11px] font-semibold text-slate-700 hover:text-slate-900 transition-all shadow-md"
             title="Toggle Map Style"
           >
-            <Layers className="h-3.5 w-3.5 text-blue-400" />
+            <Layers className="h-3.5 w-3.5 text-blue-600" />
             <span className="hidden sm:inline capitalize">{tileTheme} View</span>
           </button>
         )}

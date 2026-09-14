@@ -52,8 +52,8 @@ export default defineConfig(({ command }) => {
         server: { entry: "server" },
       }),
       command === "build" && nitro({
-        defaultPreset: process.env.NITRO_PRESET || "cloudflare-pages",
-        preset: process.env.NITRO_PRESET || undefined,
+        defaultPreset: process.env["NITRO_PRESET"] || "cloudflare-pages",
+        ...(process.env["NITRO_PRESET"] ? { preset: process.env["NITRO_PRESET"] as any } : {}),
       }),
       react(),
     ].filter(Boolean),
