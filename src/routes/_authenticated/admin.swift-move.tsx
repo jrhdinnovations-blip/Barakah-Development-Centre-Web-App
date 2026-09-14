@@ -709,19 +709,12 @@ function AdminDashboard() {
                     ) : (
                       pending.slice(0, 5).map(order => (
                         <div key={order.id} className="p-3 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 transition-colors">
-                          <div className="flex justify-between items-start mb-2">
+                          <div className="flex justify-between items-start mb-1.5">
                             <span className="text-xs font-mono font-bold text-orange-400">{order.payment_reference}</span>
                             <span className="text-[10px] text-slate-500">{new Date(order.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                           </div>
-                          <p className="text-xs text-slate-300 truncate mb-3"><span className="text-emerald-500 font-bold">↑</span> {order.pickup_address}</p>
-                          <div className="flex gap-2">
-                            <Button size="sm" onClick={() => handleForceStatus(order.id, 'accepted')} className="w-full h-8 text-[11px] bg-orange-600 hover:bg-orange-500">
-                              Accept
-                            </Button>
-                            <Button size="sm" variant="outline" onClick={() => handleForceStatus(order.id, 'cancelled')} className="w-full h-8 text-[11px] bg-slate-800 border-slate-700 hover:bg-slate-700">
-                              Cancel
-                            </Button>
-                          </div>
+                          <p className="text-xs text-slate-300 truncate mb-1"><span className="text-emerald-500 font-bold">↑</span> {order.pickup_address}</p>
+                          <p className="text-[10px] text-slate-500">Awaiting dispatcher assignment</p>
                         </div>
                       ))
                     )}
@@ -882,13 +875,12 @@ function AdminDashboard() {
                         <TableHead className="text-slate-400">Status</TableHead>
                         <TableHead className="text-slate-400">Details</TableHead>
                         <TableHead className="text-right text-slate-400">Value</TableHead>
-                        <TableHead className="w-[140px] text-right text-slate-400">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filteredOrders.length === 0 ? (
                         <TableRow className="hover:bg-transparent">
-                          <TableCell colSpan={6} className="h-48 text-center text-slate-500">
+                          <TableCell colSpan={5} className="h-48 text-center text-slate-500">
                             No orders found matching your criteria.
                           </TableCell>
                         </TableRow>
@@ -941,22 +933,7 @@ function AdminDashboard() {
                                 ₦{(order.estimated_price || 0).toLocaleString()}
                               </TableCell>
                               <TableCell className="text-right">
-                                {order.status === 'pending' ? (
-                                  <div className="flex justify-end gap-2">
-                                    <Button size="icon" variant="outline" onClick={() => handleForceStatus(order.id, 'accepted')} className="h-8 w-8 bg-orange-500/10 border-orange-500/30 text-orange-400 hover:bg-orange-500/20" title="Force Accept">
-                                      <CheckCircle2 className="h-4 w-4" />
-                                    </Button>
-                                    <Button size="icon" variant="outline" onClick={() => handleForceStatus(order.id, 'cancelled')} className="h-8 w-8 bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20" title="Cancel Order">
-                                      <XCircle className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                ) : order.status === 'in_transit' ? (
-                                  <Button size="sm" variant="outline" onClick={() => handleForceStatus(order.id, 'delivered')} className="h-8 text-xs bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20">
-                                    Mark Delivered
-                                  </Button>
-                                ) : (
-                                  <span className="text-[10px] text-slate-600">No actions</span>
-                                )}
+                                <span className="text-[10px] text-slate-600">—</span>
                               </TableCell>
                             </TableRow>
                           );
