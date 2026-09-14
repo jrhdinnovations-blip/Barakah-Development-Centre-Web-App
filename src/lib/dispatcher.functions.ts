@@ -340,3 +340,175 @@ export const dispatcherFetchAllDeliveries = createServerFn({ method: "POST" })
       userRoles: rolesRes.data ?? [],
     };
   });
+
+export interface DriverFetchInput {
+  driverId: string;
+  serviceMode?: "dispatch_rider" | "driver";
+}
+
+export interface DriverAcceptInput {
+  orderId: string;
+  driverId: string;
+  driverName?: string;
+  driverPhone?: string;
+  vehiclePlate?: string;
+  vehicleModel?: string;
+  vehicleColor?: string;
+}
+
+export interface DriverUpdateStatusInput {
+  orderId: string;
+  driverId: string;
+  status: "picked_up" | "in_transit" | "delivered";
+}
+
+/**
+ * 7. Driver Fetch Cockpit Jobs (Bypasses RLS via Supabase Admin)
+ * Allows online drivers to receive all pending passenger ride requests
+ * and their own assigned jobs without being blocked by client RLS.
+ */
+export const driverFetchCockpitJobs = createServerFn({ method: "POST" })
+  .validator((input: DriverFetchInput) => input)
+  .handler(async ({ data }) => {
+    const { getAdmin } = await import("@/lib/payments.server");
+    const { parseOrderMetadata } = await import("@/lib/swift-order");
+    const admin = await getAdmin();
+
+    const { data: deliveries, error } = await admin
+      .from("swift_deliveries")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    if (error) {
+      console.error("[driverFetchCockpitJobs] error:", error.message);
+      return { deliveries: [] };
+    }
+
+    const result = (deliveries || []).filter((d: any) => {
+      // 1. Any order already assigned to this driver
+      if (d.driver_id === data.driverId) return true;
+      // 2. Any pending passenger ride (for vehicle drivers / driver mode)
+      if (d.status === "pending") {
+        const meta = parseOrderMetadata(d.package_type);
+        if (data.serviceMode === "driver" && meta.isRide) {
+          return true;
+        }
+      }
+      return false;
+    });
+
+    return { deliveries: result };
+  });
+
+/**
+ * 8. Driver Accept Ride Request (Bypasses RLS via Supabase Admin)
+ * Atomically assigns the pending ride to the driver with their vehicle details.
+ */
+export const driverAcceptRideRequest = createServerFn({ method: "POST" })
+  .validator((input: DriverAcceptInput) => input)
+  .handler(async ({ data }) => {
+    const { getAdmin } = await import("@/lib/payments.server");
+    const { parseOrderMetadata, appendDriverAcceptance } = await import("@/lib/swift-order");
+    const admin = await getAdmin();
+
+    const { data: order, error: fetchErr } = await admin
+      .from("swift_deliveries")
+      .select("*")
+      .eq("id", data.orderId)
+      .maybeSingle();
+
+    if (fetchErr || !order) {
+      throw new Error("Ride order not found.");
+    }
+
+    if (order.status !== "pending") {
+      throw new Error(`Ride has already been ${order.status}.`);
+    }
+
+    const updatedPackageType = appendDriverAcceptance(order.package_type, {
+      name: data.driverName || "Swift Driver",
+      phone: data.driverPhone || "08000000000",
+      plate: data.vehiclePlate || "JOS-829-AA",
+      carModel: data.vehicleModel || "Toyota Corolla",
+      color: data.vehicleColor || "Active",
+      rating: 4.9,
+    });
+
+    const { data: updated, error: updErr } = await admin
+      .from("swift_deliveries")
+      .update({
+        status: "accepted",
+        driver_id: data.driverId,
+        package_type: updatedPackageType,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", data.orderId)
+      .select()
+      .single();
+
+    if (updErr) throw new Error(updErr.message);
+
+    const meta = parseOrderMetadata(order.package_type);
+    if (meta.isRide) {
+      try {
+        await admin
+          .from("vehicle_hire_bookings")
+          .update({
+            status: "matched",
+            driver_name: data.driverName,
+            driver_phone: data.driverPhone,
+            vehicle_details: `${data.vehicleModel || "Active Vehicle"} • ${data.vehiclePlate || "JOS-829-AA"}`,
+          })
+          .eq("pickup_location", order.pickup_address)
+          .in("status", ["pending", "booked"]);
+      } catch (err) {
+        console.warn("Syncing vehicle_hire_bookings on accept:", err);
+      }
+    }
+
+    return { success: true, order: updated };
+  });
+
+/**
+ * 9. Driver Update Trip Status (Bypasses RLS via Supabase Admin)
+ */
+export const driverUpdateTripStatus = createServerFn({ method: "POST" })
+  .validator((input: DriverUpdateStatusInput) => input)
+  .handler(async ({ data }) => {
+    const { getAdmin } = await import("@/lib/payments.server");
+    const { parseOrderMetadata } = await import("@/lib/swift-order");
+    const admin = await getAdmin();
+
+    const { data: updated, error: updErr } = await admin
+      .from("swift_deliveries")
+      .update({
+        status: data.status,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", data.orderId)
+      .eq("driver_id", data.driverId)
+      .select()
+      .single();
+
+    if (updErr) throw new Error(updErr.message);
+
+    if (updated) {
+      const meta = parseOrderMetadata(updated.package_type);
+      if (meta.isRide) {
+        const hireStatus = data.status === "delivered" ? "completed" : "in_progress";
+        try {
+          await admin
+            .from("vehicle_hire_bookings")
+            .update({ status: hireStatus })
+            .eq("pickup_location", updated.pickup_address)
+            .in("status", ["matched", "in_progress"]);
+        } catch (err) {
+          console.warn("Syncing vehicle_hire_bookings status:", err);
+        }
+      }
+    }
+
+    return { success: true, order: updated };
+  });
+

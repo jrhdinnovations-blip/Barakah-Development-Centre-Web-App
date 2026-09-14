@@ -195,7 +195,9 @@ function RideHailingDashboard() {
   const [selectedTier, setSelectedTier] = useState<VehicleTier>(VEHICLE_TIERS[0]!);
   const [useInDriveMode, setUseInDriveMode] = useState(false);
   const [customFare, setCustomFare] = useState(0);
-  const [paymentMethod, setPaymentMethod] = useState<'paystack' | 'wallet'>('paystack');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'paystack' | 'wallet'>('cash');
+  const [isTripPaid, setIsTripPaid] = useState<boolean>(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState<boolean>(false);
   const [matchedDriver, setMatchedDriver] = useState<MockNearbyDriver | null>(null);
   const [safetyPin, setSafetyPin] = useState('');
   const [searchProgress, setSearchProgress] = useState(0);
@@ -443,6 +445,8 @@ function RideHailingDashboard() {
     setSearchProgress(0);
     setTripProgress(0);
     setRatingGiven(0);
+    setIsTripPaid(false);
+    setIsProcessingPayment(false);
     setBookingId(null);
     setActiveOrderId(null);
     setActiveOrder(null);
@@ -730,30 +734,8 @@ function RideHailingDashboard() {
 
       if (vhData) setBookingId(vhData.id);
 
-      // If customer chose Paystack, redirect to Paystack checkout
-      if (paymentMethod === 'paystack') {
-        toast.loading('Connecting to Paystack payment gateway...', { id: 'paystack-init' });
-        try {
-          const paystackInit = await initializeSwiftPaystack({
-            data: {
-              entityType: 'swift_ride',
-              entityId: delivData.id,
-              amountKobo: Math.round(fare * 100),
-              description: `SwiftRide: ${selectedTier.name} (${activePickup.address} → ${activeDropoff.address})`,
-              callbackPath: `/my-vehicle-hires`,
-            },
-          });
-          if (paystackInit?.authorizationUrl) {
-            toast.success('Redirecting to Paystack checkout...', { id: 'paystack-init' });
-            window.location.href = paystackInit.authorizationUrl;
-            return;
-          }
-        } catch (payErr: any) {
-          toast.error(payErr.message || 'Could not connect to Paystack.', { id: 'paystack-init' });
-        }
-      }
-
-      toast.success('Ride requested! Waiting for driver to accept...');
+      // Payment comes AFTER ride completion (upon arrival at destination)
+      toast.success('🚗 Ride requested! Waiting for nearby driver to accept...');
     } catch (err: any) {
       toast.error('Failed to request ride: ' + (err.message || 'Please try again.'));
       setPhase('idle');
@@ -851,6 +833,44 @@ function RideHailingDashboard() {
         }
       } catch (_) {}
     }
+  };
+
+  // ── Post-Trip Payment Handlers ────────────────────────────────────────────
+  const handlePayWithPaystack = async () => {
+    if (!activeOrderId) return;
+    setIsProcessingPayment(true);
+    toast.loading('Connecting to Paystack checkout...', { id: 'paystack-pay' });
+    try {
+      const fare = activeOrder?.estimated_price || currentFareToDisplay;
+      const paystackInit = await initializeSwiftPaystack({
+        data: {
+          entityType: 'swift_ride',
+          entityId: activeOrderId,
+          amountKobo: Math.round(fare * 100),
+          description: `SwiftRide Payment: ${selectedTier.name} (${pickup?.address || 'Pickup'} → ${dropoff?.address || 'Dropoff'})`,
+          callbackPath: `/my-vehicle-hires?paid=true&orderId=${activeOrderId}`,
+        },
+      });
+      if (paystackInit?.authorizationUrl) {
+        toast.success('Redirecting to Paystack checkout...', { id: 'paystack-pay' });
+        window.location.href = paystackInit.authorizationUrl;
+        return;
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Could not initiate Paystack payment.', { id: 'paystack-pay' });
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  };
+
+  const handleConfirmCashPayment = () => {
+    setIsTripPaid(true);
+    toast.success('💵 Cash payment recorded! Please rate your driver.');
+  };
+
+  const handleConfirmWalletPayment = () => {
+    setIsTripPaid(true);
+    toast.success('⚡ Fare deducted from Swift Wallet! Please rate your driver.');
   };
 
   // ── Rate & Reset ──────────────────────────────────────────────────────────
@@ -1323,31 +1343,47 @@ function RideHailingDashboard() {
         )}
       </div>
 
-      {/* Payment Selector Pill */}
-      <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs text-slate-700 shadow-sm">
-        <span className="text-slate-500">Payment:</span>
-        <div className="flex items-center gap-1.5">
+      {/* Payment Selector Pill (Pay After Trip) */}
+      <div className="flex flex-col gap-1.5 p-3 rounded-xl bg-white border border-slate-200 text-xs text-slate-700 shadow-sm">
+        <div className="flex items-center justify-between">
+          <span className="text-slate-500 font-medium">Pay After Ride:</span>
+          <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+            Pay upon destination arrival
+          </span>
+        </div>
+        <div className="grid grid-cols-3 gap-1.5 pt-0.5">
+          <button
+            type="button"
+            onClick={() => setPaymentMethod('cash')}
+            className={`py-1.5 px-2 rounded-lg font-medium transition-all flex items-center justify-center gap-1 cursor-pointer ${
+              paymentMethod === 'cash'
+                ? 'bg-emerald-50 text-emerald-800 border border-emerald-300 shadow-sm font-bold'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-transparent'
+            }`}
+          >
+            <span>💵</span> Cash
+          </button>
           <button
             type="button"
             onClick={() => setPaymentMethod('paystack')}
-            className={`px-3 py-1.5 rounded-lg font-medium transition-all flex items-center gap-1.5 ${
+            className={`py-1.5 px-2 rounded-lg font-medium transition-all flex items-center justify-center gap-1 cursor-pointer ${
               paymentMethod === 'paystack'
-                ? 'bg-emerald-50 text-emerald-800 border border-emerald-300 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                ? 'bg-blue-50 text-blue-800 border border-blue-300 shadow-sm font-bold'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-transparent'
             }`}
           >
-            <span>💳</span> Paystack (Card / Transfer)
+            <span>💳</span> Card/Online
           </button>
           <button
             type="button"
             onClick={() => setPaymentMethod('wallet')}
-            className={`px-3 py-1.5 rounded-lg font-medium transition-all flex items-center gap-1.5 ${
+            className={`py-1.5 px-2 rounded-lg font-medium transition-all flex items-center justify-center gap-1 cursor-pointer ${
               paymentMethod === 'wallet'
-                ? 'bg-blue-50 text-blue-800 border border-blue-300 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                ? 'bg-indigo-50 text-indigo-800 border border-indigo-300 shadow-sm font-bold'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-transparent'
             }`}
           >
-            <span>⚡</span> Swift Wallet
+            <span>⚡</span> Wallet
           </button>
         </div>
       </div>
@@ -1735,20 +1771,130 @@ function RideHailingDashboard() {
             <span className="text-slate-500">Distance</span>
             <span className="text-slate-800">{distanceKm > 0 ? `${distanceKm} km` : 'City Route'}</span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-slate-500">Payment Method</span>
-            <span className="text-slate-800 capitalize">{paymentMethod}</span>
-          </div>
           <div className="border-t border-slate-100 pt-2 flex justify-between text-sm">
-            <span className="font-semibold text-slate-900">Total Paid</span>
+            <span className="font-semibold text-slate-900">Total Fare Due</span>
             <span className="font-bold text-blue-700 text-base">₦{currentFareToDisplay.toLocaleString()}</span>
           </div>
         </div>
       </div>
 
+      {/* Post-Trip Payment Section */}
+      {!isTripPaid ? (
+        <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-50/70 via-indigo-50/50 to-emerald-50/40 border border-blue-200 shadow-sm space-y-3.5 text-left">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-blue-900">Pay Driver</span>
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold border border-amber-200">
+              Payment Due
+            </span>
+          </div>
+          <p className="text-xs text-slate-600">
+            Please pay your driver for this completed ride. Choose your payment method:
+          </p>
+
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              onClick={() => setPaymentMethod('cash')}
+              className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                paymentMethod === 'cash'
+                  ? 'bg-white border-emerald-500 shadow-sm ring-2 ring-emerald-500/20'
+                  : 'bg-white/70 border-slate-200 hover:bg-white text-slate-600'
+              }`}
+            >
+              <span className="text-base block mb-0.5">💵</span>
+              <span className="text-[11px] font-bold text-slate-800 block leading-tight">Cash</span>
+              <span className="text-[9px] text-slate-400">To Driver</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setPaymentMethod('paystack')}
+              className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                paymentMethod === 'paystack'
+                  ? 'bg-white border-blue-500 shadow-sm ring-2 ring-blue-500/20'
+                  : 'bg-white/70 border-slate-200 hover:bg-white text-slate-600'
+              }`}
+            >
+              <span className="text-base block mb-0.5">💳</span>
+              <span className="text-[11px] font-bold text-slate-800 block leading-tight">Card / Bank</span>
+              <span className="text-[9px] text-slate-400">Paystack</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setPaymentMethod('wallet')}
+              className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                paymentMethod === 'wallet'
+                  ? 'bg-white border-indigo-500 shadow-sm ring-2 ring-indigo-500/20'
+                  : 'bg-white/70 border-slate-200 hover:bg-white text-slate-600'
+              }`}
+            >
+              <span className="text-base block mb-0.5">⚡</span>
+              <span className="text-[11px] font-bold text-slate-800 block leading-tight">Wallet</span>
+              <span className="text-[9px] text-slate-400">Instant</span>
+            </button>
+          </div>
+
+          {paymentMethod === 'cash' && (
+            <button
+              onClick={handleConfirmCashPayment}
+              className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-md transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-[0.99]"
+            >
+              <span>💵</span>
+              <span>I Have Handed ₦{currentFareToDisplay.toLocaleString()} Cash to Driver</span>
+            </button>
+          )}
+
+          {paymentMethod === 'paystack' && (
+            <button
+              onClick={handlePayWithPaystack}
+              disabled={isProcessingPayment}
+              className="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-md transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-[0.99]"
+            >
+              {isProcessingPayment ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
+                  <span>Opening Paystack...</span>
+                </>
+              ) : (
+                <>
+                  <span>💳</span>
+                  <span>Pay ₦{currentFareToDisplay.toLocaleString()} via Paystack (Card/Transfer)</span>
+                </>
+              )}
+            </button>
+          )}
+
+          {paymentMethod === 'wallet' && (
+            <button
+              onClick={handleConfirmWalletPayment}
+              className="w-full py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm shadow-md transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-[0.99]"
+            >
+              <span>⚡</span>
+              <span>Deduct ₦{currentFareToDisplay.toLocaleString()} from Swift Wallet</span>
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center gap-3 text-left">
+          <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-sm shrink-0">
+            ✓
+          </div>
+          <div>
+            <p className="text-xs font-bold text-emerald-900">Fare Payment Confirmed</p>
+            <p className="text-[11px] text-emerald-700">
+              ₦{currentFareToDisplay.toLocaleString()} paid via{' '}
+              {paymentMethod === 'cash' ? 'Cash' : paymentMethod === 'paystack' ? 'Paystack (Card/Transfer)' : 'Swift Wallet'}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Driver Rating */}
-      <div className="text-center space-y-3">
-        <p className="text-sm font-medium text-slate-700">Rate your driver</p>
+      <div className="text-center space-y-3 pt-1">
+        <p className="text-sm font-medium text-slate-700">
+          {isTripPaid ? 'Rate your driver' : 'Rate your driver (after payment)'}
+        </p>
         {matchedDriver && (
           <p className="text-xs text-slate-500">
             {matchedDriver.name} · {matchedDriver.vehicleModel}
@@ -1785,7 +1931,7 @@ function RideHailingDashboard() {
             onClick={handleResetAll}
             className="w-full py-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 transition-all text-slate-700 text-sm font-medium cursor-pointer"
           >
-            Skip & Book Another Ride
+            {isTripPaid ? 'Done & Book Another Ride' : 'Skip & Finish Later'}
           </button>
         )}
       </div>

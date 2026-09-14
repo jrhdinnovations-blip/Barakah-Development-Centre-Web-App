@@ -288,6 +288,16 @@ export const createUserAdmin = createServerFn({ method: "POST" })
 
       newUserId = signUpData.user.id;
 
+      // Force-confirm the email so the driver can log in immediately
+      // (signUp creates an unconfirmed account; drivers don't click confirmation emails)
+      try {
+        await supabaseAdmin.auth.admin.updateUserById(newUserId, {
+          email_confirm: true,
+        });
+      } catch (confirmErr) {
+        console.warn("Could not auto-confirm driver email:", confirmErr);
+      }
+
       // Ensure profile and driver records exist via authenticated client
       try {
         await supabase.from("profiles").upsert({
@@ -579,6 +589,35 @@ export const resetUserPassword = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/**
+ * Force-confirms a user's email so they can log in immediately.
+ * Called after signUp() fallback during driver/staff onboarding so
+ * admins don't have to ask new personnel to click a confirmation email.
+ */
+export const confirmUserEmailAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: any) =>
+    z
+      .object({
+        targetUserId: z.string().uuid(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId, user } = context;
+    const perm = await checkAdminPermissions(supabase, userId, user);
+    if (!perm.isDispatcher) throw new Error("Forbidden");
+
+    const { hasServiceRoleKey, supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    if (!hasServiceRoleKey) return { ok: true, confirmed: false };
+
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(data.targetUserId, {
+      email_confirm: true,
+    });
+    if (error) throw new Error(error.message);
+
+    return { ok: true, confirmed: true };
+  });
 
 export const getAllRidersAdmin = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])

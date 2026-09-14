@@ -37,6 +37,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { parseOrderMetadata, appendDriverAcceptance } from "@/lib/swift-order";
 import { calculateDriverEarnings, DRIVER_PAYOUT_PERCENT } from "@/lib/ride-pricing";
+import {
+  driverFetchCockpitJobs,
+  driverAcceptRideRequest,
+  driverUpdateTripStatus,
+} from "@/lib/dispatcher.functions";
 
 export const Route = createFileRoute("/_authenticated/drive/")({
   ssr: false,
@@ -193,17 +198,19 @@ function DriverDashboard() {
 
   const vehicleTypeMeta = (user?.user_metadata?.['vehicle_type'] || "") as string;
   const inferredCategory: "dispatch_rider" | "driver" =
-    /motorcycle|bike|scooter|bajaj/i.test(vehicleTypeMeta)
-      ? "dispatch_rider"
+    authRole === "driver"
+      ? "driver"
       : /car|sedan|suv|van|bus|toyota|honda/i.test(vehicleTypeMeta)
       ? "driver"
-      : (authRole === "dispatch_rider" ? "dispatch_rider" : "dispatch_rider");
+      : /motorcycle|bike|scooter|bajaj/i.test(vehicleTypeMeta)
+      ? "dispatch_rider"
+      : authRole === "dispatch_rider"
+      ? "dispatch_rider"
+      : "driver";
 
   const defaultCategory = metaCategory || inferredCategory;
 
-  // On /drive, lock to driver's actual category (default to dispatch_rider).
-  // This ensures even admins testing /drive experience the exact cockpit behavior without leaking raw unassigned dispatches.
-  const serviceMode: "dispatch_rider" | "driver" = defaultCategory;
+  const [serviceMode, setServiceMode] = useState<"dispatch_rider" | "driver">(defaultCategory);
 
   const handleToggleOnline = async (nextOnline: boolean) => {
     setIsOnline(nextOnline);
@@ -246,31 +253,41 @@ function DriverDashboard() {
     } catch {}
   }, []);
 
+  const lastSeenPendingRideRef = useRef<string | null>(null);
+
   const fetchDeliveries = useCallback(async () => {
     if (!userId) return;
     try {
-      let query = supabase.from("swift_deliveries").select("*");
+      const res = await driverFetchCockpitJobs({
+        data: {
+          driverId: userId,
+          serviceMode: serviceMode,
+        },
+      });
+      const data = (res?.deliveries || []) as Delivery[];
+      setDeliveries(data);
 
-      if (serviceMode === "dispatch_rider") {
-        // DISPATCHER-FIRST MODEL — dispatch couriers NEVER receive pending/unassigned orders.
-        // Only orders already assigned to them (driver_id = userId) are fetched.
-        // The dispatcher is the only one who can assign orders (via dispatchAssignTrip).
-        // No pending orders → no unassigned data → no Accept button can ever reach the rider.
-        query = query.eq("driver_id", userId);
-      } else {
-        // Vehicle drivers: see pending passenger rides + their own assigned jobs
-        query = query.or(`status.eq.pending,driver_id.eq.${userId}`);
+      // Alert driver when incoming pending passenger rides are found
+      const pendingRides = data.filter(
+        (d) => d.status === "pending" && parseOrderMetadata(d.package_type).isRide
+      );
+      if (pendingRides.length > 0) {
+        const newest = pendingRides[0]!;
+        if (lastSeenPendingRideRef.current !== newest.id) {
+          lastSeenPendingRideRef.current = newest.id;
+          playDispatchAlertChime();
+          toast.info("🚗 Incoming Passenger Ride Request!", {
+            description: `Pickup: ${newest.pickup_address} • Fare: ₦${newest.estimated_price?.toLocaleString()}`,
+            duration: 9000,
+          });
+        }
       }
-
-      const { data, error } = await query.order("created_at", { ascending: false });
-      if (error) throw error;
-      setDeliveries(data || []);
     } catch {
       toast.error("Failed to load jobs.");
     } finally {
       setIsLoading(false);
     }
-  }, [userId, serviceMode]);
+  }, [userId, serviceMode, playDispatchAlertChime]);
 
   // Track last-seen assigned dispatch order ID so we only fire the chime once per assignment
   const lastAssignedDispatchRef = useRef<string | null>(null);
@@ -392,35 +409,19 @@ function DriverDashboard() {
         rating: 4.9,
       });
 
-      const { error } = await supabase
-        .from("swift_deliveries")
-        .update({
-          status: "accepted",
-          driver_id: userId,
-          package_type: updatedPackageType,
-        })
-        .eq("id", job.id)
-        .eq("status", "pending");
+      const res = await driverAcceptRideRequest({
+        data: {
+          orderId: job.id,
+          driverId: userId,
+          driverName,
+          driverPhone,
+          vehiclePlate,
+          vehicleModel,
+          vehicleColor: "Active",
+        },
+      });
 
-      if (error) throw error;
-
-      // Synchronize vehicle_hire_bookings table if this is a passenger ride
-      if (meta.isRide) {
-        try {
-          await (supabase
-            .from("vehicle_hire_bookings") as any)
-            .update({
-              status: "matched",
-              driver_name: driverName,
-              driver_phone: driverPhone,
-              vehicle_details: `${vehicleModel} • ${vehiclePlate}`,
-            })
-            .eq("pickup_location", job.pickup_address)
-            .eq("status", "pending");
-        } catch (err) {
-          console.warn("Syncing vehicle_hire_bookings on accept:", err);
-        }
-      }
+      if (!res?.success) throw new Error("Could not accept ride.");
 
       toast.success(
         meta.isRide
@@ -445,26 +446,15 @@ function DriverDashboard() {
     setProcessingId(job.id);
     try {
       const meta = parseOrderMetadata(job.package_type);
-      const { error } = await supabase
-        .from("swift_deliveries")
-        .update({ status: newStatus })
-        .eq("id", job.id)
-        .eq("driver_id", userId);
-      if (error) throw error;
+      const res = await driverUpdateTripStatus({
+        data: {
+          orderId: job.id,
+          driverId: userId,
+          status: newStatus as any,
+        },
+      });
 
-      // Synchronize vehicle_hire_bookings if passenger ride
-      if (meta.isRide) {
-        const hireStatus = newStatus === "delivered" ? "completed" : "in_progress";
-        try {
-          await supabase
-            .from("vehicle_hire_bookings")
-            .update({ status: hireStatus })
-            .eq("pickup_location", job.pickup_address)
-            .in("status", ["matched", "in_progress"]);
-        } catch (err) {
-          console.warn("Syncing vehicle_hire_bookings status:", err);
-        }
-      }
+      if (!res?.success) throw new Error("Status update failed.");
 
       if (newStatus === "delivered") {
         setCompletedJob(job);
@@ -631,6 +621,28 @@ function DriverDashboard() {
               {completedJob.dropoff_address}
             </span>
           </div>
+          {/* Payment Method / Collection Info */}
+          <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/60 text-left space-y-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 block">
+              Payment Settlement
+            </span>
+            <p className="text-xs text-white font-semibold flex items-center justify-between">
+              <span>Method:</span>
+              <span className="text-emerald-400">
+                {completedJob.package_type?.includes('PAY:paystack')
+                  ? '💳 Paid Online (Paystack)'
+                  : completedJob.package_type?.includes('PAY:wallet')
+                  ? '⚡ Paid (Swift Wallet)'
+                  : '💵 Cash to Driver'}
+              </span>
+            </p>
+            {!completedJob.package_type?.includes('PAY:paystack') && !completedJob.package_type?.includes('PAY:wallet') && (
+              <p className="text-[11px] text-amber-300/90 font-medium">
+                👉 Please collect ₦{completedJob.estimated_price?.toLocaleString()} in cash directly from the passenger.
+              </p>
+            )}
+          </div>
+
           <div className="flex gap-1 justify-center pt-2">
             {[1, 2, 3, 4, 5].map((s) => (
               <Star key={s} className="h-6 w-6 fill-amber-400 text-amber-400" />
@@ -898,32 +910,32 @@ function DriverDashboard() {
               </span>
             </p>
             <div className="flex items-center gap-2 mt-2">
-              <span
-                className={`text-[11px] font-bold px-2.5 py-1 rounded-full border inline-flex items-center gap-1.5 ${
+              <button
+                type="button"
+                onClick={() => {
+                  const next = serviceMode === "driver" ? "dispatch_rider" : "driver";
+                  setServiceMode(next);
+                  toast.info(next === "driver" ? "🚗 Switched to Passenger Driver Mode" : "🛵 Switched to Courier Dispatch Mode");
+                }}
+                className={`text-[11px] font-bold px-2.5 py-1 rounded-full border inline-flex items-center gap-1.5 cursor-pointer transition-all hover:scale-105 ${
                   serviceMode === "dispatch_rider"
-                    ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400"
-                    : serviceMode === "driver"
-                    ? "bg-cyan-500/15 border-cyan-500/30 text-cyan-400"
-                    : "bg-purple-500/15 border-purple-500/30 text-purple-300"
+                    ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25"
+                    : "bg-cyan-500/15 border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/25"
                 }`}
+                title="Click to switch mode"
               >
                 {serviceMode === "dispatch_rider" ? (
                   <>
                     <Bike className="h-3.5 w-3.5 text-emerald-400" />
-                    <span>Dispatch Courier Mode</span>
-                  </>
-                ) : serviceMode === "driver" ? (
-                  <>
-                    <Car className="h-3.5 w-3.5 text-cyan-400" />
-                    <span>Passenger Driver Mode</span>
+                    <span>Dispatch Courier Mode (Switch ⇄)</span>
                   </>
                 ) : (
                   <>
-                    <Sparkles className="h-3.5 w-3.5 text-purple-400" />
-                    <span>Fleet Operations (All)</span>
+                    <Car className="h-3.5 w-3.5 text-cyan-400" />
+                    <span>Passenger Driver Mode (Switch ⇄)</span>
                   </>
                 )}
-              </span>
+              </button>
             </div>
           </div>
           <div className="flex flex-col items-end gap-2">

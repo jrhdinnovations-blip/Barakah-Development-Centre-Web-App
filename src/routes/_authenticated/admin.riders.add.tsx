@@ -3,7 +3,7 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Truck, ArrowLeft, Loader2, Eye, EyeOff, UserPlus, Bike, Car, CheckCircle2, Copy, Check, Sparkles, Phone, Mail, Lock } from 'lucide-react';
-import { createUserAdmin } from '@/lib/admin.functions';
+import { createUserAdmin, confirmUserEmailAdmin } from '@/lib/admin.functions';
 import { requireAdminRouteAccess } from '@/lib/admin-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -118,6 +118,14 @@ function AddRiderPage() {
         if (!signUpData.user) throw new Error('Could not create personnel account.');
 
         const newId = signUpData.user.id;
+
+        // Force-confirm the email via a server function so the driver can log in immediately
+        // (signUp leaves accounts unconfirmed; drivers don't click verification emails)
+        try {
+          await confirmUserEmailAdmin({ data: { targetUserId: newId } });
+        } catch (confirmErr) {
+          console.warn('Could not auto-confirm driver email on client fallback:', confirmErr);
+        }
         try {
           await supabase.from('profiles').upsert({
             user_id: newId,
