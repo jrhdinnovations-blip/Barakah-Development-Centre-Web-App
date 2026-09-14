@@ -18,6 +18,7 @@ import {
   RefreshCw,
   Wifi,
   ShieldCheck,
+  Radio,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,6 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { DirectoryTabs } from '@/components/admin/directory-tabs';
 
 export const Route = createFileRoute('/_authenticated/admin/staff/')({
   ssr: false,
@@ -39,19 +41,21 @@ export const Route = createFileRoute('/_authenticated/admin/staff/')({
   },
   head: () => ({
     meta: [
-      { title: 'Staff Directory — Barakah Admin' },
+      { title: 'All Staff — Barakah Admin' },
       { name: 'robots', content: 'noindex' },
     ],
   }),
   component: StaffDirectoryPage,
 });
 
-// Staff roles shown in this directory
+// Staff roles shown in this directory (including admin)
 const STAFF_ROLES = [
   'administrator',
+  'admin',
   'programme_officer',
   'content_editor',
   'swift_dispatcher',
+  'dispatcher',
   'swift_manager',
   'staff',
 ];
@@ -62,12 +66,22 @@ const ROLE_CONFIG: Record<string, { label: string; color: string; dotColor: stri
     color: 'bg-purple-500/10 text-purple-300 border-purple-500/30',
     dotColor: 'bg-purple-400',
   },
+  admin: {
+    label: 'Administrator',
+    color: 'bg-purple-500/10 text-purple-300 border-purple-500/30',
+    dotColor: 'bg-purple-400',
+  },
   swift_manager: {
     label: 'Swift Manager',
     color: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30',
     dotColor: 'bg-emerald-400',
   },
   swift_dispatcher: {
+    label: 'Dispatcher',
+    color: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30',
+    dotColor: 'bg-cyan-400',
+  },
+  dispatcher: {
     label: 'Dispatcher',
     color: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30',
     dotColor: 'bg-cyan-400',
@@ -134,8 +148,63 @@ function StaffDirectoryPage() {
 
   const fetchStaff = useCallback(async () => {
     try {
-      const staffList = await getStaffMembersAdmin();
-      setStaff(staffList as StaffMember[]);
+      try {
+        const staffList = await getStaffMembersAdmin();
+        if (Array.isArray(staffList) && staffList.length > 0) {
+          setStaff(staffList as StaffMember[]);
+          return;
+        }
+      } catch (err) {
+        console.warn('getStaffMembersAdmin server error, using client fallback:', err);
+      }
+
+      // Client-side fallback query
+      const { data: roles } = await supabase
+        .from('user_roles')
+        .select('user_id, role')
+        .in('role', STAFF_ROLES);
+
+      const staffUids = [...new Set((roles || []).map((r: any) => r.user_id))];
+      if (staffUids.length === 0) {
+        setStaff([]);
+        return;
+      }
+
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, full_name, phone, location, status, created_at')
+        .in('user_id', staffUids);
+
+      const rolePriority: Record<string, number> = {
+        administrator: 100, admin: 100, swift_manager: 90, swift_dispatcher: 80,
+        dispatcher: 80, programme_officer: 60, content_editor: 50, staff: 40,
+      };
+
+      const roleMap = new Map<string, string>();
+      for (const r of roles || []) {
+        const current = roleMap.get(r.user_id);
+        if (!current || (rolePriority[r.role] ?? 0) > (rolePriority[current] ?? 0)) {
+          roleMap.set(r.user_id, r.role);
+        }
+      }
+
+      const list: StaffMember[] = staffUids.map((uid) => {
+        const p = (profiles || []).find((x: any) => x.user_id === uid);
+        return {
+          user_id: uid,
+          full_name: p?.full_name || 'Staff Member',
+          email: 'N/A',
+          phone: p?.phone || null,
+          department: null,
+          designation: null,
+          branch: p?.location || null,
+          role: roleMap.get(uid) || 'staff',
+          created_at: p?.created_at || new Date().toISOString(),
+          status: p?.status || 'active',
+        };
+      });
+
+      setStaff(list);
     } catch (e: any) {
       toast.error('Failed to load staff: ' + (e.message ?? String(e)));
     } finally {
@@ -209,20 +278,20 @@ function StaffDirectoryPage() {
     },
     {
       label: 'Administrators',
-      value: staff.filter((s) => s.role === 'administrator').length,
+      value: staff.filter((s) => s.role === 'administrator' || s.role === 'admin' || s.role === 'swift_manager').length,
       color: 'text-purple-400',
       bg: 'bg-purple-500/10 border-purple-500/20',
       icon: Shield,
     },
     {
-      label: 'Departments',
-      value: departments.length,
-      color: 'text-blue-400',
-      bg: 'bg-blue-500/10 border-blue-500/20',
-      icon: Building,
+      label: 'Dispatchers',
+      value: staff.filter((s) => s.role === 'swift_dispatcher' || s.role === 'dispatcher').length,
+      color: 'text-cyan-400',
+      bg: 'bg-cyan-500/10 border-cyan-500/20',
+      icon: Radio,
     },
     {
-      label: 'Active',
+      label: 'Active on Duty',
       value: staff.filter((s) => s.status === 'active').length,
       color: 'text-emerald-400',
       bg: 'bg-emerald-500/10 border-emerald-500/20',
@@ -233,6 +302,9 @@ function StaffDirectoryPage() {
   return (
     <div className="min-h-screen bg-[#070b14] text-slate-200">
       <div className="p-6 lg:p-10 space-y-8">
+        {/* Navigation Tabs */}
+        <DirectoryTabs activeTab="staff" counts={{ staff: staff.length }} />
+
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -240,10 +312,13 @@ function StaffDirectoryPage() {
               <div className="p-2.5 bg-teal-500/10 rounded-2xl border border-teal-500/20">
                 <Users className="h-7 w-7 text-teal-400" />
               </div>
-              Staff Directory
+              All Staff
+              <Badge className="bg-teal-500/10 text-teal-300 border-teal-500/30 text-xs font-normal">
+                Staff & Admin
+              </Badge>
             </h1>
             <p className="text-slate-400 mt-2 text-sm">
-              All organisation staff members, roles, departments and branches.
+              Internal staff members, managers, dispatchers, and administrators. For Customers see All Users; for Drivers see All Riders.
             </p>
           </div>
           <div className="flex items-center gap-3">

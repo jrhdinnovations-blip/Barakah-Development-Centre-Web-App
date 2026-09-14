@@ -21,6 +21,8 @@ import {
   EyeOff,
   Sparkles,
   Radio,
+  MapPin,
+  CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DirectoryTabs } from "@/components/admin/directory-tabs";
 
 export const Route = createFileRoute("/_authenticated/admin/users/")({
   ssr: false,
@@ -74,11 +77,16 @@ const ROLE_CONFIG: Record<string, { label: string; color: string; icon: any }> =
   },
 };
 
+const STAFF_OR_DRIVER_ROLES = [
+  'administrator', 'admin', 'swift_manager', 'swift_dispatcher', 'dispatcher',
+  'programme_officer', 'content_editor', 'staff', 'driver', 'dispatch_rider'
+];
+
 function AllUsersPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const navigate = useNavigate();
   const [resetTarget, setResetTarget] = useState<{ id: string; name: string } | null>(null);
@@ -130,7 +138,9 @@ function AllUsersPage() {
       try {
         const adminUsers = await getAllUsersAdmin();
         if (Array.isArray(adminUsers)) {
-          setUsers(adminUsers);
+          // Strictly customers only
+          const onlyCustomers = adminUsers.filter((u: any) => !STAFF_OR_DRIVER_ROLES.includes(u.role));
+          setUsers(onlyCustomers);
           return;
         }
       } catch (serverErr) {
@@ -170,27 +180,29 @@ function AllUsersPage() {
         if (newScore > currentScore) roleMap.set(r.user_id, r.role);
       }
 
-      const merged = profiles.map((p: any) => ({
-        user_id: p.user_id,
-        full_name: p.full_name || "Unnamed User",
-        phone: p.phone || null,
-        email: "N/A",
-        location: p.location || null,
-        role: roleMap.get(p.user_id) || "registered_user",
-        created_at: p.created_at,
-        status: p.status || "active",
-      }));
+      const merged = profiles
+        .map((p: any) => ({
+          user_id: p.user_id,
+          full_name: p.full_name || "Unnamed Customer",
+          phone: p.phone || null,
+          email: "N/A",
+          location: p.location || null,
+          role: roleMap.get(p.user_id) || "registered_user",
+          created_at: p.created_at,
+          status: p.status || "active",
+        }))
+        // Filter: ONLY customers
+        .filter((u: any) => !STAFF_OR_DRIVER_ROLES.includes(u.role));
 
       setUsers(merged);
     } catch (err: any) {
       console.error("fetchUsers failed:", err);
-      toast.error("Failed to load users: " + (err.message || String(err)));
+      toast.error("Failed to load customers: " + (err.message || String(err)));
     } finally {
       setLoading(false);
       setIsRefreshing(false);
     }
   }, []);
-
 
   useEffect(() => {
     fetchUsers();
@@ -241,36 +253,31 @@ function AllUsersPage() {
       !q ||
       u.full_name?.toLowerCase().includes(q) ||
       u.phone?.includes(q) ||
-      u.email?.toLowerCase().includes(q);
-    const matchRole = roleFilter === "all" || u.role === roleFilter;
-    return matchSearch && matchRole;
+      u.email?.toLowerCase().includes(q) ||
+      u.location?.toLowerCase().includes(q);
+    const matchStatus = statusFilter === "all" || u.status === statusFilter;
+    return matchSearch && matchStatus;
   });
 
   const stats = [
-    { label: "Total Users", value: users.length, color: "text-blue-400", bg: "bg-blue-500/10" },
+    { label: "Total Customers", value: users.length, color: "text-blue-400", bg: "bg-blue-500/10" },
     {
-      label: "Admins",
-      value: users.filter((u) => u.role === "administrator" || u.role === "swift_manager").length,
-      color: "text-purple-400",
-      bg: "bg-purple-500/10",
+      label: "Active Accounts",
+      value: users.filter((u) => u.status === "active").length,
+      color: "text-emerald-400",
+      bg: "bg-emerald-500/10",
     },
     {
-      label: "Dispatchers",
-      value: users.filter((u) => u.role === "swift_dispatcher").length,
+      label: "With Phone",
+      value: users.filter((u) => Boolean(u.phone && u.phone !== "N/A")).length,
       color: "text-cyan-400",
       bg: "bg-cyan-500/10",
     },
     {
-      label: "Riders",
-      value: users.filter((u) => u.role === "driver").length,
-      color: "text-orange-400",
-      bg: "bg-orange-500/10",
-    },
-    {
-      label: "Customers",
-      value: users.filter((u) => u.role === "registered_user").length,
-      color: "text-emerald-400",
-      bg: "bg-emerald-500/10",
+      label: "With Email",
+      value: users.filter((u) => Boolean(u.email && u.email !== "N/A")).length,
+      color: "text-purple-400",
+      bg: "bg-purple-500/10",
     },
   ];
 
@@ -278,6 +285,9 @@ function AllUsersPage() {
     <div className="min-h-screen bg-[#070b14] text-slate-200 relative">
       {/* Main Content */}
       <div className="p-6 lg:p-10 space-y-8">
+        {/* Navigation Tabs */}
+        <DirectoryTabs activeTab="users" counts={{ users: users.length }} />
+
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -286,9 +296,12 @@ function AllUsersPage() {
                 <Users className="h-7 w-7 text-blue-400" />
               </div>
               All Users
+              <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/20 text-xs font-normal">
+                Customers Only
+              </Badge>
             </h1>
             <p className="text-slate-400 mt-2 text-sm">
-              Manage all platform accounts. Create users, assign roles, and control access.
+              Registered customer accounts directory. For internal staff see All Staff; for fleet drivers see All Riders.
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -335,22 +348,19 @@ function AllUsersPage() {
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name or phone…"
+              placeholder="Search customers by name, phone, email, or location…"
               className="pl-9 bg-slate-900 border-slate-800 h-10 text-slate-200"
             />
           </div>
-          <Select value={roleFilter} onValueChange={setRoleFilter}>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-[180px] bg-slate-900 border-slate-800 h-10">
               <Filter className="h-4 w-4 mr-2 text-slate-500" />
-              <SelectValue placeholder="Filter Role" />
+              <SelectValue placeholder="Filter Status" />
             </SelectTrigger>
             <SelectContent className="bg-slate-900 border-slate-800">
-              <SelectItem value="all">All Roles</SelectItem>
-              <SelectItem value="administrator">Admin</SelectItem>
-              <SelectItem value="swift_manager">Manager</SelectItem>
-              <SelectItem value="swift_dispatcher">Dispatcher</SelectItem>
-              <SelectItem value="driver">Rider</SelectItem>
-              <SelectItem value="registered_user">Customer</SelectItem>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="offline">Offline</SelectItem>
             </SelectContent>
           </Select>
         </div>

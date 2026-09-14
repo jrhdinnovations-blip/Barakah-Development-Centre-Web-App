@@ -36,6 +36,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { DirectoryTabs } from "@/components/admin/directory-tabs";
 
 export const Route = createFileRoute("/_authenticated/admin/riders/")({
   ssr: false,
@@ -246,13 +247,20 @@ function RidersDirectoryPage() {
         console.warn("getAllRidersAdmin server error, using client query fallback:", err);
       }
 
-      // Fallback query
-      const { data: driverRoles } = await supabase
-        .from("user_roles")
-        .select("user_id")
-        .eq("role", "driver");
+      // Fallback query: include both driver and dispatch_rider roles, plus active drivers
+      const [driverRolesRes, activeDriversRes] = await Promise.all([
+        supabase
+          .from("user_roles")
+          .select("user_id")
+          .in("role", ["driver", "dispatch_rider"]),
+        supabase.from("active_drivers").select("*"),
+      ]);
 
-      const driverIds = (driverRoles || []).map((r: any) => r.user_id);
+      const driverIdSet = new Set<string>((driverRolesRes.data || []).map((r: any) => r.user_id));
+      for (const a of (activeDriversRes.data || [])) {
+        if (a.driver_id) driverIdSet.add(a.driver_id);
+      }
+      const driverIds = Array.from(driverIdSet);
       if (driverIds.length === 0) {
         setDrivers([]);
         return;
@@ -264,11 +272,7 @@ function RidersDirectoryPage() {
         .in("user_id", driverIds)
         .order("created_at", { ascending: false });
 
-      let activeDrvs: any[] = [];
-      try {
-        const { data } = await supabase.from("active_drivers").select("*");
-        activeDrvs = data || [];
-      } catch {}
+      const activeDrvs = activeDriversRes.data || [];
 
       const merged: DriverPersonnel[] = (profiles || []).map((p: any) => {
         const active = activeDrvs.find((a: any) => a.driver_id === p.user_id);
@@ -353,6 +357,9 @@ function RidersDirectoryPage() {
     <div className="min-h-screen bg-[#070b14] text-slate-200 relative">
       {/* Main Content */}
       <div className="p-6 lg:p-10 space-y-8">
+        {/* Navigation Tabs */}
+        <DirectoryTabs activeTab="riders" counts={{ riders: drivers.length }} />
+
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -360,10 +367,13 @@ function RidersDirectoryPage() {
               <div className="p-2.5 bg-orange-500/10 rounded-2xl border border-orange-500/20">
                 <Truck className="h-7 w-7 text-orange-500" />
               </div>
-              Fleet Personnel & Drivers
+              All Riders
+              <Badge className="bg-orange-500/10 text-orange-400 border-orange-500/20 text-xs font-normal">
+                Riders & Drivers
+              </Badge>
             </h1>
             <p className="text-slate-400 mt-2 text-sm">
-              Manage Dispatch Riders (parcels/deliveries) and Vehicle Drivers (passenger rides/fleet hires).
+              Fleet dispatch riders (motorcycles) and vehicle drivers (cars & vans). For Customers see All Users; for Staff see All Staff.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2.5">

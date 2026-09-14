@@ -445,24 +445,27 @@ export const getStaffMembersAdmin = createServerFn({ method: "GET" })
     const { supabase, userId, user } = context;
     await requireAdminOrManager(supabase, userId, user);
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { hasServiceRoleKey, supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const client = hasServiceRoleKey ? supabaseAdmin : supabase;
 
     const STAFF_ROLES = [
       'administrator',
+      'admin',
       'programme_officer',
       'content_editor',
       'swift_dispatcher',
+      'dispatcher',
       'swift_manager',
       'staff',
     ];
 
     // Query user_roles for staff role users, then join profiles
     const [rolesRes, profilesRes] = await Promise.all([
-      supabaseAdmin
+      client
         .from("user_roles")
         .select("user_id, role, status")
         .in("role", STAFF_ROLES),
-      supabaseAdmin
+      client
         .from("profiles")
         .select("user_id, full_name, phone, location, status, created_at")
         .order("created_at", { ascending: false })
@@ -473,13 +476,30 @@ export const getStaffMembersAdmin = createServerFn({ method: "GET" })
     const allProfiles = profilesRes.data || [];
 
     // Get unique staff user_ids
-    const staffUserIds = [...new Set(allRoles.map((r: any) => r.user_id))];
-    if (staffUserIds.length === 0) return [];
+    const staffIdSet = new Set<string>(allRoles.map((r: any) => r.user_id));
+
+    // Fetch real emails and user_metadata from auth admin API if available
+    let authUserMap = new Map<string, any>();
+    if (hasServiceRoleKey) {
+      try {
+        const { data: authData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+        for (const u of (authData?.users || [])) {
+          authUserMap.set(u.id, u);
+          const metaRole = u.user_metadata?.['role'];
+          const email = u.email?.toLowerCase() || '';
+          if (SUPER_ADMIN_EMAILS.includes(email) || (metaRole && STAFF_ROLES.includes(metaRole))) {
+            staffIdSet.add(u.id);
+          }
+        }
+      } catch {}
+    }
+
+    if (staffIdSet.size === 0) return [];
 
     // Build role map (highest priority role per user)
     const rolePriority: Record<string, number> = {
-      administrator: 100, swift_manager: 90, swift_dispatcher: 80,
-      programme_officer: 60, content_editor: 50, staff: 40,
+      administrator: 100, admin: 100, swift_manager: 90, swift_dispatcher: 80,
+      dispatcher: 80, programme_officer: 60, content_editor: 50, staff: 40,
     };
     const roleMap = new Map<string, string>();
     for (const r of allRoles) {
@@ -489,33 +509,34 @@ export const getStaffMembersAdmin = createServerFn({ method: "GET" })
       }
     }
 
-    // Fetch real emails and user_metadata from auth admin API
-    let authUserMap = new Map<string, any>();
-    try {
-      const { data: authData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
-      for (const u of (authData?.users || [])) {
-        authUserMap.set(u.id, u);
-      }
-    } catch {}
+    const staffUserIds = Array.from(staffIdSet);
 
-    return staffUserIds.map(uid => {
-      const profile = allProfiles.find((p: any) => p.user_id === uid);
-      const authUser = authUserMap.get(uid);
-      const meta = authUser?.user_metadata || {};
-      return {
-        user_id: uid,
-        full_name: profile?.full_name || meta['full_name'] || 'Unnamed Staff',
-        email: authUser?.email || 'N/A',
-        phone: profile?.phone || meta['phone'] || null,
-        department: meta['department'] || null,
-        designation: meta['designation'] || null,
-        branch: meta['branch'] || null,
-        employee_id: meta['employee_id'] || null,
-        role: roleMap.get(uid) || 'staff',
-        created_at: profile?.created_at || authUser?.created_at || new Date().toISOString(),
-        status: profile?.status || 'active',
-      };
-    }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return staffUserIds
+      .map(uid => {
+        const profile = allProfiles.find((p: any) => p.user_id === uid);
+        const authUser = authUserMap.get(uid);
+        const meta = authUser?.user_metadata || {};
+        const email = authUser?.email?.toLowerCase() || '';
+        const isSuperAdmin = SUPER_ADMIN_EMAILS.includes(email);
+        const role = isSuperAdmin ? 'administrator' : (roleMap.get(uid) || meta['role'] || 'staff');
+
+        return {
+          user_id: uid,
+          full_name: profile?.full_name || meta['full_name'] || (isSuperAdmin ? 'Super Admin' : 'Staff Member'),
+          email: authUser?.email || 'N/A',
+          phone: profile?.phone || meta['phone'] || null,
+          department: meta['department'] || null,
+          designation: meta['designation'] || null,
+          branch: meta['branch'] || null,
+          employee_id: meta['employee_id'] || null,
+          role,
+          created_at: profile?.created_at || authUser?.created_at || new Date().toISOString(),
+          status: profile?.status || 'active',
+        };
+      })
+      // Strictly exclude any user with driver or customer role
+      .filter(s => s.role !== 'driver' && s.role !== 'dispatch_rider' && s.role !== 'registered_user')
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   });
 
 export const resetUserPassword = createServerFn({ method: "POST" })
@@ -573,30 +594,40 @@ export const getAllRidersAdmin = createServerFn({ method: "GET" })
     if (!isAllowed) throw new Error("Forbidden");
 
     const { hasServiceRoleKey, supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const client = hasServiceRoleKey ? supabaseAdmin : supabase;
 
     // 1. Fetch driver roles, auth users, and active drivers in parallel
     const [rolesRes, authUsersRes, activeRes] = await Promise.all([
-      supabaseAdmin.from("user_roles").select("user_id").eq("role", "driver"),
-      hasServiceRoleKey ? supabaseAdmin.auth.admin.listUsers() : Promise.resolve({ data: { users: [] }, error: null }),
-      supabaseAdmin.from("active_drivers").select("*"),
+      client.from("user_roles").select("user_id").in("role", ["driver", "dispatch_rider"]),
+      hasServiceRoleKey ? supabaseAdmin.auth.admin.listUsers({ perPage: 1000 }) : Promise.resolve({ data: { users: [] }, error: null }),
+      client.from("active_drivers").select("*"),
     ]);
 
     const authUsers = (authUsersRes.data?.users || []) as any[];
     const activeDrvs = (activeRes.data || []) as any[];
 
-    // Collect all driver IDs from user_roles AND auth user_metadata
+    // Collect all driver IDs from user_roles, auth metadata, and active_drivers
     const driverIdSet = new Set<string>((rolesRes.data || []).map((r: any) => r.user_id));
     for (const u of authUsers) {
-      if (u.user_metadata?.role === "driver" || u.user_metadata?.rider_category) {
+      const meta = u.user_metadata || {};
+      if (
+        meta.role === "driver" ||
+        meta.role === "dispatch_rider" ||
+        meta.rider_category === "driver" ||
+        meta.rider_category === "dispatch_rider"
+      ) {
         driverIdSet.add(u.id);
       }
+    }
+    for (const a of activeDrvs) {
+      if (a.driver_id) driverIdSet.add(a.driver_id);
     }
 
     const driverIds = Array.from(driverIdSet);
     if (driverIds.length === 0) return [];
 
     // 2. Fetch profiles
-    const { data: profilesData } = await supabaseAdmin
+    const { data: profilesData } = await client
       .from("profiles")
       .select("user_id, full_name, phone, location, status, created_at")
       .in("user_id", driverIds)
@@ -707,12 +738,27 @@ export const getAllUsersAdmin = createServerFn({ method: "GET" })
     const { supabase, userId, user } = context;
     await requireAdminOrManager(supabase, userId, user);
 
+    const STAFF_OR_DRIVER_ROLES = [
+      'administrator',
+      'admin',
+      'swift_manager',
+      'swift_dispatcher',
+      'dispatcher',
+      'programme_officer',
+      'content_editor',
+      'staff',
+      'driver',
+      'dispatch_rider',
+    ];
+
     const rolePriority: Record<string, number> = {
       administrator: 100,
+      admin: 100,
       swift_manager: 90,
       swift_dispatcher: 80,
       dispatcher: 80,
       driver: 70,
+      dispatch_rider: 70,
       programme_officer: 60,
       content_editor: 50,
       staff: 40,
@@ -736,7 +782,6 @@ export const getAllUsersAdmin = createServerFn({ method: "GET" })
 
       if (hasServiceRoleKey) {
         const { data: authData, error: authError } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
-        // If this fails the key is not a real service-role key → fall through
         if (!authError && authData?.users) {
           const [profilesData, rolesData] = await Promise.all([
             supabaseAdmin.from("profiles").select("*"),
@@ -746,22 +791,32 @@ export const getAllUsersAdmin = createServerFn({ method: "GET" })
           const profiles = profilesData.data || [];
           const userRoleMap = buildRoleMap(rolesData.data || []);
 
-          return authData.users.map(u => {
-            const profile = profiles.find((p: any) => p.user_id === u.id);
-            const assignedRole = userRoleMap.get(u.id)
-              || (u.user_metadata?.['role'] as string | undefined)
-              || 'registered_user';
-            return {
-              user_id: u.id,
-              full_name: profile?.full_name || (u.user_metadata?.['full_name'] as string | undefined) || 'Unnamed User',
-              phone: profile?.phone || (u.user_metadata?.['phone'] as string | undefined) || null,
-              location: profile?.location || null,
-              email: u.email ?? 'N/A',
-              role: assignedRole,
-              created_at: u.created_at,
-              status: profile?.status || 'active',
-            };
-          }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          // All Users tab displays ONLY customers (registered_user)
+          return authData.users
+            .map(u => {
+              const profile = profiles.find((p: any) => p.user_id === u.id);
+              const assignedRole = userRoleMap.get(u.id)
+                || (u.user_metadata?.['role'] as string | undefined)
+                || 'registered_user';
+              return {
+                user_id: u.id,
+                full_name: profile?.full_name || (u.user_metadata?.['full_name'] as string | undefined) || 'Customer',
+                phone: profile?.phone || (u.user_metadata?.['phone'] as string | undefined) || null,
+                location: profile?.location || null,
+                email: u.email ?? 'N/A',
+                role: assignedRole,
+                created_at: u.created_at,
+                status: profile?.status || 'active',
+              };
+            })
+            // Filter: EXCLUDE any staff, admin, driver, rider, or super admin email
+            .filter(u => {
+              const email = u.email.toLowerCase();
+              if (SUPER_ADMIN_EMAILS.includes(email)) return false;
+              if (STAFF_OR_DRIVER_ROLES.includes(u.role)) return false;
+              return true;
+            })
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         }
       }
     } catch {
@@ -769,7 +824,6 @@ export const getAllUsersAdmin = createServerFn({ method: "GET" })
     }
 
     // ── Fallback: server-side authenticated supabase client ──────────────────
-    // Runs on the server so it uses the session cookie and admin RLS policies.
     const [profilesRes, rolesRes] = await Promise.all([
       supabase
         .from("profiles")
@@ -782,16 +836,18 @@ export const getAllUsersAdmin = createServerFn({ method: "GET" })
     const profiles = profilesRes.data || [];
     const roleMap = buildRoleMap(rolesRes.data || []);
 
-    return profiles.map((p: any) => ({
-      user_id: p.user_id,
-      full_name: p.full_name || 'Unnamed User',
-      phone: p.phone || null,
-      location: p.location || null,
-      email: 'N/A',
-      role: roleMap.get(p.user_id) || 'registered_user',
-      created_at: p.created_at,
-      status: p.status || 'active',
-    }));
+    return profiles
+      .map((p: any) => ({
+        user_id: p.user_id,
+        full_name: p.full_name || 'Customer',
+        phone: p.phone || null,
+        location: p.location || null,
+        email: 'N/A',
+        role: roleMap.get(p.user_id) || 'registered_user',
+        created_at: p.created_at,
+        status: p.status || 'active',
+      }))
+      .filter((u: any) => !STAFF_OR_DRIVER_ROLES.includes(u.role));
   });
 
 const pageSchema = z.object({

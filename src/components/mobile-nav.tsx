@@ -18,6 +18,7 @@ import {
     FileText,
     Radio,
     Key,
+    Shield,
     ShieldAlert,
     LogOut,
     Image,
@@ -91,8 +92,10 @@ const adminNav = {
         {
             title: 'Platform Management',
             items: [
+                { title: 'All Users', path: '/admin/users', icon: Users },
+                { title: 'All Staff', path: '/admin/staff', icon: Shield },
+                { title: 'All Riders', path: '/admin/riders', icon: Truck },
                 { title: 'All Transactions', path: '/history', icon: BarChart3 },
-                { title: 'User Management', path: '/admin/users', icon: Users },
                 { title: 'Audit Logs', path: '/admin/audit', icon: ShieldAlert },
                 { title: 'Payments & Ledger', path: '/my-payments', icon: CreditCard },
                 { title: 'Media Library', path: '/admin/media', icon: Image },

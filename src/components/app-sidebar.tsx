@@ -135,7 +135,7 @@ const adminNav: RoleNav = {
                     title: "All Users",
                     path: "/admin/users",
                     icon: Users,
-                    description: "Browse, view & manage all accounts",
+                    description: "Customer accounts directory",
                 },
                 {
                     title: "Add User",
@@ -164,10 +164,10 @@ const adminNav: RoleNav = {
             accentColor: "text-emerald-400",
             items: [
                 {
-                    title: "Staff Directory",
+                    title: "All Staff",
                     path: "/admin/staff",
                     icon: Users,
-                    description: "Full staff roster & employee profiles",
+                    description: "Internal staff & admin directory",
                 },
                 {
                     title: "Add Staff",
@@ -193,7 +193,7 @@ const adminNav: RoleNav = {
                     title: "All Riders",
                     path: "/admin/riders",
                     icon: Truck,
-                    description: "Fleet drivers, vehicle info & status",
+                    description: "Fleet riders & drivers directory",
                 },
                 {
                     title: "Add Rider",
