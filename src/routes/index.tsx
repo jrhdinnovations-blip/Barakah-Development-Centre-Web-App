@@ -115,8 +115,8 @@ function BarakahHomePage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Link to="/my-swift-move" className="text-sm text-blue-400 hover:text-blue-300 font-medium inline-flex items-center">
-                  Book a delivery <ArrowRight className="ml-1 h-4 w-4" />
+                <Link to="/swiftmove" className="text-sm text-blue-400 hover:text-blue-300 font-medium inline-flex items-center">
+                  Book a delivery or ride <ArrowRight className="ml-1 h-4 w-4" />
                 </Link>
               </CardContent>
             </Card>

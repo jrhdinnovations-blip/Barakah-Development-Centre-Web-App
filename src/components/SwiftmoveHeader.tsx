@@ -32,7 +32,7 @@ export function SwiftmoveHeader() {
       </div>
 
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        <Link to="/my-swift-move" className="flex items-center gap-2 group">
+        <Link to="/swiftmove" className="flex items-center gap-2 group" title="SwiftMove Home">
           <img
             src="/swiftmove-logo.jpg"
             alt="SwiftMove Logo"
@@ -45,9 +45,9 @@ export function SwiftmoveHeader() {
           <Link 
             to="/my-swift-move" 
             className="text-sm font-medium text-slate-300 hover:text-white transition-colors"
-            activeProps={{ className: "text-blue-400 font-semibold" }}
+            activeProps={{ className: "text-orange-400 font-semibold" }}
           >
-            Book Dispatch
+            Send a Parcel
           </Link>
           <Link 
             to="/my-vehicle-hires" 
@@ -59,7 +59,7 @@ export function SwiftmoveHeader() {
           <Link 
             to="/history" 
             className="text-sm font-medium text-slate-300 hover:text-white transition-colors"
-            activeProps={{ className: "text-blue-400 font-semibold" }}
+            activeProps={{ className: "text-emerald-400 font-semibold" }}
           >
             History
           </Link>

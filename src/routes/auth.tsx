@@ -3,7 +3,8 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
-import { Eye, EyeOff, Info, UserCheck } from "lucide-react";
+import { Eye, EyeOff, Info, UserCheck, Truck } from "lucide-react";
+import { isSwiftmoveDomain } from "@/lib/domain-detection";
 
 const searchSchema = z.object({
   mode: z.enum(["login", "register", "forgot"]).catch("login"),
@@ -33,7 +34,7 @@ export const Route = createFileRoute("/auth")({
         } else if (allUserRoles.has('driver') || allUserRoles.has('dispatch_rider')) {
           target = '/drive';
         } else {
-          target = '/my-swift-move';
+          target = search.redirect || '/my-swift-move';
         }
       }
       throw redirect({ to: target as any });
@@ -73,29 +74,39 @@ function AuthPage() {
   const [form, setForm] = useState({
     fullName: "",
     email: "",
+    password: "",
     phone: "",
     location: "",
-    password: "",
     consent: false,
   });
 
+  const isSwift =
+    isSwiftmoveDomain() ||
+    Boolean(
+      redirectParam?.includes("swift") ||
+      redirectParam?.includes("vehicle") ||
+      redirectParam?.includes("history") ||
+      redirectParam?.includes("drive") ||
+      redirectParam?.includes("dispatcher")
+    );
+
   function setMode(m: "login" | "register" | "forgot") {
-    navigate({ to: "/auth", search: { mode: m, redirect: redirectParam }, replace: true });
+    navigate({ search: (prev: any) => ({ ...prev, mode: m }) });
   }
 
   async function handleGoogle() {
     const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
+      provider: "google",
       options: {
-        redirectTo: window.location.origin,
-      }
+        redirectTo: `${window.location.origin}${redirectParam || "/my-swift-move"}`,
+      },
     });
-    if (error) toast.error("Google sign-in failed. Please try again.");
+    if (error) toast.error(error.message);
   }
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    const parsed = loginSchema.safeParse({ email: form.email, password: form.password });
+    const parsed = loginSchema.safeParse(form);
     if (!parsed.success) {
       toast.error(parsed.error.issues[0]?.message ?? "Check your details.");
       return;
@@ -133,7 +144,7 @@ function AuthPage() {
       } else if (allUserRoles.has('driver') || allUserRoles.has('dispatch_rider')) {
         target = '/drive';
       } else {
-        target = '/my-swift-move';
+        target = redirectParam || '/my-swift-move';
       }
     }
     navigate({ to: target as any });
@@ -151,7 +162,7 @@ function AuthPage() {
       email: parsed.data.email,
       password: parsed.data.password,
       options: {
-        emailRedirectTo: window.location.origin,
+        emailRedirectTo: `${window.location.origin}${redirectParam || "/my-swift-move"}`,
         data: {
           full_name: parsed.data.fullName,
           phone: parsed.data.phone,
@@ -165,27 +176,19 @@ function AuthPage() {
       setBusy(false);
       return void toast.error(error.message);
     }
-
-    // Ensure phone is written to the profiles table immediately
-    // (the Supabase trigger may create the profile but not always include phone)
-    if (signUpData?.user?.id) {
-      await supabase.from('profiles').upsert({
-        user_id: signUpData.user.id,
-        full_name: parsed.data.fullName,
-        phone: parsed.data.phone,
-      } as any, { onConflict: 'user_id' }).then(() => {});
-    }
-
     setBusy(false);
+    if (signUpData?.session) {
+      toast.success("Account created successfully!");
+      navigate({ to: (redirectParam || "/my-swift-move") as any });
+      return;
+    }
     setRegistered(true);
   }
 
   async function handleForgot(e: React.FormEvent) {
     e.preventDefault();
-    const email = form.email.trim();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return void toast.error("Enter a valid email address.");
-    }
+    const email = form.email.trim().toLowerCase();
+    if (!email) return void toast.error("Enter your email address.");
     setBusy(true);
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
@@ -197,25 +200,29 @@ function AuthPage() {
   }
 
   const inputCls =
-    "mt-1.5 w-full rounded-lg border border-slate-800 bg-slate-900 px-3.5 py-2.5 text-sm text-white outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all";
+    "mt-1.5 w-full rounded-lg border border-slate-800 bg-slate-900 px-3.5 py-2.5 text-sm text-white outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all";
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center px-4 py-16 text-slate-100">
       <div className="w-full max-w-md text-center mb-8">
-        <div className="inline-flex p-3 bg-blue-600/10 rounded-2xl text-blue-500 mb-4 border border-blue-500/20">
-          <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-          </svg>
+        <div className={`inline-flex p-3 rounded-2xl mb-4 border ${isSwift ? "bg-orange-500/10 text-orange-400 border-orange-500/30" : "bg-blue-600/10 text-blue-500 border-blue-500/20"}`}>
+          {isSwift ? (
+            <Truck className="h-8 w-8" />
+          ) : (
+            <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
+          )}
         </div>
         <h1 className="text-3xl font-extrabold text-white tracking-tight">
           {mode === "register" ? "Create Customer Account" : mode === "forgot" ? "Reset password" : "Welcome back"}
         </h1>
         <p className="mt-2 text-sm text-slate-400">
           {mode === "register"
-            ? "Sign up to book rides, schedule dispatches, and access Barakah services."
+            ? (isSwift ? "Sign up to send parcels, request rides, and track orders on SwiftMove." : "Sign up to book rides, schedule dispatches, and access Barakah services.")
             : mode === "forgot"
               ? "We'll email you a secure reset link."
-              : "Access the Barakah & SwiftMove platform."}
+              : (isSwift ? "Sign in to access your SwiftMove deliveries and rides." : "Access the Barakah & SwiftMove platform.")}
         </p>
       </div>
 
@@ -319,7 +326,7 @@ function AuthPage() {
             )}
             {mode === "register" && (
               <label className="flex items-start gap-2.5 text-xs text-slate-400 mt-2 select-none">
-                <input type="checkbox" className="mt-1 accent-blue-600" checked={form.consent}
+                <input type="checkbox" className={`mt-1 ${isSwift ? "accent-orange-500" : "accent-blue-600"}`} checked={form.consent}
                   onChange={(e) => setForm({ ...form, consent: e.target.checked })} />
                 <span>I consent to Barakah and SwiftMove storing my details to provide services.</span>
               </label>
@@ -327,7 +334,7 @@ function AuthPage() {
             <button
               type="submit"
               disabled={busy}
-              className="mt-6 w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition-all hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed shadow-lg shadow-blue-600/20"
+              className={`mt-6 w-full rounded-xl px-4 py-3 text-sm font-bold text-white transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow-lg ${isSwift ? "bg-gradient-to-r from-orange-500 to-amber-500 hover:shadow-orange-500/40 hover:scale-[1.01]" : "bg-blue-600 hover:bg-blue-500 shadow-blue-600/20"}`}
             >
               {busy
                 ? "Please wait..."
@@ -350,12 +357,12 @@ function AuthPage() {
 
           <div className="mt-6 flex flex-wrap justify-between gap-2 text-xs">
             {mode !== "login" && (
-              <button onClick={() => setMode("login")} className="text-blue-400 hover:text-blue-300 hover:underline">
+              <button onClick={() => setMode("login")} className={`${isSwift ? "text-orange-400 hover:text-orange-300" : "text-blue-400 hover:text-blue-300"} hover:underline font-medium`}>
                 Sign in instead
               </button>
             )}
             {mode !== "register" && (
-              <button onClick={() => setMode("register")} className="text-blue-400 hover:text-blue-300 hover:underline">
+              <button onClick={() => setMode("register")} className={`${isSwift ? "text-orange-400 hover:text-orange-300" : "text-blue-400 hover:text-blue-300"} hover:underline font-medium`}>
                 Create an account
               </button>
             )}

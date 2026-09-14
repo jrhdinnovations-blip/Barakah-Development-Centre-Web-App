@@ -47,7 +47,7 @@ export const NAV: NavItem[] = [
     children: [
       { label: "Learn & Develop", to: "/learn-and-develop", description: "Courses, training and mentorship" },
       { label: "Enterprise & Ventures", to: "/enterprise-and-ventures", description: "Skills, incubation and trade" },
-      { label: "SwiftMove Logistics & Ride Hailing", to: "/my-swift-move", description: "Dispatch, delivery and on-demand rides" },
+      { label: "SwiftMove Logistics & Ride Hailing", to: "/swiftmove", description: "Dispatch, delivery and on-demand rides" },
       { label: "Travel & Pilgrimage", to: "/travel-and-pilgrimage", description: "Umrah support and travel services" },
       { label: "Community & Humanitarian", to: "/community-and-humanitarian", description: "Relief, welfare and outreach" },
       { label: "Peace & Institutional Services", to: "/peace-and-institutional-services", description: "Research, mediation and advisory" },
@@ -82,7 +82,7 @@ export const ECO_ACTIONS = [
   { label: "Access Counselling", to: "/peace-and-institutional-services" },
   { label: "Commission Research", to: "/peace-and-institutional-services" },
   { label: "Buy Products", to: "/enterprise-and-ventures" },
-  { label: "Use SwiftMove Logistics", to: "/my-swift-move" },
+  { label: "Use SwiftMove Logistics", to: "/swiftmove" },
   { label: "Send a Package", to: "/my-swift-move" },
   { label: "Request a Ride", to: "/my-vehicle-hires" },
   { label: "Drive for SwiftMove", to: "/drive" },
