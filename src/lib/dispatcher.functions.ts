@@ -642,8 +642,8 @@ export interface ToggleOnlineInput {
 
 /**
  * 12. Driver Toggle Online Status (Bypasses RLS via Supabase Admin)
- * Sets the driver's active_drivers row to 'available' or 'offline'
- * with their latest GPS location.
+ * Upserts the driver's row in public.drivers (user_id key, is_online boolean)
+ * with their latest GPS location. Falls back gracefully if auth metadata is missing.
  */
 export const driverToggleOnlineStatus = createServerFn({ method: "POST" })
   .validator((input: ToggleOnlineInput) => input)
@@ -651,17 +651,34 @@ export const driverToggleOnlineStatus = createServerFn({ method: "POST" })
     const { getAdmin } = await import("@/lib/payments.server");
     const admin = await getAdmin();
 
+    // Fetch driver auth metadata so we can populate name/email if row is new
+    let driverMeta: { full_name?: string; phone?: string; email?: string } = {};
+    try {
+      const { data: authUser } = await admin.auth.admin.getUserById(data.driverId);
+      if (authUser?.user) {
+        driverMeta = {
+          full_name: authUser.user.user_metadata?.full_name || "",
+          phone: authUser.user.user_metadata?.phone || "",
+          email: authUser.user.email || "",
+        };
+      }
+    } catch (_) {}
+
     const { error } = await admin
-      .from("active_drivers")
+      .from("drivers")
       .upsert(
         {
-          driver_id: data.driverId,
-          status: data.isOnline ? "available" : "offline",
+          user_id: data.driverId,
+          ...(driverMeta.full_name ? { full_name: driverMeta.full_name } : {}),
+          ...(driverMeta.phone ? { phone: driverMeta.phone } : {}),
+          ...(driverMeta.email ? { email: driverMeta.email } : {}),
+          is_online: data.isOnline,
+          status: data.isOnline ? "active" : "inactive",
           current_lat: data.lat ?? null,
           current_lng: data.lng ?? null,
-          last_updated: new Date().toISOString(),
+          location_updated_at: new Date().toISOString(),
         },
-        { onConflict: "driver_id" }
+        { onConflict: "user_id" }
       );
 
     if (error) {
@@ -680,8 +697,9 @@ export interface FetchAvailableDriversInput {
 
 /**
  * 13. Fetch Available Drivers for Passenger (Bypasses RLS via Supabase Admin)
- * Gathers online drivers from active_drivers, joins profiles/vehicles,
- * and supplements with nearby available vehicles so the map is always populated.
+ * Queries public.drivers (is_online=true) and enriches with auth metadata
+ * and vehicle info. Falls back to seeded nearby drivers so the map always
+ * has cars visible near the passenger.
  */
 export const fetchAvailableDrivers = createServerFn({ method: "POST" })
   .validator((input?: FetchAvailableDriversInput) => input || {})
@@ -692,60 +710,74 @@ export const fetchAvailableDrivers = createServerFn({ method: "POST" })
     const cLat = data?.centerLat || 9.8965; // Jos center
     const cLng = data?.centerLng || 8.8583;
 
-    // 1. Query online active drivers from database
+    // 1. Query online drivers from public.drivers (is_online = true)
     const { data: dbDrivers, error: drvErr } = await admin
-      .from("active_drivers")
-      .select("driver_id, status, current_lat, current_lng, last_updated")
-      .eq("status", "available");
+      .from("drivers")
+      .select("user_id, full_name, phone, email, is_online, status, current_lat, current_lng, location_updated_at, rating_avg")
+      .eq("is_online", true);
 
     if (drvErr) console.warn("[fetchAvailableDrivers] db error:", drvErr.message);
 
     const activeList = dbDrivers || [];
-    const driverIds = activeList.map((d) => d.driver_id);
+    const driverIds = activeList.map((d) => d.user_id);
 
-    const profilesMap: Record<string, any> = {};
+    // 2. Fetch vehicle info from fleet_vehicles OR auth metadata
     const vehiclesMap: Record<string, any> = {};
-
     if (driverIds.length > 0) {
-      const [{ data: profs }, { data: vehs }] = await Promise.all([
-        admin.from("profiles").select("user_id, full_name, phone").in("user_id", driverIds),
-        admin.from("fleet_vehicles").select("assigned_driver_id, make, model, plate_number, color").in("assigned_driver_id", driverIds),
-      ]);
-
-      profs?.forEach((p) => { profilesMap[p.user_id] = p; });
+      const { data: vehs } = await admin
+        .from("fleet_vehicles")
+        .select("assigned_driver_id, make, model, plate_number, color")
+        .in("assigned_driver_id", driverIds);
       vehs?.forEach((v) => { if (v.assigned_driver_id) vehiclesMap[v.assigned_driver_id] = v; });
     }
 
-    // Convert real active drivers to driver marker objects
-    const realDrivers = activeList.map((d, index) => {
-      const prof = profilesMap[d.driver_id] || {};
-      const veh = vehiclesMap[d.driver_id] || {};
+    // Also try public.profiles for any extra info
+    const profilesMap: Record<string, any> = {};
+    if (driverIds.length > 0) {
+      const { data: profs } = await admin
+        .from("profiles")
+        .select("user_id, full_name, phone")
+        .in("user_id", driverIds);
+      profs?.forEach((p) => { profilesMap[p.user_id] = p; });
+    }
 
+    // 3. Build real driver marker objects from public.drivers rows
+    const realDrivers = activeList.map((d, index) => {
+      const prof = profilesMap[d.user_id] || {};
+      const veh = vehiclesMap[d.user_id] || {};
+
+      // If driver toggled online from Jos default coords, use their actual GPS
       const lat = d.current_lat || (cLat + ((index % 2 === 0 ? 1 : -1) * (0.002 + index * 0.0015)));
       const lng = d.current_lng || (cLng + ((index % 3 === 0 ? 1 : -1) * (0.0025 + index * 0.0012)));
 
+      // Vehicle details: prefer fleet_vehicles, fallback to auth metadata via drivers row
+      const vehicleMake = veh.make || "Toyota";
+      const vehicleModel = veh.model || "Corolla";
+      const vehicleColor = veh.color || "Silver";
+      const plateNumber = veh.plate_number || "JOS-829-AA";
+
       return {
-        id: d.driver_id,
-        name: prof.full_name || `Driver ${d.driver_id.slice(-4)}`,
-        rating: 4.9,
+        id: d.user_id,
+        name: d.full_name || prof.full_name || `Driver ${d.user_id.slice(-4)}`,
+        phone: d.phone || prof.phone || "08000000000",
+        rating: d.rating_avg || 4.9,
         trips: 420 + index * 75,
-        vehicleType: veh.model ? `${veh.make || ''} ${veh.model}` : 'Verified Fleet Vehicle',
-        vehicleMake: veh.make || 'Toyota',
-        plateNumber: veh.plate_number || 'JOS-829-AA',
-        vehicleColor: veh.color || 'Silver',
-        vehicleModel: veh.model ? `${veh.color || 'Silver'} ${veh.make || 'Toyota'} ${veh.model}` : 'Toyota Corolla (A/C)',
-        phone: prof.phone || '08000000000',
+        vehicleType: `${vehicleMake} ${vehicleModel}`,
+        vehicleMake,
+        plateNumber,
+        vehicleColor,
+        vehicleModel: `${vehicleColor} ${vehicleMake} ${vehicleModel}`,
         lat,
         lng,
-        tierId: 'swift_go',
+        tierId: "swift_go",
       };
     });
 
-    // 2. Also retrieve seed nearby drivers so the passenger sees available cars near their location
+    // 4. Supplement with seeded nearby drivers so map always has cars visible
     const { generateNearbyDrivers } = await import("@/lib/ride-pricing");
     const seedDrivers = generateNearbyDrivers(cLat, cLng);
 
-    // Merge without duplicating IDs
+    // Merge — real drivers first, seed drivers fill any gaps
     const combined = [...realDrivers];
     for (const s of seedDrivers) {
       if (!combined.some((c) => c.id === s.id)) {
@@ -760,4 +792,34 @@ export const fetchAvailableDrivers = createServerFn({ method: "POST" })
     };
   });
 
+export interface CustomerGetActiveRideInput {
+  orderId: string;
+  customerId: string;
+}
+
+/**
+ * 14. Customer Get Active Ride (Bypasses Client JWT expiration)
+ * Uses Supabase Admin to fetch the latest swift_deliveries row for a
+ * specific order, so the passenger screen can poll for driver acceptance
+ * even when the client Supabase session token has expired.
+ */
+export const customerGetActiveRide = createServerFn({ method: "POST" })
+  .validator((input: CustomerGetActiveRideInput) => input)
+  .handler(async ({ data }) => {
+    const { getAdmin } = await import("@/lib/payments.server");
+    const admin = await getAdmin();
+
+    const { data: order, error } = await admin
+      .from("swift_deliveries")
+      .select("*")
+      .eq("id", data.orderId)
+      .maybeSingle();
+
+    if (error) {
+      console.error("[customerGetActiveRide] error:", error.message);
+      throw new Error(error.message);
+    }
+
+    return { order };
+  });
 

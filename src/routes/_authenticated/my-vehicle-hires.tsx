@@ -31,6 +31,7 @@ import {
   customerCancelRideRequest,
   driverAcceptRideRequest,
   fetchAvailableDrivers,
+  customerGetActiveRide,
 } from '@/lib/dispatcher.functions';
 import { PaymentReturn } from '@/components/PaymentReturn';
 import { Button } from '@/components/ui/button';
@@ -258,14 +259,16 @@ function RideHailingDashboard() {
       .channel('passenger-active-drivers')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'active_drivers' },
+        // Subscribe to public.drivers (the real table that exists in the DB)
+        { event: '*', schema: 'public', table: 'drivers' },
         () => {
           loadDrivers();
         }
       )
       .subscribe();
 
-    const interval = setInterval(loadDrivers, 15000);
+    // Refresh driver list every 10s so new drivers coming online appear quickly
+    const interval = setInterval(loadDrivers, 10000);
 
     return () => {
       supabase.removeChannel(channel);
@@ -577,21 +580,34 @@ function RideHailingDashboard() {
     [selectedTier, pickup, handleResetAll]
   );
 
-  // ── Realtime subscription to the active order in swift_deliveries ─────────
+  // ── Realtime subscription + server-side polling for active order ────────────
   useEffect(() => {
     if (!activeOrderId) return;
 
+    // Server-side poll: bypasses client JWT expiration by using Supabase Admin
     const poll = async () => {
-      const { data } = await supabase
-        .from('swift_deliveries')
-        .select('*')
-        .eq('id', activeOrderId)
-        .maybeSingle();
-      if (data) processOrderUpdate(data);
+      try {
+        const res = await customerGetActiveRide({
+          data: { orderId: activeOrderId, customerId: userId || '' },
+        });
+        if (res?.order) processOrderUpdate(res.order);
+      } catch (e) {
+        console.warn('[customerGetActiveRide poll] error:', e);
+        // Fallback to client supabase if server fn fails
+        try {
+          const { data } = await supabase
+            .from('swift_deliveries')
+            .select('*')
+            .eq('id', activeOrderId)
+            .maybeSingle();
+          if (data) processOrderUpdate(data);
+        } catch (_) {}
+      }
     };
 
     poll();
 
+    // Also subscribe to realtime for instant push delivery
     const channel = supabase
       .channel(`customer-ride-${activeOrderId}`)
       .on(
@@ -608,13 +624,14 @@ function RideHailingDashboard() {
       )
       .subscribe();
 
-    const interval = setInterval(poll, 3500);
+    // Poll every 2s while searching (fast detection of acceptance)
+    const interval = setInterval(poll, 2000);
 
     return () => {
       supabase.removeChannel(channel);
       clearInterval(interval);
     };
-  }, [activeOrderId, processOrderUpdate]);
+  }, [activeOrderId, processOrderUpdate, userId]);
 
   // ── Session recovery on mount ─────────────────────────────────────────────
   useEffect(() => {
@@ -818,22 +835,19 @@ function RideHailingDashboard() {
       let testVehicle = 'Toyota Corolla (2020)';
       let testPlate = 'JOS-829-AA';
       let testColor = 'Silver';
+      let dId: string | undefined;
 
+      // Query public.drivers (real table) for an online driver
       const { data: activeDrvs } = await supabase
-        .from('active_drivers')
-        .select('*')
-        .eq('status', 'available')
+        .from('drivers')
+        .select('user_id, full_name, phone')
+        .eq('is_online', true)
         .limit(1);
 
       if (activeDrvs && activeDrvs.length > 0) {
-        const dId = activeDrvs[0]!.driver_id;
-        const { data: pData } = await supabase
-          .from('profiles')
-          .select('full_name, phone')
-          .eq('user_id', dId)
-          .maybeSingle();
-        if (pData?.full_name) testName = pData.full_name;
-        if (pData?.phone) testPhone = pData.phone;
+        dId = activeDrvs[0]!.user_id;
+        if (activeDrvs[0]!.full_name) testName = activeDrvs[0]!.full_name;
+        if (activeDrvs[0]!.phone) testPhone = activeDrvs[0]!.phone;
       }
 
       await driverAcceptRideRequest({
