@@ -26,6 +26,11 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { initializeSwiftPaystack } from '@/lib/payments.functions';
+import {
+  customerCreateRideRequest,
+  customerCancelRideRequest,
+  driverAcceptRideRequest,
+} from '@/lib/dispatcher.functions';
 import { PaymentReturn } from '@/components/PaymentReturn';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -208,6 +213,22 @@ function RideHailingDashboard() {
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const [activeOrder, setActiveOrder] = useState<any>(null);
   const [isSearchingTimer, setIsSearchingTimer] = useState(0);
+
+  // ── Preemptive Session Health Check ───────────────────────────────────────
+  useEffect(() => {
+    const refreshSessionIfExpiring = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.expires_at) {
+          const now = Math.floor(Date.now() / 1000);
+          if (session.expires_at - now < 300) {
+            await supabase.auth.refreshSession();
+          }
+        }
+      } catch (_) {}
+    };
+    refreshSessionIfExpiring();
+  }, []);
 
   // ── Tabs ──────────────────────────────────────────────────────────────────
   const [mainTab, setMainTab] = useState<'ride' | 'history'>('ride');
@@ -692,51 +713,34 @@ function RideHailingDashboard() {
     setSearchProgress(0);
 
     try {
-      // 1. Dispatch real ride to swift_deliveries (listened to in real-time by driver console)
-      const { data: delivData, error: delivErr } = await supabase
-        .from('swift_deliveries')
-        .insert({
-          customer_id: userId,
-          pickup_address: activePickup.address,
-          dropoff_address: activeDropoff.address,
-          package_type: encodedPackage,
-          weight_kg: selectedTier.capacity,
-          distance_km: currentDistanceKm,
-          estimated_price: fare,
-          payment_reference: trackingId,
-          status: 'pending',
-        })
-        .select()
-        .single();
-
-      if (delivErr) throw delivErr;
-
-      setActiveOrderId(delivData.id);
-      setActiveOrder(delivData);
-
-      // 2. Also save to vehicle_hire_bookings for legacy bookings history
-      const { data: vhData } = await supabase
-        .from('vehicle_hire_bookings')
-        .insert({
-          customer_id: userId,
+      // 1. Dispatch real ride to swift_deliveries via server function (immune to client JWT expiration)
+      const res = await customerCreateRideRequest({
+        data: {
+          customerId: userId,
+          pickupAddress: activePickup.address,
+          dropoffAddress: activeDropoff.address,
+          packageType: encodedPackage,
+          capacity: selectedTier.capacity,
+          distanceKm: currentDistanceKm,
+          fare,
+          trackingId,
           category: selectedTier.category,
-          sub_category: selectedTier.subCategoryDb,
-          pickup_location: activePickup.address,
-          destination: activeDropoff.address,
-          start_date: new Date().toISOString().split('T')[0]!,
-          duration_days: 1,
-          total_price: fare,
-          status: 'booked',
-          payment_reference: trackingId,
-        })
-        .select()
-        .single();
+          subCategoryDb: selectedTier.subCategoryDb,
+        },
+      });
 
-      if (vhData) setBookingId(vhData.id);
+      if (!res?.delivery?.id) {
+        throw new Error('Failed to create ride order on server.');
+      }
+
+      setActiveOrderId(res.delivery.id);
+      setActiveOrder(res.delivery);
+      if (res.bookingId) setBookingId(res.bookingId);
 
       // Payment comes AFTER ride completion (upon arrival at destination)
       toast.success('🚗 Ride requested! Waiting for nearby driver to accept...');
     } catch (err: any) {
+      console.error('Ride request error:', err);
       toast.error('Failed to request ride: ' + (err.message || 'Please try again.'));
       setPhase('idle');
     }
@@ -744,20 +748,18 @@ function RideHailingDashboard() {
 
   // ── Cancel Ride Search ────────────────────────────────────────────────────
   const handleCancelSearch = async () => {
-    if (activeOrderId) {
+    if (activeOrderId && userId) {
       try {
-        await supabase
-          .from('swift_deliveries')
-          .update({ status: 'cancelled' })
-          .eq('id', activeOrderId)
-          .eq('status', 'pending');
-        if (bookingId) {
-          await supabase
-            .from('vehicle_hire_bookings')
-            .update({ status: 'cancelled' })
-            .eq('id', bookingId);
-        }
-      } catch (_) {}
+        await customerCancelRideRequest({
+          data: {
+            orderId: activeOrderId,
+            customerId: userId,
+            bookingId: bookingId || undefined,
+          },
+        });
+      } catch (err: any) {
+        console.warn('Error cancelling ride:', err);
+      }
     }
     toast.info('Ride request cancelled.');
     handleResetAll();
@@ -791,25 +793,17 @@ function RideHailingDashboard() {
         if (pData?.phone) testPhone = pData.phone;
       }
 
-      const updatedPackage = appendDriverAcceptance({
-        basePackageType: activeOrder?.package_type || `Ride: ${selectedTier.name}|||KIND:ride`,
-        driverPhone: testPhone,
-        driverName: testName,
-        vehicleMake: testVehicle,
-        plateNumber: testPlate,
-        vehicleColor: testColor,
-        driverRating: 4.9,
+      await driverAcceptRideRequest({
+        data: {
+          orderId: activeOrderId,
+          driverId: dId || userId || '00000000-0000-0000-0000-000000000000',
+          driverName: testName,
+          driverPhone: testPhone,
+          vehiclePlate: testPlate,
+          vehicleModel: testVehicle,
+          vehicleColor: testColor,
+        },
       });
-
-      await supabase
-        .from('swift_deliveries')
-        .update({
-          status: 'accepted',
-          driver_id: userId,
-          package_type: updatedPackage,
-        })
-        .eq('id', activeOrderId)
-        .eq('status', 'pending');
     } catch (e: any) {
       toast.error('Test simulation failed: ' + e.message);
     }

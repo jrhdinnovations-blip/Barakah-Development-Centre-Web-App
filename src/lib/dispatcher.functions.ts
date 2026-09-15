@@ -512,3 +512,125 @@ export const driverUpdateTripStatus = createServerFn({ method: "POST" })
     return { success: true, order: updated };
   });
 
+export interface CreateRideInput {
+  customerId: string;
+  pickupAddress: string;
+  dropoffAddress: string;
+  packageType: string;
+  capacity?: number;
+  distanceKm: number;
+  fare: number;
+  trackingId: string;
+  category?: string;
+  subCategoryDb?: string;
+}
+
+/**
+ * 10. Customer Create Ride Request (Bypasses Client JWT Expiration)
+ * Inserts the ride into swift_deliveries and vehicle_hire_bookings via service role
+ * so customers are never blocked by expired client tokens.
+ */
+export const customerCreateRideRequest = createServerFn({ method: "POST" })
+  .validator((input: CreateRideInput) => input)
+  .handler(async ({ data }) => {
+    const { getAdmin } = await import("@/lib/payments.server");
+    const admin = await getAdmin();
+
+    let finalPackageType = data.packageType;
+    if (!finalPackageType.includes("CPHONE:")) {
+      try {
+        const { data: prof } = await admin
+          .from("profiles")
+          .select("phone")
+          .eq("user_id", data.customerId)
+          .maybeSingle();
+        if (prof?.phone) {
+          finalPackageType += `|||CPHONE:${prof.phone}`;
+        }
+      } catch (_) {}
+    }
+
+    const { data: delivData, error: delivErr } = await admin
+      .from("swift_deliveries")
+      .insert({
+        customer_id: data.customerId,
+        pickup_address: data.pickupAddress,
+        dropoff_address: data.dropoffAddress,
+        package_type: finalPackageType,
+        weight_kg: data.capacity || 4,
+        distance_km: data.distanceKm,
+        estimated_price: data.fare,
+        payment_reference: data.trackingId,
+        status: "pending",
+      })
+      .select()
+      .single();
+
+    if (delivErr) {
+      console.error("[customerCreateRideRequest] delivErr:", delivErr.message);
+      throw new Error(delivErr.message);
+    }
+
+    let bookingId: string | null = null;
+    try {
+      const { data: vhData } = await admin
+        .from("vehicle_hire_bookings")
+        .insert({
+          customer_id: data.customerId,
+          category: data.category || "Standard",
+          sub_category: data.subCategoryDb || "sedan",
+          pickup_location: data.pickupAddress,
+          destination: data.dropoffAddress,
+          start_date: new Date().toISOString().split("T")[0]!,
+          duration_days: 1,
+          total_price: data.fare,
+          status: "booked",
+          payment_reference: data.trackingId,
+        })
+        .select()
+        .single();
+      if (vhData) bookingId = vhData.id;
+    } catch (e: any) {
+      console.warn("[customerCreateRideRequest] booking insert error:", e?.message);
+    }
+
+    return {
+      success: true,
+      delivery: delivData,
+      bookingId,
+    };
+  });
+
+/**
+ * 11. Customer Cancel Ride Request (Bypasses Client JWT Expiration)
+ */
+export const customerCancelRideRequest = createServerFn({ method: "POST" })
+  .validator((input: { orderId: string; customerId: string; bookingId?: string | null }) => input)
+  .handler(async ({ data }) => {
+    const { getAdmin } = await import("@/lib/payments.server");
+    const admin = await getAdmin();
+
+    const { error } = await admin
+      .from("swift_deliveries")
+      .update({ status: "cancelled", updated_at: new Date().toISOString() })
+      .eq("id", data.orderId)
+      .eq("customer_id", data.customerId)
+      .eq("status", "pending");
+
+    if (error) throw new Error(error.message);
+
+    if (data.bookingId) {
+      try {
+        await admin
+          .from("vehicle_hire_bookings")
+          .update({ status: "cancelled" })
+          .eq("id", data.bookingId);
+      } catch (e: any) {
+        console.warn("[customerCancelRideRequest] booking cancel error:", e?.message);
+      }
+    }
+
+    return { success: true };
+  });
+
+
