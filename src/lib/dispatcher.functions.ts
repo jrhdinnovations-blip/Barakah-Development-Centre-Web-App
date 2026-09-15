@@ -633,4 +633,131 @@ export const customerCancelRideRequest = createServerFn({ method: "POST" })
     return { success: true };
   });
 
+export interface ToggleOnlineInput {
+  driverId: string;
+  isOnline: boolean;
+  lat?: number | null;
+  lng?: number | null;
+}
+
+/**
+ * 12. Driver Toggle Online Status (Bypasses RLS via Supabase Admin)
+ * Sets the driver's active_drivers row to 'available' or 'offline'
+ * with their latest GPS location.
+ */
+export const driverToggleOnlineStatus = createServerFn({ method: "POST" })
+  .validator((input: ToggleOnlineInput) => input)
+  .handler(async ({ data }) => {
+    const { getAdmin } = await import("@/lib/payments.server");
+    const admin = await getAdmin();
+
+    const { error } = await admin
+      .from("active_drivers")
+      .upsert(
+        {
+          driver_id: data.driverId,
+          status: data.isOnline ? "available" : "offline",
+          current_lat: data.lat ?? null,
+          current_lng: data.lng ?? null,
+          last_updated: new Date().toISOString(),
+        },
+        { onConflict: "driver_id" }
+      );
+
+    if (error) {
+      console.error("[driverToggleOnlineStatus] error:", error.message);
+      throw new Error(error.message);
+    }
+
+    return { success: true };
+  });
+
+export interface FetchAvailableDriversInput {
+  centerLat?: number;
+  centerLng?: number;
+  tierId?: string;
+}
+
+/**
+ * 13. Fetch Available Drivers for Passenger (Bypasses RLS via Supabase Admin)
+ * Gathers online drivers from active_drivers, joins profiles/vehicles,
+ * and supplements with nearby available vehicles so the map is always populated.
+ */
+export const fetchAvailableDrivers = createServerFn({ method: "POST" })
+  .validator((input?: FetchAvailableDriversInput) => input || {})
+  .handler(async ({ data }) => {
+    const { getAdmin } = await import("@/lib/payments.server");
+    const admin = await getAdmin();
+
+    const cLat = data?.centerLat || 9.8965; // Jos center
+    const cLng = data?.centerLng || 8.8583;
+
+    // 1. Query online active drivers from database
+    const { data: dbDrivers, error: drvErr } = await admin
+      .from("active_drivers")
+      .select("driver_id, status, current_lat, current_lng, last_updated")
+      .eq("status", "available");
+
+    if (drvErr) console.warn("[fetchAvailableDrivers] db error:", drvErr.message);
+
+    const activeList = dbDrivers || [];
+    const driverIds = activeList.map((d) => d.driver_id);
+
+    const profilesMap: Record<string, any> = {};
+    const vehiclesMap: Record<string, any> = {};
+
+    if (driverIds.length > 0) {
+      const [{ data: profs }, { data: vehs }] = await Promise.all([
+        admin.from("profiles").select("user_id, full_name, phone").in("user_id", driverIds),
+        admin.from("fleet_vehicles").select("assigned_driver_id, make, model, plate_number, color").in("assigned_driver_id", driverIds),
+      ]);
+
+      profs?.forEach((p) => { profilesMap[p.user_id] = p; });
+      vehs?.forEach((v) => { if (v.assigned_driver_id) vehiclesMap[v.assigned_driver_id] = v; });
+    }
+
+    // Convert real active drivers to driver marker objects
+    const realDrivers = activeList.map((d, index) => {
+      const prof = profilesMap[d.driver_id] || {};
+      const veh = vehiclesMap[d.driver_id] || {};
+
+      const lat = d.current_lat || (cLat + ((index % 2 === 0 ? 1 : -1) * (0.002 + index * 0.0015)));
+      const lng = d.current_lng || (cLng + ((index % 3 === 0 ? 1 : -1) * (0.0025 + index * 0.0012)));
+
+      return {
+        id: d.driver_id,
+        name: prof.full_name || `Driver ${d.driver_id.slice(-4)}`,
+        rating: 4.9,
+        trips: 420 + index * 75,
+        vehicleType: veh.model ? `${veh.make || ''} ${veh.model}` : 'Verified Fleet Vehicle',
+        vehicleMake: veh.make || 'Toyota',
+        plateNumber: veh.plate_number || 'JOS-829-AA',
+        vehicleColor: veh.color || 'Silver',
+        vehicleModel: veh.model ? `${veh.color || 'Silver'} ${veh.make || 'Toyota'} ${veh.model}` : 'Toyota Corolla (A/C)',
+        phone: prof.phone || '08000000000',
+        lat,
+        lng,
+        tierId: 'swift_go',
+      };
+    });
+
+    // 2. Also retrieve seed nearby drivers so the passenger sees available cars near their location
+    const { generateNearbyDrivers } = await import("@/lib/ride-pricing");
+    const seedDrivers = generateNearbyDrivers(cLat, cLng);
+
+    // Merge without duplicating IDs
+    const combined = [...realDrivers];
+    for (const s of seedDrivers) {
+      if (!combined.some((c) => c.id === s.id)) {
+        combined.push(s);
+      }
+    }
+
+    return {
+      drivers: combined,
+      realCount: realDrivers.length,
+      totalCount: combined.length,
+    };
+  });
+
 

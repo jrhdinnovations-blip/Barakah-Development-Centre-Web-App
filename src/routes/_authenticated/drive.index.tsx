@@ -41,6 +41,7 @@ import {
   driverFetchCockpitJobs,
   driverAcceptRideRequest,
   driverUpdateTripStatus,
+  driverToggleOnlineStatus,
 } from "@/lib/dispatcher.functions";
 
 export const Route = createFileRoute("/_authenticated/drive/")({
@@ -212,6 +213,46 @@ function DriverDashboard() {
 
   const [serviceMode, setServiceMode] = useState<"dispatch_rider" | "driver">(defaultCategory);
 
+  // Synchronize driver availability & location into active_drivers on mount & status change
+  useEffect(() => {
+    if (!userId) return;
+    if (isOnline) {
+      if (typeof navigator !== "undefined" && navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            driverToggleOnlineStatus({
+              data: {
+                driverId: userId,
+                isOnline: true,
+                lat: pos.coords.latitude,
+                lng: pos.coords.longitude,
+              },
+            }).catch(console.warn);
+          },
+          () => {
+            driverToggleOnlineStatus({
+              data: {
+                driverId: userId,
+                isOnline: true,
+                lat: 9.8965,
+                lng: 8.8583,
+              },
+            }).catch(console.warn);
+          },
+          { enableHighAccuracy: true, timeout: 5000 }
+        );
+      } else {
+        driverToggleOnlineStatus({
+          data: { driverId: userId, isOnline: true, lat: 9.8965, lng: 8.8583 },
+        }).catch(console.warn);
+      }
+    } else {
+      driverToggleOnlineStatus({
+        data: { driverId: userId, isOnline: false },
+      }).catch(console.warn);
+    }
+  }, [userId, isOnline]);
+
   const handleToggleOnline = async (nextOnline: boolean) => {
     setIsOnline(nextOnline);
     if (typeof window !== "undefined") {
@@ -219,19 +260,35 @@ function DriverDashboard() {
     }
     if (userId) {
       try {
-        await (supabase as any)
-          .from("active_drivers")
-          .upsert(
-            {
-              driver_id: userId,
-              is_available: nextOnline,
-              status: nextOnline ? "available" : "offline",
-              updated_at: new Date().toISOString(),
+        if (nextOnline && typeof navigator !== "undefined" && navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              driverToggleOnlineStatus({
+                data: {
+                  driverId: userId,
+                  isOnline: true,
+                  lat: pos.coords.latitude,
+                  lng: pos.coords.longitude,
+                },
+              }).catch(console.warn);
             },
-            { onConflict: "driver_id" },
+            () => {
+              driverToggleOnlineStatus({
+                data: { driverId: userId, isOnline: true, lat: 9.8965, lng: 8.8583 },
+              }).catch(console.warn);
+            },
+            { enableHighAccuracy: true, timeout: 4000 }
           );
-      } catch {
-        // active_drivers table update optional
+        } else {
+          await driverToggleOnlineStatus({
+            data: {
+              driverId: userId,
+              isOnline: nextOnline,
+            },
+          });
+        }
+      } catch (err) {
+        console.warn("Error updating driver online status:", err);
       }
     }
   };

@@ -30,6 +30,7 @@ import {
   customerCreateRideRequest,
   customerCancelRideRequest,
   driverAcceptRideRequest,
+  fetchAvailableDrivers,
 } from '@/lib/dispatcher.functions';
 import { PaymentReturn } from '@/components/PaymentReturn';
 import { Button } from '@/components/ui/button';
@@ -229,6 +230,48 @@ function RideHailingDashboard() {
     };
     refreshSessionIfExpiring();
   }, []);
+
+  const [availableDrivers, setAvailableDrivers] = useState<MockNearbyDriver[]>([]);
+  const [onlineDriversCount, setOnlineDriversCount] = useState<number>(0);
+
+  // ── Load & Subscribe to Available Nearby Drivers ──────────────────────────
+  const loadDrivers = useCallback(async () => {
+    try {
+      const cLat = pickup?.lat || JOS_CENTER.lat;
+      const cLng = pickup?.lng || JOS_CENTER.lng;
+      const res = await fetchAvailableDrivers({
+        data: { centerLat: cLat, centerLng: cLng },
+      });
+      if (res?.drivers) {
+        setAvailableDrivers(res.drivers as MockNearbyDriver[]);
+        setOnlineDriversCount(res.totalCount || res.drivers.length);
+      }
+    } catch (e) {
+      console.warn('Failed to load available drivers:', e);
+    }
+  }, [pickup?.lat, pickup?.lng]);
+
+  useEffect(() => {
+    loadDrivers();
+
+    const channel = supabase
+      .channel('passenger-active-drivers')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'active_drivers' },
+        () => {
+          loadDrivers();
+        }
+      )
+      .subscribe();
+
+    const interval = setInterval(loadDrivers, 15000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
+  }, [loadDrivers]);
 
   // ── Tabs ──────────────────────────────────────────────────────────────────
   const [mainTab, setMainTab] = useState<'ride' | 'history'>('ride');
@@ -1199,7 +1242,10 @@ function RideHailingDashboard() {
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <p className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider">Available Ride Tiers</p>
-          <span className="text-[11px] text-slate-400">5 nearby</span>
+          <span className="text-[11px] font-bold text-emerald-700 flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            {onlineDriversCount > 0 ? `${onlineDriversCount} nearby` : 'Available nearby'}
+          </span>
         </div>
 
         <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin' }}>
@@ -1382,6 +1428,39 @@ function RideHailingDashboard() {
         </div>
       </div>
 
+      {/* Live Available Drivers on Radar */}
+      {availableDrivers.length > 0 && (
+        <div className="p-3 rounded-xl bg-slate-900 text-white shadow-md space-y-2 border border-slate-800">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+              <p className="text-xs font-bold text-slate-100">
+                {availableDrivers.length} Drivers Active Nearby
+              </p>
+            </div>
+            <span className="text-[10px] text-emerald-400 font-mono font-medium">ETA ~2-5 mins</span>
+          </div>
+
+          <div className="flex gap-2 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
+            {availableDrivers.map((drv) => (
+              <div
+                key={drv.id}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 shrink-0 text-xs transition-colors"
+              >
+                <div className="w-6 h-6 rounded-full bg-blue-500/20 text-blue-300 border border-blue-400/30 flex items-center justify-center font-bold text-[10px]">
+                  <Car className="w-3.5 h-3.5 text-blue-400" />
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold text-white text-[11px] leading-tight truncate max-w-[95px]">{drv.name}</p>
+                  <p className="text-[9px] text-slate-400 leading-tight truncate max-w-[95px]">{drv.vehicleModel || drv.vehicleType}</p>
+                </div>
+                <span className="text-[10px] font-bold text-amber-400 ml-0.5">★{drv.rating || 4.9}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* PRIMARY ACTION BUTTON (ALWAYS VISIBLE) */}
       <div className="pt-1">
         <button
@@ -1444,6 +1523,39 @@ function RideHailingDashboard() {
       <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden relative">
         <div className="h-full bg-gradient-to-r from-blue-500 via-indigo-400 to-blue-500 rounded-full w-2/3 animate-[pulse_1.5s_ease-in-out_infinite]" />
       </div>
+
+      {/* Nearby Captains being pinged */}
+      {availableDrivers.length > 0 && (
+        <div className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200/90 space-y-2">
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="font-semibold text-slate-700 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+              Broadcasting to {availableDrivers.length} Nearby Captains
+            </span>
+            <span className="text-emerald-700 font-bold">Live Radar</span>
+          </div>
+          <div className="flex items-center gap-2 overflow-x-auto py-1" style={{ scrollbarWidth: 'none' }}>
+            {availableDrivers.slice(0, 5).map((drv) => (
+              <div
+                key={drv.id}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 shrink-0 text-xs shadow-xs"
+              >
+                <div className="w-6 h-6 rounded-full bg-slate-800 text-white flex items-center justify-center font-bold text-[10px]">
+                  {drv.name.charAt(0)}
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold text-slate-800 text-[11px] leading-tight truncate max-w-[90px]">
+                    {drv.name}
+                  </p>
+                  <p className="text-[9px] text-slate-400 leading-tight truncate max-w-[90px]">
+                    {drv.vehicleMake || drv.vehicleType}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="w-full space-y-2 text-sm">
         <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200">
@@ -2042,6 +2154,22 @@ function RideHailingDashboard() {
           center={mapCenter}
           zoom={13}
           routePolyline={routePolyline}
+          drivers={availableDrivers}
+          matchedDriver={
+            matchedDriver
+              ? {
+                  id: matchedDriver.id,
+                  name: matchedDriver.name,
+                  lat: matchedDriver.lat,
+                  lng: matchedDriver.lng,
+                  rating: matchedDriver.rating,
+                  vehicleModel: matchedDriver.vehicleModel,
+                  plateNumber: matchedDriver.plateNumber,
+                  phone: matchedDriver.phone,
+                  isMatched: true,
+                }
+              : null
+          }
         />
 
         {/* Map gradient overlay for panel readability */}
@@ -2064,9 +2192,11 @@ function RideHailingDashboard() {
               </div>
             </div>
             {phase === 'idle' && (
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200">
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 shadow-sm">
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[10px] font-semibold text-emerald-700">Drivers Active</span>
+                <span className="text-[10px] font-bold text-emerald-700">
+                  {onlineDriversCount > 0 ? `${onlineDriversCount} Drivers Online Nearby` : 'Drivers Active'}
+                </span>
               </div>
             )}
             {phase !== 'idle' && phase !== 'rated' && (
