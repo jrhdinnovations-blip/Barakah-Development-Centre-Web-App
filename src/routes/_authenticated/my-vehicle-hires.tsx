@@ -32,6 +32,8 @@ import {
   driverAcceptRideRequest,
   fetchAvailableDrivers,
   customerGetActiveRide,
+  customerFindActiveRide,
+  customerRateRide,
 } from '@/lib/dispatcher.functions';
 import { PaymentReturn } from '@/components/PaymentReturn';
 import { Button } from '@/components/ui/button';
@@ -531,11 +533,17 @@ function RideHailingDashboard() {
       const meta = parseOrderMetadata(order.package_type);
 
       if (order.status === 'accepted') {
+        const driverName = meta.driverName || (order as any).driver_name || 'Swift Driver';
+        const driverPhone = meta.driverPhone || (order as any).driver_phone || '08000000000';
+        const driverRating = meta.driverRating || (order as any).driver_rating || 4.9;
+        const driverLat = order.driver_lat ?? (pickup?.lat ?? JOS_CENTER.lat);
+        const driverLng = order.driver_lng ?? (pickup?.lng ?? JOS_CENTER.lng);
+
         const driver: MockNearbyDriver = {
           id: order.driver_id || 'driver-1',
-          name: meta.driverName || 'Swift Driver',
-          phone: meta.driverPhone || '08000000000',
-          rating: meta.driverRating || 4.9,
+          name: driverName,
+          phone: driverPhone,
+          rating: driverRating,
           trips: 240,
           vehicleType: meta.tierName || selectedTier.name,
           vehicleMake: meta.vehicleMake || 'Toyota Corolla',
@@ -543,14 +551,16 @@ function RideHailingDashboard() {
           plateNumber: meta.plateNumber || 'JOS-829-AA',
           vehicleColor: meta.vehicleColor || 'Silver',
           tierId: selectedTier.id,
-          lat: order.driver_lat ?? (pickup?.lat ?? JOS_CENTER.lat),
-          lng: order.driver_lng ?? (pickup?.lng ?? JOS_CENTER.lng),
+          lat: driverLat,
+          lng: driverLng,
         };
         setMatchedDriver(driver);
         if (meta.safetyPin) setSafetyPin(meta.safetyPin);
         setPhase((prev) => {
-          if (prev === 'searching' || prev === 'idle') {
-            toast.success(`🚗 Driver found! ${driver.name} is on the way.`);
+          if (prev !== 'in_transit' && prev !== 'completed' && prev !== 'rated') {
+            if (prev === 'searching' || prev === 'idle') {
+              toast.success(`🚗 Driver found! ${driver.name} is on the way.`);
+            }
             return 'matched';
           }
           return prev;
@@ -593,15 +603,6 @@ function RideHailingDashboard() {
         if (res?.order) processOrderUpdate(res.order);
       } catch (e) {
         console.warn('[customerGetActiveRide poll] error:', e);
-        // Fallback to client supabase if server fn fails
-        try {
-          const { data } = await supabase
-            .from('swift_deliveries')
-            .select('*')
-            .eq('id', activeOrderId)
-            .maybeSingle();
-          if (data) processOrderUpdate(data);
-        } catch (_) {}
       }
     };
 
@@ -624,7 +625,7 @@ function RideHailingDashboard() {
       )
       .subscribe();
 
-    // Poll every 2s while searching (fast detection of acceptance)
+    // Poll every 2s while active (fast detection of acceptance & driver movement)
     const interval = setInterval(poll, 2000);
 
     return () => {
@@ -633,21 +634,38 @@ function RideHailingDashboard() {
     };
   }, [activeOrderId, processOrderUpdate, userId]);
 
-  // ── Session recovery on mount ─────────────────────────────────────────────
+  // Immediate refresh when passenger tab regains focus or visibility
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && activeOrderId) {
+        customerGetActiveRide({
+          data: { orderId: activeOrderId, customerId: userId || '' },
+        })
+          .then((res) => {
+            if (res?.order) processOrderUpdate(res.order);
+          })
+          .catch(console.warn);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleVisibility);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleVisibility);
+    };
+  }, [activeOrderId, processOrderUpdate, userId]);
+
+  // ── Session recovery on mount (Server-side admin call, immune to JWT expiry) ──
   useEffect(() => {
     if (!userId) return;
     let active = true;
 
-    supabase
-      .from('swift_deliveries')
-      .select('*')
-      .eq('customer_id', userId)
-      .in('status', ['pending', 'accepted', 'picked_up', 'in_transit'])
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (!active || !data) return;
+    customerFindActiveRide({
+      data: { customerId: userId },
+    })
+      .then((res) => {
+        if (!active || !res?.order) return;
+        const data = res.order;
         const meta = parseOrderMetadata(data.package_type);
         if (!meta.isRide && !data.package_type?.toLowerCase().includes('ride')) return;
 
@@ -670,6 +688,9 @@ function RideHailingDashboard() {
         } else {
           processOrderUpdate(data);
         }
+      })
+      .catch((err) => {
+        console.warn('[customerFindActiveRide recovery] error:', err);
       });
 
     return () => {
@@ -928,19 +949,19 @@ function RideHailingDashboard() {
   const handleSubmitRating = async () => {
     toast.success(`Ride rated ${ratingGiven} ⭐ – Thank you!`);
     setPhase('rated');
-    if (activeOrderId) {
+    if (activeOrderId && userId) {
       try {
-        await supabase
-          .from('swift_deliveries')
-          .update({ rating: ratingGiven })
-          .eq('id', activeOrderId);
-        if (bookingId) {
-          await supabase
-            .from('vehicle_hire_bookings')
-            .update({ status: 'completed' })
-            .eq('id', bookingId);
-        }
-      } catch (_) {}
+        await customerRateRide({
+          data: {
+            orderId: activeOrderId,
+            customerId: userId,
+            rating: ratingGiven,
+            bookingId: bookingId || undefined,
+          },
+        });
+      } catch (err) {
+        console.warn('[handleSubmitRating] error:', err);
+      }
     }
     setTimeout(() => handleResetAll(), 1400);
   };

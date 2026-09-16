@@ -294,7 +294,7 @@ export const adminFetchAllOrders = createServerFn({ method: "POST" })
         .from("vehicle_hire_bookings")
         .select("*")
         .order("created_at", { ascending: false }),
-      admin.from("active_drivers").select("*"),
+      admin.from("drivers").select("*"),
       admin.from("profiles").select("*"),
       admin.from("user_roles").select("*"),
     ]);
@@ -328,7 +328,7 @@ export const dispatcherFetchAllDeliveries = createServerFn({ method: "POST" })
         .from("swift_deliveries")
         .select("*")
         .order("created_at", { ascending: false }),
-      admin.from("active_drivers").select("*"),
+      admin.from("drivers").select("*"),
       admin.from("profiles").select("*"),
       admin.from("user_roles").select("*"),
     ]);
@@ -435,11 +435,28 @@ export const driverAcceptRideRequest = createServerFn({ method: "POST" })
       rating: 4.9,
     });
 
+    // Query driver's current position from public.drivers to position them on the map
+    let driverLat: number | null = null;
+    let driverLng: number | null = null;
+    try {
+      const { data: driverRow } = await admin
+        .from("drivers")
+        .select("current_lat, current_lng, full_name, phone, rating_avg")
+        .eq("user_id", data.driverId)
+        .maybeSingle();
+      if (driverRow) {
+        driverLat = driverRow.current_lat ?? null;
+        driverLng = driverRow.current_lng ?? null;
+      }
+    } catch {}
+
     const { data: updated, error: updErr } = await admin
       .from("swift_deliveries")
       .update({
         status: "accepted",
         driver_id: data.driverId,
+        driver_lat: driverLat,
+        driver_lng: driverLng,
         package_type: updatedPackageType,
         updated_at: new Date().toISOString(),
       })
@@ -794,13 +811,14 @@ export const fetchAvailableDrivers = createServerFn({ method: "POST" })
 
 export interface CustomerGetActiveRideInput {
   orderId: string;
-  customerId: string;
+  customerId?: string;
 }
 
 /**
  * 14. Customer Get Active Ride (Bypasses Client JWT expiration)
  * Uses Supabase Admin to fetch the latest swift_deliveries row for a
- * specific order, so the passenger screen can poll for driver acceptance
+ * specific order, enriched with real-time driver coordinates from public.drivers,
+ * so the passenger screen can poll for driver acceptance and live GPS location
  * even when the client Supabase session token has expired.
  */
 export const customerGetActiveRide = createServerFn({ method: "POST" })
@@ -820,6 +838,116 @@ export const customerGetActiveRide = createServerFn({ method: "POST" })
       throw new Error(error.message);
     }
 
+    if (order && order.driver_id) {
+      try {
+        const { data: driverRow } = await admin
+          .from("drivers")
+          .select("current_lat, current_lng, full_name, phone, rating_avg")
+          .eq("user_id", order.driver_id)
+          .maybeSingle();
+
+        if (driverRow) {
+          if (driverRow.current_lat != null) {
+            order.driver_lat = driverRow.current_lat;
+            order.driver_lng = driverRow.current_lng;
+          }
+          if (driverRow.full_name) (order as any).driver_name = driverRow.full_name;
+          if (driverRow.phone) (order as any).driver_phone = driverRow.phone;
+          if (driverRow.rating_avg) (order as any).driver_rating = driverRow.rating_avg;
+        }
+      } catch (e: any) {
+        console.warn("[customerGetActiveRide] enrich driver error:", e?.message);
+      }
+    }
+
     return { order };
   });
+
+export interface CustomerFindActiveRideInput {
+  customerId: string;
+}
+
+/**
+ * 15. Customer Find Active Ride (Bypasses Client JWT expiration)
+ * Uses Supabase Admin to restore active ride state for a customer on mount or refresh,
+ * completely immune to client-side token expiration.
+ */
+export const customerFindActiveRide = createServerFn({ method: "POST" })
+  .validator((input: CustomerFindActiveRideInput) => input)
+  .handler(async ({ data }) => {
+    const { getAdmin } = await import("@/lib/payments.server");
+    const admin = await getAdmin();
+
+    const { data: order, error } = await admin
+      .from("swift_deliveries")
+      .select("*")
+      .eq("customer_id", data.customerId)
+      .in("status", ["pending", "accepted", "picked_up", "in_transit"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.error("[customerFindActiveRide] error:", error.message);
+      return { order: null };
+    }
+
+    if (order && order.driver_id) {
+      try {
+        const { data: driverRow } = await admin
+          .from("drivers")
+          .select("current_lat, current_lng, full_name, phone, rating_avg")
+          .eq("user_id", order.driver_id)
+          .maybeSingle();
+
+        if (driverRow) {
+          if (driverRow.current_lat != null) {
+            order.driver_lat = driverRow.current_lat;
+            order.driver_lng = driverRow.current_lng;
+          }
+          if (driverRow.full_name) (order as any).driver_name = driverRow.full_name;
+          if (driverRow.phone) (order as any).driver_phone = driverRow.phone;
+          if (driverRow.rating_avg) (order as any).driver_rating = driverRow.rating_avg;
+        }
+      } catch (e: any) {
+        console.warn("[customerFindActiveRide] enrich driver error:", e?.message);
+      }
+    }
+
+    return { order };
+  });
+
+export interface CustomerRateRideInput {
+  orderId: string;
+  customerId: string;
+  rating: number;
+  bookingId?: string | null;
+}
+
+/**
+ * 16. Customer Rate Ride (Bypasses Client JWT expiration)
+ */
+export const customerRateRide = createServerFn({ method: "POST" })
+  .validator((input: CustomerRateRideInput) => input)
+  .handler(async ({ data }) => {
+    const { getAdmin } = await import("@/lib/payments.server");
+    const admin = await getAdmin();
+
+    await admin
+      .from("swift_deliveries")
+      .update({ rating: data.rating, updated_at: new Date().toISOString() })
+      .eq("id", data.orderId);
+
+    if (data.bookingId) {
+      try {
+        await admin
+          .from("vehicle_hire_bookings")
+          .update({ status: "completed" })
+          .eq("id", data.bookingId);
+      } catch {}
+    }
+
+    return { success: true };
+  });
+
 

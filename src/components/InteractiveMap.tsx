@@ -256,7 +256,14 @@ export function InteractiveMap({
     const map = useMap();
 
     useEffect(() => {
-      if (routePoints.length > 1) {
+      if (matchedDriver && pickup) {
+        // Fit bounds to clearly frame both the incoming matched driver and passenger pickup point
+        const bounds = L.latLngBounds([
+          [matchedDriver.lat, matchedDriver.lng],
+          [pickup.lat, pickup.lng],
+        ]);
+        map.fitBounds(bounds, { padding: [70, 70], maxZoom: 15 });
+      } else if (routePoints.length > 1) {
         const bounds = L.latLngBounds(routePoints);
         map.fitBounds(bounds, { padding: [60, 60], maxZoom: 15 });
       } else if (pickup && dropoff) {
@@ -270,7 +277,7 @@ export function InteractiveMap({
       } else if (center) {
         map.setView([center.lat, center.lng], zoom, { animate: true });
       }
-    }, [routePoints, pickup?.lat, pickup?.lng, dropoff?.lat, dropoff?.lng, center?.lat, center?.lng]);
+    }, [matchedDriver?.lat, matchedDriver?.lng, routePoints, pickup?.lat, pickup?.lng, dropoff?.lat, dropoff?.lng, center?.lat, center?.lng]);
 
     return null;
   }
