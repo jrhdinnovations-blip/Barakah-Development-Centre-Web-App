@@ -23,6 +23,7 @@ import { PwaInstallBanner } from "@/components/pwa-install-banner";
 import { registerServiceWorker } from "@/pwa-register";
 import { ORG } from "@/lib/site";
 import { isSwiftmoveDomain } from "@/lib/domain-detection";
+import { isChunkLoadError, autoRecoverChunkError } from "@/lib/chunk-error-handler";
 
 function NotFoundComponent() {
   return (
@@ -51,9 +52,31 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   const router = useRouter();
   const [showDetails, setShowDetails] = useState(false);
 
+  const isChunkError = isChunkLoadError(error);
+
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
-  }, [error]);
+    if (isChunkError) {
+      autoRecoverChunkError();
+    }
+  }, [error, isChunkError]);
+
+  const handleManualAppUpdate = async () => {
+    try {
+      if (typeof window !== "undefined") {
+        if ("caches" in window) {
+          const names = await caches.keys();
+          await Promise.all(names.map((name) => caches.delete(name)));
+        }
+        if ("serviceWorker" in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map((r) => r.unregister()));
+        }
+        sessionStorage.clear();
+      }
+    } catch (_) {}
+    window.location.href = window.location.pathname + "?_v=" + Date.now();
+  };
 
   const handleClearAndReset = async () => {
     try {
@@ -65,6 +88,41 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   };
 
   const errorMessage = error?.message || (typeof error === 'string' ? error : "An unexpected error occurred while loading this view.");
+
+  // If this is a stale build chunk error, present a graceful update UI
+  if (isChunkError) {
+    return (
+      <div className="flex min-h-[70vh] items-center justify-center px-4 py-12">
+        <div className="max-w-md w-full text-center p-8 rounded-3xl border border-emerald-500/30 bg-[#0a0f1c]/95 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-300">
+          <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mb-4 shadow-lg shadow-emerald-500/5">
+            <RefreshCw className="h-8 w-8 animate-spin" />
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-white">
+            Updating Application
+          </h1>
+          <p className="mt-2 text-sm text-slate-300 max-w-sm mx-auto leading-relaxed">
+            A new version of Barakah & SwiftMove is ready. Tap below to refresh and load the latest updates.
+          </p>
+          <div className="mt-6 flex flex-col gap-3">
+            <button
+              onClick={handleManualAppUpdate}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-900/30 transition-all hover:bg-emerald-500 active:scale-[0.99]"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Refresh & Update Now
+            </button>
+            <a
+              href="/"
+              className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-800/80 px-4 py-2.5 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700 hover:text-white"
+            >
+              <Home className="h-4 w-4" />
+              Return to Home
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-[70vh] items-center justify-center px-4 py-12">
@@ -198,6 +256,49 @@ function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+(function() {
+  function handleChunkError() {
+    try {
+      var key = 'barakah_chunk_reload_ts';
+      var last = sessionStorage.getItem(key);
+      var now = Date.now();
+      if (!last || now - parseInt(last, 10) > 20000) {
+        sessionStorage.setItem(key, String(now));
+        if ('caches' in window) {
+          caches.keys().then(function(names) {
+            return Promise.all(names.map(function(n) { return caches.delete(n); }));
+          }).finally(function() {
+            window.location.reload();
+          });
+        } else {
+          window.location.reload();
+        }
+      }
+    } catch(e) {
+      window.location.reload();
+    }
+  }
+
+  window.addEventListener('vite:preloadError', function(e) {
+    e.preventDefault();
+    console.warn('[Vite] Preload chunk error intercepted, recovering...');
+    handleChunkError();
+  });
+
+  window.addEventListener('unhandledrejection', function(e) {
+    var msg = (e && e.reason && e.reason.message) || String(e && e.reason || '');
+    if (/Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module|Loading chunk/i.test(msg)) {
+      console.warn('[Vite] Dynamic import failure intercepted, recovering...');
+      handleChunkError();
+    }
+  });
+})();
+`,
+          }}
+        />
         <HeadContent />
       </head>
       <body>

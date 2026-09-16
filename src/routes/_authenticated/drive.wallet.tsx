@@ -23,6 +23,7 @@ import { PayoutModal } from '@/components/PayoutModal';
 import { calculateDriverEarnings, DRIVER_PAYOUT_PERCENT } from '@/lib/ride-pricing';
 import { parseOrderMetadata } from '@/lib/swift-order';
 import { driverGetWalletData, DriverWalletJob } from '@/lib/dispatcher.functions';
+import { isChunkLoadError, autoRecoverChunkError } from '@/lib/chunk-error-handler';
 
 export const Route = createFileRoute('/_authenticated/drive/wallet')({
   ssr: false,
@@ -31,18 +32,40 @@ export const Route = createFileRoute('/_authenticated/drive/wallet')({
 });
 
 function DriverWalletErrorFallback({ error, reset }: { error: Error; reset: () => void }) {
+  useEffect(() => {
+    if (isChunkLoadError(error)) {
+      autoRecoverChunkError();
+    }
+  }, [error]);
+
+  const isChunk = isChunkLoadError(error);
+
   return (
     <div className="container mx-auto py-12 px-4 max-w-lg text-center space-y-4">
       <div className="inline-flex p-4 rounded-2xl bg-amber-500/10 text-amber-500 border border-amber-500/20">
         <AlertTriangle className="h-8 w-8" />
       </div>
-      <h2 className="text-xl font-bold text-slate-100">Wallet View Unavailable</h2>
+      <h2 className="text-xl font-bold text-slate-100">
+        {isChunk ? 'New Update Available' : 'Wallet View Unavailable'}
+      </h2>
       <p className="text-xs text-slate-400">
-        {error?.message || 'Could not load your wallet details right now.'}
+        {isChunk
+          ? 'A new version of the app has been published. Please refresh to load the latest wallet features.'
+          : error?.message || 'Could not load your wallet details right now.'}
       </p>
       <div className="flex items-center justify-center gap-3 pt-2">
-        <Button variant="outline" size="sm" onClick={() => reset()}>
-          Try Again
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            if (isChunk) {
+              window.location.reload();
+            } else {
+              reset();
+            }
+          }}
+        >
+          {isChunk ? 'Refresh App' : 'Try Again'}
         </Button>
         <Link
           to="/drive"

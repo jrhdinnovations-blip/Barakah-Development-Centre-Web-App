@@ -1,9 +1,11 @@
+import { useEffect } from 'react';
 import { createFileRoute, Outlet, redirect, isRedirect, Link } from '@tanstack/react-router';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { AppSidebar } from '@/components/app-sidebar';
 import { MobileNav } from '@/components/mobile-nav';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
+import { isChunkLoadError, autoRecoverChunkError } from '@/lib/chunk-error-handler';
 
 export const Route = createFileRoute('/_authenticated')({
   ssr: false,
@@ -31,6 +33,14 @@ export const Route = createFileRoute('/_authenticated')({
 });
 
 function AuthenticatedErrorFallback({ error, reset }: { error: Error; reset: () => void }) {
+  useEffect(() => {
+    if (isChunkLoadError(error)) {
+      autoRecoverChunkError();
+    }
+  }, [error]);
+
+  const isChunk = isChunkLoadError(error);
+
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-slate-950 text-slate-100 overflow-x-hidden">
       <MobileNav />
@@ -40,13 +50,29 @@ function AuthenticatedErrorFallback({ error, reset }: { error: Error; reset: () 
           <div className="inline-flex p-3 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
             <AlertTriangle className="h-7 w-7" />
           </div>
-          <h2 className="text-xl font-bold text-white">Something interrupted this view</h2>
+          <h2 className="text-xl font-bold text-white">
+            {isChunk ? 'Application Update Available' : 'Something interrupted this view'}
+          </h2>
           <p className="text-xs text-slate-400 leading-relaxed">
-            {error?.message || 'An unexpected error occurred while loading this section.'}
+            {isChunk
+              ? 'A newer version of the application is available. Tap below to reload and get the latest updates.'
+              : error?.message || 'An unexpected error occurred while loading this section.'}
           </p>
           <div className="flex items-center justify-center gap-3 pt-2">
-            <Button variant="outline" size="sm" onClick={() => reset()} className="text-xs">
-              <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Retry View
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (isChunk) {
+                  window.location.reload();
+                } else {
+                  reset();
+                }
+              }}
+              className="text-xs"
+            >
+              <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+              {isChunk ? 'Refresh App' : 'Retry View'}
             </Button>
             <Link
               to="/my-swift-move"

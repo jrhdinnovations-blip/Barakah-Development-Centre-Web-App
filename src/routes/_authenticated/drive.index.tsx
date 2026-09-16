@@ -43,6 +43,7 @@ import {
   driverUpdateTripStatus,
   driverToggleOnlineStatus,
 } from "@/lib/dispatcher.functions";
+import { isChunkLoadError, autoRecoverChunkError } from "@/lib/chunk-error-handler";
 
 export const Route = createFileRoute("/_authenticated/drive/")({
   ssr: false,
@@ -69,18 +70,44 @@ export const Route = createFileRoute("/_authenticated/drive/")({
     }
   },
   component: DriverDashboard,
-  errorComponent: ({ error, reset }: { error: Error; reset: () => void }) => (
+  errorComponent: DriverCockpitErrorFallback,
+});
+
+function DriverCockpitErrorFallback({ error, reset }: { error: Error; reset: () => void }) {
+  useEffect(() => {
+    if (isChunkLoadError(error)) {
+      autoRecoverChunkError();
+    }
+  }, [error]);
+
+  const isChunk = isChunkLoadError(error);
+
+  return (
     <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center space-y-4">
       <div className="p-4 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
         <AlertTriangle className="h-8 w-8" />
       </div>
-      <h2 className="text-xl font-bold text-white">Driver Cockpit Notice</h2>
+      <h2 className="text-xl font-bold text-white">
+        {isChunk ? 'New Version Available' : 'Driver Cockpit Notice'}
+      </h2>
       <p className="text-xs text-slate-400 max-w-sm">
-        {error?.message || "Cockpit data is taking longer than usual to synchronize."}
+        {isChunk
+          ? 'A newer version of the driver cockpit has been published. Tap below to reload.'
+          : error?.message || 'Cockpit data is taking longer than usual to synchronize.'}
       </p>
       <div className="flex gap-3 pt-2">
-        <Button variant="outline" size="sm" onClick={() => reset()}>
-          Retry
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            if (isChunk) {
+              window.location.reload();
+            } else {
+              reset();
+            }
+          }}
+        >
+          {isChunk ? 'Refresh App' : 'Retry'}
         </Button>
         <Link
           to="/my-swift-move"
@@ -90,8 +117,8 @@ export const Route = createFileRoute("/_authenticated/drive/")({
         </Link>
       </div>
     </div>
-  ),
-});
+  );
+}
 
 type Delivery = {
   id: string;
