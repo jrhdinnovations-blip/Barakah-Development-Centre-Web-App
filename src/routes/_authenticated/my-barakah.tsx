@@ -1,4 +1,4 @@
-import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect, isRedirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -51,7 +51,7 @@ export const Route = createFileRoute("/_authenticated/my-barakah")({
         throw redirect({ to: '/drive' });
       }
     } catch (err: any) {
-      if (err?.isRedirect || err?.to || err?.statusCode) throw err;
+      if (isRedirect(err) || err?.isRedirect || err?.to || err?.statusCode) throw err;
     }
   },
   head: () => ({
@@ -100,9 +100,9 @@ function MySwiftMoveDashboard() {
     queryFn: async () => {
       if (!user?.id) return [];
       const { data } = await supabase
-        .from("deliveries")
+        .from("swift_deliveries")
         .select("id, pickup_address, dropoff_address, estimated_price, status, package_type, created_at")
-        .eq("sender_id", user.id)
+        .eq("customer_id", user.id)
         .order("created_at", { ascending: false })
         .limit(5);
       return data || [];

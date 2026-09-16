@@ -374,6 +374,20 @@ export const driverFetchCockpitJobs = createServerFn({ method: "POST" })
     const { parseOrderMetadata } = await import("@/lib/swift-order");
     const admin = await getAdmin();
 
+    // Resolve all possible IDs associated with this driver (auth user_id vs public.drivers.id)
+    const driverIds = new Set<string>([data.driverId]);
+    try {
+      const { data: drv } = await admin
+        .from("drivers")
+        .select("id, user_id")
+        .or(`id.eq.${data.driverId},user_id.eq.${data.driverId}`)
+        .maybeSingle();
+      if (drv) {
+        if (drv.id) driverIds.add(drv.id);
+        if (drv.user_id) driverIds.add(drv.user_id);
+      }
+    } catch {}
+
     const { data: deliveries, error } = await admin
       .from("swift_deliveries")
       .select("*")
@@ -387,7 +401,7 @@ export const driverFetchCockpitJobs = createServerFn({ method: "POST" })
 
     const result = (deliveries || []).filter((d: any) => {
       // 1. Any order already assigned to this driver
-      if (d.driver_id === data.driverId) return true;
+      if (d.driver_id && driverIds.has(d.driver_id)) return true;
       // 2. Any pending passenger ride (for vehicle drivers / driver mode)
       if (d.status === "pending") {
         const meta = parseOrderMetadata(d.package_type);
@@ -1136,5 +1150,117 @@ export const customerGetDispatchHistory = createServerFn({ method: "POST" })
     dispatches.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     return { dispatches };
   });
+
+export interface DriverWalletJob {
+  id: string;
+  amount: number; // Driver 30% payout
+  grossFare: number; // Customer total fare (100%)
+  description: string;
+  pickupAddress: string;
+  dropoffAddress: string;
+  packageType: string;
+  isRide: boolean;
+  createdAt: string;
+}
+
+export interface DriverWalletResult {
+  balance: number;
+  grossCustomerFare: number;
+  completedCount: number;
+  transactions: DriverWalletJob[];
+}
+
+/**
+ * 19. Driver Get Wallet Data (Earnings, Balance, Ledger)
+ * Fetches all completed jobs, calculates 30% driver earnings, and formats transactions.
+ */
+export const driverGetWalletData = createServerFn({ method: "POST" })
+  .validator((input: { driverId: string }) => input)
+  .handler(async ({ data }): Promise<DriverWalletResult> => {
+    const { getAdmin } = await import("@/lib/payments.server");
+    const { parseOrderMetadata } = await import("@/lib/swift-order");
+    const { calculateDriverEarnings } = await import("@/lib/ride-pricing");
+    const admin = await getAdmin();
+
+    const emptyResult: DriverWalletResult = {
+      balance: 0,
+      grossCustomerFare: 0,
+      completedCount: 0,
+      transactions: [],
+    };
+
+    if (!data?.driverId) return emptyResult;
+
+    try {
+      // 1. Resolve all IDs associated with this driver (auth user_id vs public.drivers.id)
+      const driverIds = new Set<string>([data.driverId]);
+      try {
+        const { data: drv } = await admin
+          .from("drivers")
+          .select("id, user_id")
+          .or(`id.eq.${data.driverId},user_id.eq.${data.driverId}`)
+          .maybeSingle();
+        if (drv) {
+          if (drv.id) driverIds.add(drv.id);
+          if (drv.user_id) driverIds.add(drv.user_id);
+        }
+      } catch (err: any) {
+        console.warn("[driverGetWalletData] drivers table lookup notice:", err?.message);
+      }
+
+      // 2. Fetch all completed jobs for this driver from swift_deliveries
+      const { data: jobs, error } = await admin
+        .from("swift_deliveries")
+        .select("id, driver_id, status, estimated_price, created_at, pickup_address, dropoff_address, package_type")
+        .in("driver_id", Array.from(driverIds))
+        .eq("status", "delivered")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("[driverGetWalletData] Query error:", error.message);
+        return emptyResult;
+      }
+
+      const completedJobs = jobs || [];
+      const grossCustomerFare = completedJobs.reduce((sum, j) => sum + (Number(j.estimated_price) || 0), 0);
+      const balance = completedJobs.reduce(
+        (sum, j) => sum + calculateDriverEarnings(Number(j.estimated_price) || 0),
+        0
+      );
+
+      const transactions: DriverWalletJob[] = completedJobs.map((j) => {
+        const meta = parseOrderMetadata(j.package_type);
+        const grossFare = Number(j.estimated_price) || 0;
+        const driverShare = calculateDriverEarnings(grossFare);
+        const destination = j.dropoff_address || "Completed Trip";
+        const description = meta.isRide
+          ? `Passenger Ride (${meta.tierName || "Swift Ride"}) — ${destination}`
+          : `Express Parcel Courier — ${destination}`;
+
+        return {
+          id: j.id,
+          amount: driverShare,
+          grossFare,
+          description,
+          pickupAddress: j.pickup_address || "Pickup",
+          dropoffAddress: destination,
+          packageType: j.package_type || "Trip",
+          isRide: meta.isRide,
+          createdAt: j.created_at,
+        };
+      });
+
+      return {
+        balance,
+        grossCustomerFare,
+        completedCount: completedJobs.length,
+        transactions,
+      };
+    } catch (err: any) {
+      console.error("[driverGetWalletData] Unexpected error:", err);
+      return emptyResult;
+    }
+  });
+
 
 

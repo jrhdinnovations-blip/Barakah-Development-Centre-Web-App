@@ -32,6 +32,15 @@ import { Badge } from '@/components/ui/badge';
 
 export const Route = createFileRoute('/_authenticated/history')({
     component: OrderHistoryPage,
+    errorComponent: () => (
+        <div className="container mx-auto py-16 text-center space-y-4 max-w-md">
+            <h2 className="text-xl font-bold text-white">Order History Unavailable</h2>
+            <p className="text-xs text-slate-400">Could not retrieve order history at this time.</p>
+            <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
+                Refresh Page
+            </Button>
+        </div>
+    ),
 });
 
 type HistoryItem = {
@@ -63,18 +72,15 @@ function OrderHistoryPage() {
         if (!user?.id) return;
         setIsLoading(true);
         try {
-            const { data: deliveryData } = await supabase
+            const { data: deliveryData, error: delErr } = await supabase
                 .from('swift_deliveries')
                 .select('*')
+                .eq('customer_id', user.id)
                 .order('created_at', { ascending: false });
 
-            const { data: vehicleData } = await supabase
-                .from('vehicle_hire_bookings')
-                .select('*')
-                .order('created_at', { ascending: false });
-
+            if (delErr) console.warn('History deliveries notice:', delErr);
             setDeliveries(deliveryData || []);
-            setVehicleBookings(vehicleData || []);
+            setVehicleBookings([]);
         } catch (err) {
             console.error("History fetch error:", err);
             toast.error("Failed to load history records.");
@@ -94,11 +100,11 @@ function OrderHistoryPage() {
             type: 'package' as const,
             title: d.package_type || 'Parcel Courier',
             reference: d.payment_reference || `DEL-${d.id.slice(0, 8)}`,
-            date: d.created_at,
-            pickup: d.pickup_address,
-            dropoff: d.dropoff_address,
+            date: d.created_at || '',
+            pickup: d.pickup_address || 'Pickup Point',
+            dropoff: d.dropoff_address || 'Destination',
             amount: d.estimated_price || 0,
-            status: d.status,
+            status: d.status || 'pending',
             raw: d,
         })),
         ...vehicleBookings.map((v) => ({
@@ -106,21 +112,29 @@ function OrderHistoryPage() {
             type: 'vehicle' as const,
             title: `${v.category || 'Vehicle'} Rental`,
             reference: v.payment_reference || `VHC-${v.id.slice(0, 8)}`,
-            date: v.created_at,
-            pickup: v.pickup_location,
-            dropoff: v.destination,
+            date: v.created_at || '',
+            pickup: v.pickup_location || 'Pickup',
+            dropoff: v.destination || 'Destination',
             amount: v.total_price || 0,
-            status: v.status,
+            status: v.status || 'pending',
             raw: v,
         })),
-    ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    ].sort((a, b) => {
+        const ta = a.date ? new Date(a.date).getTime() : 0;
+        const tb = b.date ? new Date(b.date).getTime() : 0;
+        return tb - ta;
+    });
 
-    const filteredItems = historyItems.filter((item) =>
-        item.reference.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.pickup.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.dropoff.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredItems = historyItems.filter((item) => {
+        const q = (searchQuery || '').toLowerCase().trim();
+        if (!q) return true;
+        return (
+            (item.reference || '').toLowerCase().includes(q) ||
+            (item.title || '').toLowerCase().includes(q) ||
+            (item.pickup || '').toLowerCase().includes(q) ||
+            (item.dropoff || '').toLowerCase().includes(q)
+        );
+    });
 
     const handlePrintReceipt = () => {
         window.print();

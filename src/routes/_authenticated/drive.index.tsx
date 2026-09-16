@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, redirect, isRedirect, Link } from "@tanstack/react-router";
 import {
   MapPin,
   Navigation,
@@ -64,11 +64,33 @@ export const Route = createFileRoute("/_authenticated/drive/")({
         throw redirect({ to: "/my-swift-move" });
       }
     } catch (err: any) {
-      if (err?.isRedirect || err?.to || err?.statusCode) throw err;
+      if (isRedirect(err) || err?.isRedirect || err?.to || err?.statusCode) throw err;
       throw redirect({ to: "/auth", search: { mode: "login" } });
     }
   },
   component: DriverDashboard,
+  errorComponent: ({ error, reset }: { error: Error; reset: () => void }) => (
+    <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center space-y-4">
+      <div className="p-4 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
+        <AlertTriangle className="h-8 w-8" />
+      </div>
+      <h2 className="text-xl font-bold text-white">Driver Cockpit Notice</h2>
+      <p className="text-xs text-slate-400 max-w-sm">
+        {error?.message || "Cockpit data is taking longer than usual to synchronize."}
+      </p>
+      <div className="flex gap-3 pt-2">
+        <Button variant="outline" size="sm" onClick={() => reset()}>
+          Retry
+        </Button>
+        <Link
+          to="/my-swift-move"
+          className="inline-flex items-center justify-center px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-600 text-white"
+        >
+          Go to Dashboard
+        </Link>
+      </div>
+    </div>
+  ),
 });
 
 type Delivery = {
@@ -1388,15 +1410,34 @@ function DriverDashboard() {
             </div>
 
             <div className="space-y-3">
-              <button className="w-full bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex items-center justify-between hover:bg-slate-800 transition-colors shadow-lg">
+              <Link
+                to="/drive/wallet"
+                className="w-full bg-gradient-to-r from-emerald-950/40 to-slate-900/80 border border-emerald-800/40 rounded-2xl p-4 flex items-center justify-between hover:bg-emerald-950/60 transition-colors shadow-lg group cursor-pointer"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="p-2.5 bg-emerald-500/20 text-emerald-400 rounded-xl">
+                    <Banknote className="h-5 w-5" />
+                  </div>
+                  <div className="text-left">
+                    <span className="font-bold text-white block">Driver Wallet & Payouts</span>
+                    <span className="text-[11px] text-emerald-400/90 font-medium">Withdraw funds & view {DRIVER_PAYOUT_PERCENT}% share ledger</span>
+                  </div>
+                </div>
+                <ChevronRight className="h-5 w-5 text-emerald-400 group-hover:translate-x-0.5 transition-transform" />
+              </Link>
+
+              <Link
+                to="/history"
+                className="w-full bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex items-center justify-between hover:bg-slate-800 transition-colors shadow-lg group cursor-pointer"
+              >
                 <div className="flex items-center gap-4">
                   <div className="p-2.5 bg-orange-500/10 rounded-xl">
                     <History className="h-5 w-5 text-orange-400" />
                   </div>
-                  <span className="font-bold text-white">Trip History</span>
+                  <span className="font-bold text-white">Trip History & Receipts</span>
                 </div>
-                <ChevronRight className="h-5 w-5 text-slate-600" />
-              </button>
+                <ChevronRight className="h-5 w-5 text-slate-600 group-hover:text-white transition-colors" />
+              </Link>
               <button className="w-full bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex items-center justify-between hover:bg-slate-800 transition-colors shadow-lg">
                 <div className="flex items-center gap-4">
                   <div className="p-2.5 bg-purple-500/10 rounded-xl">
