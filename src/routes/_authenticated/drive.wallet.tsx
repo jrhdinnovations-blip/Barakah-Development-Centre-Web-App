@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
 import { Wallet, ArrowDownRight, ArrowUpRight, History, CreditCard, RefreshCw, Filter } from 'lucide-react';
 import { toast } from 'sonner';
@@ -60,6 +60,7 @@ function DriverWalletScreen() {
         try {
             setIsLoading(true);
 
+            // 1. Check dedicated wallet balance (authoritative if set)
             const { data: walletData, error: walletError } = await (supabase as any)
                 .from('driver_wallets')
                 .select('balance')
@@ -70,40 +71,67 @@ function DriverWalletScreen() {
                 console.warn('Driver wallet fetch notice:', walletError);
             }
 
+            // 2. Formal transaction ledger
             const { data: txData } = await (supabase as any)
                 .from('driver_transactions')
                 .select('*')
                 .eq('driver_id', driverId)
                 .order('created_at', { ascending: false });
 
+            // 3. Completed swift_deliveries (parcels + passenger rides stored here)
             const { data: completedDeliveries } = await (supabase as any)
-                .from('deliveries')
+                .from('swift_deliveries')
                 .select('id, estimated_price, created_at, dropoff_address, package_type')
                 .eq('driver_id', driverId)
                 .eq('status', 'delivered');
 
-            const calculatedDeliveryShare = (completedDeliveries || []).reduce(
-                (sum: number, d: any) => sum + calculateDriverEarnings(d.estimated_price || 0),
+            // 4. Completed vehicle_hire_bookings (Request a Ride trips)
+            const { data: completedHires } = await (supabase as any)
+                .from('vehicle_hire_bookings')
+                .select('id, estimated_price, created_at, dropoff_address, vehicle_type')
+                .eq('driver_id', driverId)
+                .eq('status', 'delivered');
+
+            const allCompleted = [
+                ...(completedDeliveries || []).map((d: any) => ({
+                    id: d.id,
+                    estimated_price: d.estimated_price || 0,
+                    created_at: d.created_at,
+                    label: d.dropoff_address || 'Delivery',
+                    source: 'swift_deliveries' as const,
+                })),
+                ...(completedHires || []).map((h: any) => ({
+                    id: h.id,
+                    estimated_price: h.estimated_price || 0,
+                    created_at: h.created_at,
+                    label: h.dropoff_address || `${h.vehicle_type || 'Ride'} Trip`,
+                    source: 'vehicle_hire_bookings' as const,
+                })),
+            ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+            // Compute total driver share from all completed jobs
+            const calculatedShare = allCompleted.reduce(
+                (sum, d) => sum + calculateDriverEarnings(d.estimated_price),
                 0
             );
 
+            // Use formal wallet balance if set, otherwise fall back to calculated share
             const finalBalance = (walletData?.balance && walletData.balance > 0)
                 ? walletData.balance
-                : calculatedDeliveryShare;
+                : calculatedShare;
 
             setBalance(finalBalance);
 
+            // Prefer formal transaction ledger; fall back to synthetic from completed jobs
             if (txData && txData.length > 0) {
                 setTransactions(txData);
-            } else if (completedDeliveries && completedDeliveries.length > 0) {
-                const syntheticTxs: Transaction[] = completedDeliveries
-                    .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-                    .map((d: any) => ({
-                        id: d.id,
-                        amount: calculateDriverEarnings(d.estimated_price || 0),
-                        description: `Trip Payout (${DRIVER_PAYOUT_PERCENT}%) - ${d.dropoff_address || 'Completed Ride'}`,
-                        created_at: d.created_at,
-                    }));
+            } else if (allCompleted.length > 0) {
+                const syntheticTxs: Transaction[] = allCompleted.map((d) => ({
+                    id: d.id,
+                    amount: calculateDriverEarnings(d.estimated_price),
+                    description: `Trip Payout (${DRIVER_PAYOUT_PERCENT}%) — ${d.label}`,
+                    created_at: d.created_at,
+                }));
                 setTransactions(syntheticTxs);
             } else {
                 setTransactions([]);
