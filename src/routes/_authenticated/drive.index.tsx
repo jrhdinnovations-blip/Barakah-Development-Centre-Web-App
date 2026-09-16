@@ -4,6 +4,9 @@ import {
   MapPin,
   Navigation,
   CheckCircle2,
+  XCircle,
+  Search,
+  FileText,
   Loader2,
   Truck,
   Power,
@@ -29,6 +32,7 @@ import {
   Sparkles,
   User,
   Shield,
+  Printer,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -42,6 +46,10 @@ import {
   driverAcceptRideRequest,
   driverUpdateTripStatus,
   driverToggleOnlineStatus,
+  driverDeclineRideRequest,
+  driverGetTripHistory,
+  DriverHistoryTrip,
+  DriverTripHistoryResponse,
 } from "@/lib/dispatcher.functions";
 import { isChunkLoadError, autoRecoverChunkError } from "@/lib/chunk-error-handler";
 
@@ -223,6 +231,42 @@ function openNavigation(address: string) {
 function DriverDashboard() {
   const { user, role } = useAuth();
   const userId = user?.id;
+
+  // ── Dashboard View Tab ('cockpit' | 'history') ──────────────────────────────
+  const [dashboardTab, setDashboardTab] = useState<"cockpit" | "history">("cockpit");
+  const [historyTrips, setHistoryTrips] = useState<DriverHistoryTrip[]>([]);
+  const [historyStats, setHistoryStats] = useState<DriverTripHistoryResponse["stats"]>({
+    totalTrips: 0,
+    completedCount: 0,
+    declinedCount: 0,
+    activeCount: 0,
+    totalEarnings: 0,
+    grossFares: 0,
+  });
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyFilter, setHistoryFilter] = useState<"all" | "completed" | "declined">("all");
+  const [historySearch, setHistorySearch] = useState("");
+  const [selectedHistoryTrip, setSelectedHistoryTrip] = useState<DriverHistoryTrip | null>(null);
+
+  const loadTripHistory = useCallback(async () => {
+    if (!userId) return;
+    setHistoryLoading(true);
+    try {
+      const res = await driverGetTripHistory({ data: { driverId: userId } });
+      if (res) {
+        setHistoryTrips(res.trips || []);
+        setHistoryStats(res.stats);
+      }
+    } catch (err) {
+      console.error("Error loading driver trip history:", err);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    loadTripHistory();
+  }, [loadTripHistory]);
 
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -543,8 +587,31 @@ function DriverDashboard() {
   };
 
   const handleRejectJob = async (id: string) => {
-    setDeliveries((prev) => prev.filter((d) => d.id !== id));
-    toast.info("Request dismissed.");
+    if (!userId) {
+      setDeliveries((prev) => prev.filter((d) => d.id !== id));
+      toast.info("Request dismissed.");
+      return;
+    }
+
+    setProcessingId(id);
+    try {
+      await driverDeclineRideRequest({
+        data: {
+          orderId: id,
+          driverId: userId,
+          reason: "Declined by driver in Cockpit",
+        },
+      });
+      setDeliveries((prev) => prev.filter((d) => d.id !== id));
+      toast.info("Ride request declined and recorded in Trip History.");
+      fetchDeliveries();
+      loadTripHistory();
+    } catch (err: any) {
+      console.warn("Notice updating decline status:", err);
+      setDeliveries((prev) => prev.filter((d) => d.id !== id));
+    } finally {
+      setProcessingId(null);
+    }
   };
 
   const handleUpdateStatus = async (job: Delivery, newStatus: string) => {
@@ -567,6 +634,7 @@ function DriverDashboard() {
         toast.success(
           meta.isRide ? "Ride completed! Passenger dropped off." : "Delivery completed!",
         );
+        loadTripHistory();
       } else {
         if (meta.isRide) {
           const rideLabels: Record<string, string> = {
@@ -591,6 +659,14 @@ function DriverDashboard() {
   };
 
   const availableJobs = deliveries.filter((d) => {
+    // Exclude jobs that have been declined by this driver
+    const isDeclined =
+      Boolean((d as any).is_declined_by_me) ||
+      (d.package_type || "").includes(`DECLINED_BY:${userId}`);
+    if (isDeclined) {
+      return false;
+    }
+
     const meta = parseOrderMetadata(d.package_type);
 
     // CRITICAL: Dispatch parcel orders are NEVER self-acceptable on /drive!
@@ -633,6 +709,23 @@ function DriverDashboard() {
     () => deliveries.filter((d) => d.driver_id === userId && d.status === "delivered"),
     [deliveries, userId],
   );
+
+  const filteredHistoryTrips = useMemo(() => {
+    return historyTrips.filter((t) => {
+      if (historyFilter === "completed" && t.status !== "completed") return false;
+      if (historyFilter === "declined" && t.status !== "declined") return false;
+      if (historySearch.trim()) {
+        const q = historySearch.toLowerCase();
+        const match =
+          (t.pickupAddress || "").toLowerCase().includes(q) ||
+          (t.dropoffAddress || "").toLowerCase().includes(q) ||
+          (t.reference || "").toLowerCase().includes(q) ||
+          (t.customerName || "").toLowerCase().includes(q);
+        if (!match) return false;
+      }
+      return true;
+    });
+  }, [historyTrips, historyFilter, historySearch]);
 
   const filteredEarnings = useMemo(() => {
     const now = new Date();
@@ -1082,61 +1175,400 @@ function DriverDashboard() {
         </div>
       </div>
 
-      {/* ── Category Lock Status Bar ── */}
-      <div className="relative z-10 px-4 py-2.5 bg-slate-950/70 border-b border-slate-800/80 backdrop-blur-md">
-        <div
-          className={`flex items-center justify-between gap-2 px-3 py-2 rounded-xl border ${
-            serviceMode === "dispatch_rider"
-              ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-300"
-              : serviceMode === "driver"
-              ? "bg-cyan-500/10 border-cyan-500/25 text-cyan-300"
-              : "bg-purple-500/10 border-purple-500/25 text-purple-300"
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            {serviceMode === "dispatch_rider" ? (
-              <Bike className="h-4 w-4 shrink-0" />
-            ) : serviceMode === "driver" ? (
-              <Car className="h-4 w-4 shrink-0" />
-            ) : (
-              <Sparkles className="h-4 w-4 shrink-0" />
+      {/* ── Driver Console Primary Tab Bar ── */}
+      <div className="relative z-10 px-4 pt-3 pb-2 bg-slate-950/90 border-b border-slate-800/80">
+        <div className="flex bg-slate-900/90 p-1 rounded-2xl border border-slate-800 gap-1">
+          <button
+            type="button"
+            onClick={() => setDashboardTab("cockpit")}
+            className={`flex-1 py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
+              dashboardTab === "cockpit"
+                ? "bg-gradient-to-r from-orange-600 to-amber-600 text-white shadow-lg shadow-orange-900/30"
+                : "text-slate-400 hover:text-white hover:bg-slate-800/60"
+            }`}
+          >
+            <Navigation className="h-4 w-4" />
+            <span>Live Cockpit</span>
+            {availableJobs.length > 0 && isOnline && (
+              <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-cyan-400 text-black font-black">
+                {availableJobs.length}
+              </span>
             )}
-            <div>
-              <p className="text-xs font-bold leading-tight">
-                {serviceMode === "dispatch_rider"
-                  ? "Dispatch Courier — Dispatcher-Assigned Jobs"
-                  : serviceMode === "driver"
-                  ? "Vehicle Driver — Passenger Rides Only"
-                  : "Fleet Operations — All Requests"}
-              </p>
-              <p className="text-[10px] opacity-60 mt-0.5">
-                {serviceMode === "dispatch_rider"
-                  ? "Parcel orders are assigned by the dispatcher — not self-accept"
-                  : serviceMode === "driver"
-                  ? "You receive passenger ride & hire requests"
-                  : "Viewing all fleet requests (manager view)"}
-              </p>
-            </div>
-          </div>
-          <div className={`flex-shrink-0 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${
-            serviceMode === "dispatch_rider"
-              ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400"
-              : serviceMode === "driver"
-              ? "bg-cyan-500/15 border-cyan-500/40 text-cyan-400"
-              : "bg-purple-500/15 border-purple-500/40 text-purple-400"
-          }`}>
-            {serviceMode === "dispatch_rider"
-              ? `${pendingDispatchCount} active`
-              : serviceMode === "driver"
-              ? `${pendingRideCount} pending`
-              : `${availableJobs.length} pending`}
-          </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setDashboardTab("history");
+              loadTripHistory();
+            }}
+            className={`flex-1 py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
+              dashboardTab === "history"
+                ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-900/30"
+                : "text-slate-400 hover:text-white hover:bg-slate-800/60"
+            }`}
+          >
+            <History className="h-4 w-4" />
+            <span>Trip History</span>
+            {(historyStats.completedCount > 0 || historyStats.declinedCount > 0) && (
+              <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-slate-800 border border-slate-700 text-emerald-400 font-black">
+                {historyStats.completedCount + historyStats.declinedCount}
+              </span>
+            )}
+          </button>
+
+          <Link
+            to="/drive/wallet"
+            className="flex-1 py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all text-slate-400 hover:text-white hover:bg-slate-800/60"
+          >
+            <Banknote className="h-4 w-4 text-emerald-400" />
+            <span>Wallet</span>
+          </Link>
         </div>
       </div>
 
+      {/* ── Category Lock Status Bar (Only in Live Cockpit mode) ── */}
+      {dashboardTab === "cockpit" && (
+        <div className="relative z-10 px-4 py-2.5 bg-slate-950/70 border-b border-slate-800/80 backdrop-blur-md">
+          <div
+            className={`flex items-center justify-between gap-2 px-3 py-2 rounded-xl border ${
+              serviceMode === "dispatch_rider"
+                ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-300"
+                : serviceMode === "driver"
+                ? "bg-cyan-500/10 border-cyan-500/25 text-cyan-300"
+                : "bg-purple-500/10 border-purple-500/25 text-purple-300"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              {serviceMode === "dispatch_rider" ? (
+                <Bike className="h-4 w-4 shrink-0" />
+              ) : serviceMode === "driver" ? (
+                <Car className="h-4 w-4 shrink-0" />
+              ) : (
+                <Sparkles className="h-4 w-4 shrink-0" />
+              )}
+              <div>
+                <p className="text-xs font-bold leading-tight">
+                  {serviceMode === "dispatch_rider"
+                    ? "Dispatch Courier — Dispatcher-Assigned Jobs"
+                    : serviceMode === "driver"
+                    ? "Vehicle Driver — Passenger Rides Only"
+                    : "Fleet Operations — All Requests"}
+                </p>
+                <p className="text-[10px] opacity-60 mt-0.5">
+                  {serviceMode === "dispatch_rider"
+                    ? "Parcel orders are assigned by the dispatcher — not self-accept"
+                    : serviceMode === "driver"
+                    ? "You receive passenger ride & hire requests"
+                    : "Viewing all fleet requests (manager view)"}
+                </p>
+              </div>
+            </div>
+            <div className={`flex-shrink-0 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${
+              serviceMode === "dispatch_rider"
+                ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400"
+                : serviceMode === "driver"
+                ? "bg-cyan-500/15 border-cyan-500/40 text-cyan-400"
+                : "bg-purple-500/15 border-purple-500/40 text-purple-400"
+            }`}>
+              {serviceMode === "dispatch_rider"
+                ? `${pendingDispatchCount} active`
+                : serviceMode === "driver"
+                ? `${pendingRideCount} pending`
+                : `${availableJobs.length} pending`}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main content */}
       <div className="flex-1 relative z-10 flex flex-col px-4 pt-4 pb-32 overflow-y-auto custom-scrollbar">
-        {isLoading ? (
+        {dashboardTab === "history" ? (
+          /* ── Dedicated Driver Trip History Tab ── */
+          <div className="space-y-5 animate-in fade-in duration-200">
+            {/* Quick Header and refresh */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-black text-white flex items-center gap-2">
+                  <History className="h-5 w-5 text-emerald-400" />
+                  <span>Driver Trip History</span>
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Complete record of all your completed trips & declined ride requests.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={loadTripHistory}
+                disabled={historyLoading}
+                className="border-slate-800 bg-slate-900 text-slate-300 hover:text-white text-xs h-9 px-3 gap-1.5"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${historyLoading ? "animate-spin" : ""}`} />
+                <span>Sync</span>
+              </Button>
+            </div>
+
+            {/* Performance Stat Cards */}
+            <div className="grid grid-cols-3 gap-2.5">
+              <div className="bg-slate-900/90 border border-slate-800/80 rounded-2xl p-3.5 text-center shadow-lg">
+                <div className="inline-flex p-2 rounded-xl bg-emerald-500/10 text-emerald-400 mb-1.5">
+                  <CheckCircle2 className="h-4 w-4" />
+                </div>
+                <p className="text-[10px] uppercase font-bold text-slate-400">Completed</p>
+                <p className="text-xl font-black text-emerald-400 mt-0.5">
+                  {historyStats.completedCount}
+                </p>
+                <p className="text-[10px] text-slate-500 font-medium">
+                  ₦{historyStats.totalEarnings.toLocaleString()} earned
+                </p>
+              </div>
+
+              <div className="bg-slate-900/90 border border-slate-800/80 rounded-2xl p-3.5 text-center shadow-lg">
+                <div className="inline-flex p-2 rounded-xl bg-rose-500/10 text-rose-400 mb-1.5">
+                  <XCircle className="h-4 w-4" />
+                </div>
+                <p className="text-[10px] uppercase font-bold text-slate-400">Declined</p>
+                <p className="text-xl font-black text-rose-400 mt-0.5">
+                  {historyStats.declinedCount}
+                </p>
+                <p className="text-[10px] text-slate-500 font-medium">Passed jobs</p>
+              </div>
+
+              <div className="bg-slate-900/90 border border-slate-800/80 rounded-2xl p-3.5 text-center shadow-lg">
+                <div className="inline-flex p-2 rounded-xl bg-cyan-500/10 text-cyan-400 mb-1.5">
+                  <Banknote className="h-4 w-4" />
+                </div>
+                <p className="text-[10px] uppercase font-bold text-slate-400">Total Fares</p>
+                <p className="text-xl font-black text-white mt-0.5">
+                  ₦{historyStats.grossFares.toLocaleString()}
+                </p>
+                <p className="text-[10px] text-emerald-400 font-medium">
+                  {DRIVER_PAYOUT_PERCENT}% driver cut
+                </p>
+              </div>
+            </div>
+
+            {/* Filter and Search Bar */}
+            <div className="space-y-3">
+              <div className="flex bg-slate-950/80 p-1 rounded-2xl border border-slate-800/80 gap-1">
+                <button
+                  type="button"
+                  onClick={() => setHistoryFilter("all")}
+                  className={`flex-1 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                    historyFilter === "all"
+                      ? "bg-slate-800 text-white shadow"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  All ({historyTrips.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHistoryFilter("completed")}
+                  className={`flex-1 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                    historyFilter === "completed"
+                      ? "bg-emerald-600 text-white shadow"
+                      : "text-slate-400 hover:text-emerald-400"
+                  }`}
+                >
+                  Completed ({historyStats.completedCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHistoryFilter("declined")}
+                  className={`flex-1 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                    historyFilter === "declined"
+                      ? "bg-rose-600 text-white shadow"
+                      : "text-slate-400 hover:text-rose-400"
+                  }`}
+                >
+                  Declined ({historyStats.declinedCount})
+                </button>
+              </div>
+
+              <div className="relative">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                <input
+                  type="text"
+                  value={historySearch}
+                  onChange={(e) => setHistorySearch(e.target.value)}
+                  placeholder="Search by pickup, dropoff, or reference..."
+                  className="w-full bg-slate-900/90 border border-slate-800 rounded-2xl pl-10 pr-4 py-2.5 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/50"
+                />
+              </div>
+            </div>
+
+            {/* Trip Cards List */}
+            {historyLoading && historyTrips.length === 0 ? (
+              <div className="py-16 flex flex-col items-center justify-center space-y-3">
+                <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+                <p className="text-xs text-slate-400">Loading your trip history...</p>
+              </div>
+            ) : filteredHistoryTrips.length === 0 ? (
+              <div className="py-16 text-center bg-slate-900/40 border border-slate-800/80 rounded-3xl p-8 space-y-3">
+                <div className="inline-flex p-4 rounded-2xl bg-slate-800/60 text-slate-500 mb-1">
+                  <FileText className="h-8 w-8" />
+                </div>
+                <h3 className="text-base font-bold text-white">No trips found</h3>
+                <p className="text-xs text-slate-400 max-w-xs mx-auto">
+                  {historyFilter === "declined"
+                    ? "You haven't declined any trips."
+                    : historyFilter === "completed"
+                    ? "You haven't completed any trips yet."
+                    : "No trip records match your current search."}
+                </p>
+                <div className="pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setDashboardTab("cockpit")}
+                    className="border-slate-700 bg-slate-800 text-xs"
+                  >
+                    Back to Live Cockpit
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3.5">
+                {filteredHistoryTrips.map((trip) => {
+                  const isCompleted = trip.status === "completed";
+                  const isDeclined = trip.status === "declined";
+
+                  return (
+                    <div
+                      key={trip.id}
+                      className={`p-4 rounded-3xl border transition-all shadow-xl bg-slate-900/90 ${
+                        isCompleted
+                          ? "border-emerald-500/20 hover:border-emerald-500/40"
+                          : isDeclined
+                          ? "border-rose-500/20 hover:border-rose-500/30"
+                          : "border-slate-800 hover:border-slate-700"
+                      }`}
+                    >
+                      {/* Top status & date header */}
+                      <div className="flex items-center justify-between pb-3 border-b border-slate-800/60">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                              isCompleted
+                                ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+                                : isDeclined
+                                ? "bg-rose-500/10 text-rose-400 border border-rose-500/30"
+                                : "bg-cyan-500/10 text-cyan-400 border border-cyan-500/30"
+                            }`}
+                          >
+                            {isCompleted ? (
+                              <>
+                                <CheckCircle2 className="h-3 w-3" />
+                                <span>Completed</span>
+                              </>
+                            ) : isDeclined ? (
+                              <>
+                                <XCircle className="h-3 w-3" />
+                                <span>Declined</span>
+                              </>
+                            ) : (
+                              <>
+                                <Navigation className="h-3 w-3" />
+                                <span>{trip.status}</span>
+                              </>
+                            )}
+                          </span>
+
+                          <span className="text-[10px] font-mono text-slate-500 font-semibold">
+                            #{trip.reference.slice(-8)}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
+                          <Clock className="h-3 w-3 text-slate-500" />
+                          <span>
+                            {new Date(trip.createdAt).toLocaleDateString(undefined, {
+                              month: "short",
+                              day: "numeric",
+                            })}
+                            {" • "}
+                            {new Date(trip.createdAt).toLocaleTimeString(undefined, {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Route information */}
+                      <div className="py-3 space-y-2">
+                        <div className="flex items-start gap-2.5">
+                          <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 mt-1 shrink-0 shadow-[0_0_8px_rgba(52,211,153,0.5)]" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[10px] uppercase font-bold text-slate-500">Pickup</p>
+                            <p className="text-xs font-semibold text-slate-200 truncate">
+                              {trip.pickupAddress}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-start gap-2.5">
+                          <div className="w-2.5 h-2.5 rounded bg-orange-400 mt-1 shrink-0 shadow-[0_0_8px_rgba(251,146,60,0.5)]" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[10px] uppercase font-bold text-slate-500">Destination</p>
+                            <p className="text-xs font-semibold text-slate-200 truncate">
+                              {trip.dropoffAddress}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Financial breakdown and details */}
+                      <div className="pt-3 border-t border-slate-800/60 flex items-center justify-between">
+                        <div>
+                          {isCompleted ? (
+                            <div>
+                              <span className="text-[10px] text-slate-400 uppercase font-bold block">
+                                Total Fare: ₦{trip.grossFare.toLocaleString()}
+                              </span>
+                              <span className="text-sm font-black text-emerald-400">
+                                Your Cut: ₦{trip.driverPayout.toLocaleString()} ({DRIVER_PAYOUT_PERCENT}%)
+                              </span>
+                            </div>
+                          ) : isDeclined ? (
+                            <div>
+                              <span className="text-[10px] text-slate-500 uppercase font-bold block">
+                                Fare: ₦{trip.grossFare.toLocaleString()}
+                              </span>
+                              <span className="text-xs font-semibold text-rose-400/90">
+                                Declined by driver
+                              </span>
+                            </div>
+                          ) : (
+                            <div>
+                              <span className="text-[10px] text-slate-400 uppercase font-bold block">
+                                Fare: ₦{trip.grossFare.toLocaleString()}
+                              </span>
+                              <span className="text-sm font-black text-cyan-400">
+                                Cut: ₦{trip.driverPayout.toLocaleString()}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setSelectedHistoryTrip(trip)}
+                          className="px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-xs font-bold text-slate-200 transition-colors flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <span>Receipt</span>
+                          <ChevronRight className="h-3 w-3 text-slate-400" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ) : isLoading ? (
           <div className="flex-1 flex flex-col items-center justify-center space-y-4">
             <Loader2 className="h-10 w-10 animate-spin text-orange-500" />
             <p className="text-slate-400 font-medium animate-pulse">
@@ -1453,18 +1885,25 @@ function DriverDashboard() {
                 <ChevronRight className="h-5 w-5 text-emerald-400 group-hover:translate-x-0.5 transition-transform" />
               </Link>
 
-              <Link
-                to="/history"
-                className="w-full bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex items-center justify-between hover:bg-slate-800 transition-colors shadow-lg group cursor-pointer"
+              <button
+                type="button"
+                onClick={() => {
+                  setDashboardTab("history");
+                  loadTripHistory();
+                }}
+                className="w-full bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex items-center justify-between hover:bg-slate-800 transition-colors shadow-lg group cursor-pointer text-left"
               >
                 <div className="flex items-center gap-4">
                   <div className="p-2.5 bg-orange-500/10 rounded-xl">
                     <History className="h-5 w-5 text-orange-400" />
                   </div>
-                  <span className="font-bold text-white">Trip History & Receipts</span>
+                  <div>
+                    <span className="font-bold text-white block">Trip History & Receipts</span>
+                    <span className="text-[11px] text-slate-400">View completed & declined trips, breakdown & receipts</span>
+                  </div>
                 </div>
-                <ChevronRight className="h-5 w-5 text-slate-600 group-hover:text-white transition-colors" />
-              </Link>
+                <ChevronRight className="h-5 w-5 text-slate-600 group-hover:text-white transition-transform group-hover:translate-x-0.5" />
+              </button>
               <button className="w-full bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex items-center justify-between hover:bg-slate-800 transition-colors shadow-lg">
                 <div className="flex items-center gap-4">
                   <div className="p-2.5 bg-purple-500/10 rounded-xl">
@@ -1510,6 +1949,217 @@ function DriverDashboard() {
           {isOnline ? "GO OFFLINE" : "GO ONLINE"}
         </Button>
       </div>
+
+      {/* Trip Receipt Modal */}
+      {selectedHistoryTrip && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-5 max-h-[90dvh] overflow-y-auto custom-scrollbar text-white">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className={`p-2.5 rounded-2xl ${
+                  selectedHistoryTrip.isDeclined
+                    ? "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                    : selectedHistoryTrip.status === "delivered"
+                    ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                    : "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
+                }`}>
+                  {selectedHistoryTrip.isDeclined ? (
+                    <XCircle className="h-6 w-6" />
+                  ) : (
+                    <FileText className="h-6 w-6" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">
+                    {selectedHistoryTrip.isDeclined ? "Declined Ride Record" : "Trip Receipt & Details"}
+                  </h3>
+                  <p className="text-xs text-slate-400 font-mono">
+                    REF: {selectedHistoryTrip.reference || selectedHistoryTrip.id.slice(0, 10).toUpperCase()}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedHistoryTrip(null)}
+                className="p-2 text-slate-400 hover:text-white rounded-xl bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 transition-colors cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Status Pill & Tier */}
+            <div className="flex items-center justify-between gap-2 p-3 rounded-2xl bg-slate-950/70 border border-slate-800/80">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-400">Status:</span>
+                {selectedHistoryTrip.isDeclined ? (
+                  <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/30 inline-flex items-center gap-1.5">
+                    <XCircle className="h-3.5 w-3.5" />
+                    Declined by You
+                  </span>
+                ) : selectedHistoryTrip.status === "delivered" ? (
+                  <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 inline-flex items-center gap-1.5">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Completed & Delivered
+                  </span>
+                ) : (
+                  <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 uppercase">
+                    {selectedHistoryTrip.status.replace("_", " ")}
+                  </span>
+                )}
+              </div>
+              <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-slate-800 text-slate-300 border border-slate-700">
+                {selectedHistoryTrip.tier.toUpperCase()}
+              </span>
+            </div>
+
+            {/* Route */}
+            <div className="space-y-3 bg-slate-950/50 p-4 rounded-2xl border border-slate-800/60">
+              <div className="flex items-start gap-3">
+                <div className="w-6 h-6 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center shrink-0 mt-0.5">
+                  <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                </div>
+                <div className="min-w-0">
+                  <span className="text-[10px] text-emerald-400/90 uppercase font-bold tracking-wider block">
+                    Pickup Point
+                  </span>
+                  <p className="text-sm font-semibold text-white leading-snug">
+                    {selectedHistoryTrip.pickupAddress || "Pickup location not specified"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="ml-3 pl-3 border-l-2 border-dashed border-slate-800 my-1 py-1">
+                {selectedHistoryTrip.distanceKm ? (
+                  <span className="text-[11px] text-slate-500 font-medium">
+                    {selectedHistoryTrip.distanceKm} km trip
+                  </span>
+                ) : null}
+              </div>
+
+              <div className="flex items-start gap-3">
+                <div className="w-6 h-6 rounded-full bg-rose-500/20 border border-rose-500/40 flex items-center justify-center shrink-0 mt-0.5">
+                  <div className="w-2 h-2 rounded-full bg-rose-400" />
+                </div>
+                <div className="min-w-0">
+                  <span className="text-[10px] text-rose-400/90 uppercase font-bold tracking-wider block">
+                    Destination
+                  </span>
+                  <p className="text-sm font-semibold text-white leading-snug">
+                    {selectedHistoryTrip.dropoffAddress || "Dropoff location not specified"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Passenger / Customer Details */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-slate-950/50 p-3 rounded-2xl border border-slate-800/60">
+                <div className="flex items-center gap-1.5 text-[10px] text-slate-400 uppercase font-bold mb-1">
+                  <User className="h-3 w-3 text-cyan-400" />
+                  <span>Passenger / Client</span>
+                </div>
+                <p className="text-sm font-bold text-white truncate">
+                  {selectedHistoryTrip.customerName || "Customer"}
+                </p>
+                {selectedHistoryTrip.customerPhone && (
+                  <a
+                    href={`tel:${selectedHistoryTrip.customerPhone}`}
+                    className="text-xs text-cyan-400 hover:underline flex items-center gap-1 mt-1 font-semibold"
+                  >
+                    <Phone className="h-3 w-3" />
+                    <span>{selectedHistoryTrip.customerPhone}</span>
+                  </a>
+                )}
+              </div>
+
+              <div className="bg-slate-950/50 p-3 rounded-2xl border border-slate-800/60">
+                <div className="flex items-center gap-1.5 text-[10px] text-slate-400 uppercase font-bold mb-1">
+                  <Clock className="h-3 w-3 text-amber-400" />
+                  <span>Trip Date & Time</span>
+                </div>
+                <p className="text-xs font-semibold text-white">
+                  {new Date(selectedHistoryTrip.createdAt).toLocaleDateString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                </p>
+                <p className="text-xs text-slate-400">
+                  {new Date(selectedHistoryTrip.createdAt).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </p>
+              </div>
+            </div>
+
+            {/* PIN if present */}
+            {selectedHistoryTrip.pickupPin && (
+              <div className="p-3 bg-cyan-950/30 border border-cyan-800/40 rounded-2xl flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-cyan-400" />
+                  <span className="text-xs font-bold text-cyan-300">Safety Ride PIN</span>
+                </div>
+                <span className="text-base font-black tracking-widest text-cyan-300 font-mono bg-cyan-900/40 px-3 py-1 rounded-xl border border-cyan-700/50">
+                  {selectedHistoryTrip.pickupPin}
+                </span>
+              </div>
+            )}
+
+            {/* Financial Breakdown */}
+            <div className="bg-slate-950/80 p-4 rounded-2xl border border-slate-800 space-y-2.5">
+              <div className="flex items-center justify-between text-xs text-slate-400">
+                <span>Passenger Total Fare</span>
+                <span className="font-semibold text-white">
+                  ₦{selectedHistoryTrip.grossFare.toLocaleString()}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs text-slate-400">
+                <span>Platform Commission ({100 - DRIVER_PAYOUT_PERCENT}%)</span>
+                <span className="font-semibold text-slate-400">
+                  ₦{(selectedHistoryTrip.grossFare - selectedHistoryTrip.driverPayout).toLocaleString()}
+                </span>
+              </div>
+              <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-bold text-emerald-400 block">
+                    Driver Net Share ({DRIVER_PAYOUT_PERCENT}%)
+                  </span>
+                  <span className="text-[10px] text-slate-500">
+                    {selectedHistoryTrip.isDeclined ? "N/A (Trip was declined)" : "Credited to Driver Wallet"}
+                  </span>
+                </div>
+                <span className={`text-xl font-black ${
+                  selectedHistoryTrip.isDeclined ? "text-slate-500 line-through" : "text-emerald-400"
+                }`}>
+                  ₦{selectedHistoryTrip.driverPayout.toLocaleString()}
+                </span>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center gap-3 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => window.print()}
+                className="flex-1 rounded-xl border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center justify-center gap-2 h-11"
+              >
+                <Printer className="h-4 w-4" />
+                <span>Print Receipt</span>
+              </Button>
+              <Button
+                type="button"
+                onClick={() => setSelectedHistoryTrip(null)}
+                className="flex-1 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs h-11 shadow-lg shadow-orange-600/30"
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style
         dangerouslySetInnerHTML={{

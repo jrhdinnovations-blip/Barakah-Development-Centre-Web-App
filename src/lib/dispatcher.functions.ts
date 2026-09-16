@@ -400,8 +400,17 @@ export const driverFetchCockpitJobs = createServerFn({ method: "POST" })
     }
 
     const result = (deliveries || []).filter((d: any) => {
+      const isDeclined = Array.from(driverIds).some((id) =>
+        (d.package_type || "").includes(`DECLINED_BY:${id}`)
+      );
+      if (isDeclined) {
+        d.is_declined_by_me = true;
+        return true;
+      }
+
       // 1. Any order already assigned to this driver
       if (d.driver_id && driverIds.has(d.driver_id)) return true;
+
       // 2. Any pending passenger ride (for vehicle drivers / driver mode)
       if (d.status === "pending") {
         const meta = parseOrderMetadata(d.package_type);
@@ -1261,6 +1270,266 @@ export const driverGetWalletData = createServerFn({ method: "POST" })
       return emptyResult;
     }
   });
+
+export interface DriverDeclineInput {
+  orderId: string;
+  driverId: string;
+  reason?: string;
+}
+
+/**
+ * 22. Driver Decline Ride Request
+ * Records that the driver declined this specific order so it never reappears
+ * in their active list and is preserved in their Trip History under "Declined".
+ */
+export const driverDeclineRideRequest = createServerFn({ method: "POST" })
+  .validator((input: DriverDeclineInput) => input)
+  .handler(async ({ data }) => {
+    const { getAdmin } = await import("@/lib/payments.server");
+    const admin = await getAdmin();
+
+    try {
+      const { data: order, error } = await admin
+        .from("swift_deliveries")
+        .select("package_type, status")
+        .eq("id", data.orderId)
+        .maybeSingle();
+
+      if (error || !order) {
+        return { success: false, message: "Order not found" };
+      }
+
+      const now = Date.now();
+      const declineTag = `|||DECLINED_BY:${data.driverId}:${now}`;
+      const reasonTag = data.reason ? `|||DECLINE_REASON:${encodeURIComponent(data.reason)}` : "";
+      const updatedPackage = (order.package_type || "") + declineTag + reasonTag;
+
+      await admin
+        .from("swift_deliveries")
+        .update({
+          package_type: updatedPackage,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", data.orderId);
+
+      return { success: true };
+    } catch (err: any) {
+      console.error("[driverDeclineRideRequest] error:", err);
+      return { success: false, message: err?.message || "Failed to decline ride" };
+    }
+  });
+
+export interface DriverHistoryTrip {
+  id: string;
+  type: "ride" | "delivery";
+  status: "completed" | "declined" | "in_transit" | "accepted" | "picked_up" | "cancelled";
+  pickupAddress: string;
+  dropoffAddress: string;
+  grossFare: number;
+  driverPayout: number;
+  distanceKm?: number;
+  createdAt: string;
+  declinedAt?: string | null;
+  declineReason?: string | null;
+  reference: string;
+  packageType: string;
+  customerName?: string;
+  customerPhone?: string;
+  pin?: string;
+  tier?: string;
+}
+
+export interface DriverTripHistoryResponse {
+  trips: DriverHistoryTrip[];
+  stats: {
+    totalTrips: number;
+    completedCount: number;
+    declinedCount: number;
+    activeCount: number;
+    totalEarnings: number;
+    grossFares: number;
+  };
+}
+
+/**
+ * 23. Driver Get Trip History (All Completed, In-Transit & Declined Trips)
+ * Retrieves complete historical records for the driver, querying with elevated admin
+ * credentials to prevent client RLS restrictions from hiding completed or declined jobs.
+ */
+export const driverGetTripHistory = createServerFn({ method: "POST" })
+  .validator((input: { driverId: string }) => input)
+  .handler(async ({ data }): Promise<DriverTripHistoryResponse> => {
+    const emptyResponse: DriverTripHistoryResponse = {
+      trips: [],
+      stats: {
+        totalTrips: 0,
+        completedCount: 0,
+        declinedCount: 0,
+        activeCount: 0,
+        totalEarnings: 0,
+        grossFares: 0,
+      },
+    };
+
+    if (!data.driverId) return emptyResponse;
+
+    try {
+      const { getAdmin } = await import("@/lib/payments.server");
+      const { parseOrderMetadata } = await import("@/lib/swift-order");
+      const { calculateDriverEarnings } = await import("@/lib/ride-pricing");
+      const admin = await getAdmin();
+
+      // Resolve all driver IDs (auth user_id vs public.drivers.id)
+      const driverIds = new Set<string>([data.driverId]);
+      try {
+        const { data: drv } = await admin
+          .from("drivers")
+          .select("id, user_id")
+          .or(`id.eq.${data.driverId},user_id.eq.${data.driverId}`)
+          .maybeSingle();
+        if (drv) {
+          if (drv.id) driverIds.add(drv.id);
+          if (drv.user_id) driverIds.add(drv.user_id);
+        }
+      } catch {}
+
+      // Fetch all deliveries created recently
+      const { data: allJobs, error: jobErr } = await admin
+        .from("swift_deliveries")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(200);
+
+      if (jobErr) {
+        console.error("[driverGetTripHistory] Query error:", jobErr.message);
+        return emptyResponse;
+      }
+
+      // Filter trips relevant to this driver: assigned or declined
+      const relevant = (allJobs || []).filter((job: any) => {
+        const isAssigned = job.driver_id && driverIds.has(job.driver_id);
+        const isDeclined = Array.from(driverIds).some((id) =>
+          (job.package_type || "").includes(`DECLINED_BY:${id}`)
+        );
+        return isAssigned || isDeclined;
+      });
+
+      // Collect customer IDs to resolve names & phone numbers
+      const customerIds = Array.from(
+        new Set(relevant.map((j: any) => j.customer_id).filter(Boolean))
+      );
+      const customerMap = new Map<string, { name?: string; phone?: string }>();
+      if (customerIds.length > 0) {
+        try {
+          const { data: profiles } = await admin
+            .from("profiles")
+            .select("user_id, id, full_name, phone")
+            .or(`user_id.in.(${customerIds.join(",")}),id.in.(${customerIds.join(",")})`);
+          (profiles || []).forEach((p: any) => {
+            const val = { name: p.full_name, phone: p.phone };
+            if (p.user_id) customerMap.set(p.user_id, val);
+            if (p.id) customerMap.set(p.id, val);
+          });
+        } catch {}
+      }
+
+      const trips: DriverHistoryTrip[] = [];
+      let completedCount = 0;
+      let declinedCount = 0;
+      let activeCount = 0;
+      let totalEarnings = 0;
+      let grossFares = 0;
+
+      for (const job of relevant) {
+        const meta = parseOrderMetadata(job.package_type);
+        const grossFare = Number(job.estimated_price) || 0;
+        const driverPayout = calculateDriverEarnings(grossFare);
+        const isRide = meta.isRide;
+
+        // Check if declined
+        const isDeclined = Array.from(driverIds).some((id) =>
+          (job.package_type || "").includes(`DECLINED_BY:${id}`)
+        );
+
+        let status: DriverHistoryTrip["status"] = "in_transit";
+        let declinedAt: string | null = null;
+        let declineReason: string | null = null;
+
+        if (isDeclined) {
+          status = "declined";
+          declinedCount++;
+          // Parse declined timestamp
+          const match = (job.package_type || "").match(/DECLINED_BY:[^:]+:(\d+)/);
+          if (match && match[1]) {
+            declinedAt = new Date(parseInt(match[1], 10)).toISOString();
+          } else {
+            declinedAt = job.updated_at || job.created_at;
+          }
+          const reasonMatch = (job.package_type || "").match(/DECLINE_REASON:([^|]+)/);
+          if (reasonMatch && reasonMatch[1]) {
+            declineReason = decodeURIComponent(reasonMatch[1]);
+          }
+        } else if (job.status === "delivered") {
+          status = "completed";
+          completedCount++;
+          totalEarnings += driverPayout;
+          grossFares += grossFare;
+        } else if (job.status === "cancelled") {
+          status = "cancelled";
+        } else if (job.status === "accepted") {
+          status = "accepted";
+          activeCount++;
+        } else if (job.status === "picked_up") {
+          status = "picked_up";
+          activeCount++;
+        } else {
+          status = "in_transit";
+          activeCount++;
+        }
+
+        const customer = job.customer_id ? customerMap.get(job.customer_id) : undefined;
+        // Fallback to phone embedded in package_type if available
+        const embeddedPhoneMatch = (job.package_type || "").match(/\|\|\|CPHONE:([\d\+\-\(\)\s]+)/);
+        const customerPhone = customer?.phone || (embeddedPhoneMatch ? embeddedPhoneMatch[1] : undefined);
+
+        trips.push({
+          id: job.id,
+          type: isRide ? "ride" : "delivery",
+          status,
+          pickupAddress: job.pickup_address || "Pickup Point",
+          dropoffAddress: job.dropoff_address || "Destination Point",
+          grossFare,
+          driverPayout,
+          distanceKm: job.distance_km,
+          createdAt: job.created_at,
+          declinedAt,
+          declineReason,
+          reference: job.payment_reference || `SWF-${job.id.slice(0, 8).toUpperCase()}`,
+          packageType: job.package_type || "",
+          customerName: customer?.name,
+          customerPhone,
+          pin: meta.pin,
+          tier: meta.tierName || (meta.tier ? String(meta.tier).toUpperCase() : undefined),
+        });
+      }
+
+      return {
+        trips,
+        stats: {
+          totalTrips: trips.length,
+          completedCount,
+          declinedCount,
+          activeCount,
+          totalEarnings,
+          grossFares,
+        },
+      };
+    } catch (err: any) {
+      console.error("[driverGetTripHistory] Unexpected error:", err);
+      return emptyResponse;
+    }
+  });
+
 
 
 
