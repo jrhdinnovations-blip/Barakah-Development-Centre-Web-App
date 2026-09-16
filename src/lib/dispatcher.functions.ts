@@ -950,4 +950,191 @@ export const customerRateRide = createServerFn({ method: "POST" })
     return { success: true };
   });
 
+export interface CustomerTripRecord {
+  id: string;
+  reference: string;
+  createdAt: string;
+  status: string;
+  pickupAddress: string;
+  dropoffAddress: string;
+  fare: number;
+  distanceKm?: number;
+  durationText?: string;
+  tierName: string;
+  category?: string;
+  driverName?: string | null;
+  driverPhone?: string | null;
+  vehiclePlate?: string | null;
+  vehicleModel?: string | null;
+  vehicleColor?: string | null;
+  safetyPin?: string | null;
+  rating?: number | null;
+  source: 'swift_deliveries' | 'vehicle_hire_bookings';
+}
+
+export interface CustomerDispatchRecord {
+  id: string;
+  reference: string;
+  createdAt: string;
+  status: string;
+  pickupAddress: string;
+  dropoffAddress: string;
+  fare: number;
+  distanceKm?: number;
+  weightKg?: number;
+  packageType: string;
+  description?: string;
+  riderName?: string | null;
+  riderPhone?: string | null;
+  paymentMethod?: string | null;
+}
+
+/**
+ * 17. Customer Get Trip History (Passenger Rides)
+ * Fetches and merges ride history from swift_deliveries & vehicle_hire_bookings via service role
+ */
+export const customerGetTripHistory = createServerFn({ method: "POST" })
+  .validator((input: { customerId: string }) => input)
+  .handler(async ({ data }) => {
+    const { getAdmin } = await import("@/lib/payments.server");
+    const { parseOrderMetadata } = await import("@/lib/swift-order");
+    const admin = await getAdmin();
+
+    const trips: CustomerTripRecord[] = [];
+    const seenRefs = new Set<string>();
+
+    // 1. Fetch rides from swift_deliveries
+    try {
+      const { data: deliveries } = await admin
+        .from("swift_deliveries")
+        .select("*")
+        .eq("customer_id", data.customerId)
+        .order("created_at", { ascending: false });
+
+      if (deliveries) {
+        for (const del of deliveries) {
+          const meta = parseOrderMetadata(del.package_type);
+          if (meta.isRide) {
+            const ref = del.payment_reference || `SWR-${del.id.slice(0, 8)}`;
+            seenRefs.add(ref);
+            trips.push({
+              id: del.id,
+              reference: ref,
+              createdAt: del.created_at,
+              status: del.status || "pending",
+              pickupAddress: del.pickup_address,
+              dropoffAddress: del.dropoff_address,
+              fare: del.estimated_price || 0,
+              distanceKm: del.distance_km ?? undefined,
+              durationText: del.distance_km ? `~${Math.ceil(del.distance_km * 2.5)} mins` : undefined,
+              tierName: meta.tierName || "Standard",
+              driverName: meta.driverName || null,
+              driverPhone: meta.driverPhone || null,
+              vehiclePlate: meta.plateNumber || null,
+              vehicleModel: meta.vehicleMake || null,
+              vehicleColor: meta.vehicleColor || null,
+              safetyPin: meta.safetyPin || meta.pin || null,
+              rating: (del as any).rating || null,
+              source: "swift_deliveries",
+            });
+          }
+        }
+      }
+    } catch (e: any) {
+      console.warn("[customerGetTripHistory] swift_deliveries error:", e?.message);
+    }
+
+    // 2. Fetch from vehicle_hire_bookings
+    try {
+      const { data: bookings } = await admin
+        .from("vehicle_hire_bookings")
+        .select("*")
+        .eq("customer_id", data.customerId)
+        .order("created_at", { ascending: false });
+
+      if (bookings) {
+        for (const b of bookings) {
+          const ref = b.payment_reference || `VHC-${b.id.slice(0, 8)}`;
+          if (!seenRefs.has(ref)) {
+            trips.push({
+              id: b.id,
+              reference: ref,
+              createdAt: b.created_at,
+              status: b.status || "booked",
+              pickupAddress: b.pickup_location,
+              dropoffAddress: b.destination || "",
+              fare: Number(b.total_price) || 0,
+              tierName: b.sub_category || b.category || "Standard",
+              category: b.category,
+              driverName: (b as any).driver_name || null,
+              driverPhone: (b as any).driver_phone || null,
+              vehiclePlate: null,
+              vehicleModel: (b as any).vehicle_details || null,
+              vehicleColor: null,
+              safetyPin: null,
+              rating: null,
+              source: "vehicle_hire_bookings",
+            });
+          }
+        }
+      }
+    } catch (e: any) {
+      console.warn("[customerGetTripHistory] vehicle_hire_bookings error:", e?.message);
+    }
+
+    trips.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return { trips };
+  });
+
+/**
+ * 18. Customer Get Dispatch History (Parcel / Courier Deliveries)
+ * Fetches package dispatches from swift_deliveries via service role
+ */
+export const customerGetDispatchHistory = createServerFn({ method: "POST" })
+  .validator((input: { customerId: string }) => input)
+  .handler(async ({ data }) => {
+    const { getAdmin } = await import("@/lib/payments.server");
+    const { parseOrderMetadata } = await import("@/lib/swift-order");
+    const admin = await getAdmin();
+
+    const dispatches: CustomerDispatchRecord[] = [];
+
+    try {
+      const { data: deliveries } = await admin
+        .from("swift_deliveries")
+        .select("*")
+        .eq("customer_id", data.customerId)
+        .order("created_at", { ascending: false });
+
+      if (deliveries) {
+        for (const del of deliveries) {
+          const meta = parseOrderMetadata(del.package_type);
+          if (!meta.isRide) {
+            dispatches.push({
+              id: del.id,
+              reference: del.payment_reference || `TRK-${del.id.slice(0, 8)}`,
+              createdAt: del.created_at,
+              status: del.status || "pending",
+              pickupAddress: del.pickup_address,
+              dropoffAddress: del.dropoff_address,
+              fare: del.estimated_price || 0,
+              distanceKm: del.distance_km ?? undefined,
+              weightKg: del.weight_kg ?? undefined,
+              packageType: meta.tierName || "Standard Parcel",
+              description: meta.customerNotes || undefined,
+              riderName: meta.driverName || null,
+              riderPhone: meta.driverPhone || null,
+              paymentMethod: (del as any).payment_method || null,
+            });
+          }
+        }
+      }
+    } catch (e: any) {
+      console.warn("[customerGetDispatchHistory] error:", e?.message);
+    }
+
+    dispatches.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return { dispatches };
+  });
+
 

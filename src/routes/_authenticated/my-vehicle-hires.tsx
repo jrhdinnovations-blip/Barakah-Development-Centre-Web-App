@@ -21,6 +21,7 @@ import {
   AlertTriangle, ChevronRight, Check, Clock, X, History,
   Plus, Minus, Zap, User, Info, ChevronDown, Locate,
   ArrowUpDown, MessageCircle, ReceiptText, Sparkles, CreditCard,
+  RotateCcw, Search,
 } from 'lucide-react';
 
 import { supabase } from '@/integrations/supabase/client';
@@ -34,6 +35,8 @@ import {
   customerGetActiveRide,
   customerFindActiveRide,
   customerRateRide,
+  customerGetTripHistory,
+  type CustomerTripRecord,
 } from '@/lib/dispatcher.functions';
 import { PaymentReturn } from '@/components/PaymentReturn';
 import { Button } from '@/components/ui/button';
@@ -280,8 +283,10 @@ function RideHailingDashboard() {
 
   // ── Tabs ──────────────────────────────────────────────────────────────────
   const [mainTab, setMainTab] = useState<'ride' | 'history'>('ride');
-  const [bookings, setBookings] = useState<VehicleBooking[]>([]);
+  const [bookings, setBookings] = useState<CustomerTripRecord[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historyFilter, setHistoryFilter] = useState<'all' | 'completed' | 'active' | 'cancelled'>('all');
+  const [historySearch, setHistorySearch] = useState('');
 
   // ── Map Center ────────────────────────────────────────────────────────────
   const mapCenter = useMemo(() => {
@@ -971,14 +976,48 @@ function RideHailingDashboard() {
     if (!userId) return;
     setLoadingHistory(true);
     try {
-      const { data } = await supabase
-        .from('vehicle_hire_bookings')
-        .select('*')
-        .eq('customer_id', userId)
-        .order('created_at', { ascending: false });
-      setBookings(data || []);
-    } catch (_) {}
-    finally {
+      const res = await customerGetTripHistory({ data: { customerId: userId } });
+      if (res?.trips) {
+        setBookings(res.trips);
+      } else {
+        setBookings([]);
+      }
+    } catch (err) {
+      console.warn('[fetchHistory] server fn error, falling back to direct query:', err);
+      try {
+        const { data: deliveries } = await supabase
+          .from('swift_deliveries')
+          .select('*')
+          .eq('customer_id', userId)
+          .order('created_at', { ascending: false });
+
+        const mapped: CustomerTripRecord[] = (deliveries || [])
+          .filter(d => parseOrderMetadata(d.package_type).isRide)
+          .map(d => {
+            const meta = parseOrderMetadata(d.package_type);
+            return {
+              id: d.id,
+              reference: d.payment_reference || `SWR-${d.id.slice(0, 8)}`,
+              createdAt: d.created_at,
+              status: d.status || 'pending',
+              pickupAddress: d.pickup_address,
+              dropoffAddress: d.dropoff_address,
+              fare: d.estimated_price || 0,
+              distanceKm: d.distance_km ?? undefined,
+              tierName: meta.tierName || 'Standard',
+              driverName: meta.driverName || null,
+              driverPhone: meta.driverPhone || null,
+              vehiclePlate: meta.plateNumber || null,
+              vehicleModel: meta.vehicleMake || null,
+              vehicleColor: meta.vehicleColor || null,
+              safetyPin: meta.safetyPin || meta.pin || null,
+              rating: (d as any).rating || null,
+              source: 'swift_deliveries',
+            };
+          });
+        setBookings(mapped);
+      } catch (_) {}
+    } finally {
       setLoadingHistory(false);
     }
   }, [userId]);
@@ -2080,76 +2119,280 @@ function RideHailingDashboard() {
   );
 
   // ── Trip History Tab ─────────────────────────────────────────────────────
-  const renderHistory = () => (
-    <div className="space-y-3">
-      {loadingHistory ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
-        </div>
-      ) : bookings.length === 0 ? (
-        <div className="text-center py-12 space-y-3">
-          <History className="w-12 h-12 text-slate-300 mx-auto" />
-          <p className="text-slate-500 text-sm">No trips yet. Book your first ride!</p>
-          <button
-            onClick={() => setMainTab('ride')}
-            className="text-blue-600 text-sm font-semibold hover:text-blue-700 cursor-pointer"
-          >
-            Order a Ride →
-          </button>
-        </div>
-      ) : (
-        bookings.map((b) => (
-          <div key={b.id} className="p-4 rounded-xl bg-white border border-slate-200 shadow-sm space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Car className="w-4 h-4 text-blue-600" />
-                <span className="text-sm font-semibold text-slate-900 capitalize">
-                  {b.sub_category} {b.category !== 'private' ? `(${b.category})` : ''}
-                </span>
-              </div>
-              <span
-                className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border ${
-                  b.status === 'completed'
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    : b.status === 'active'
-                    ? 'bg-blue-50 text-blue-700 border-blue-200'
-                    : b.status === 'cancelled'
-                    ? 'bg-red-50 text-red-700 border-red-200'
-                    : 'bg-amber-50 text-amber-700 border-amber-200'
+  const renderHistory = () => {
+    const filteredTrips = bookings.filter((b) => {
+      const q = historySearch.toLowerCase().trim();
+      const matchesSearch =
+        !q ||
+        (b.pickupAddress && b.pickupAddress.toLowerCase().includes(q)) ||
+        (b.dropoffAddress && b.dropoffAddress.toLowerCase().includes(q)) ||
+        (b.reference && b.reference.toLowerCase().includes(q)) ||
+        (b.driverName && b.driverName.toLowerCase().includes(q)) ||
+        (b.tierName && b.tierName.toLowerCase().includes(q));
+
+      if (!matchesSearch) return false;
+
+      if (historyFilter === 'completed') return b.status === 'completed' || b.status === 'delivered';
+      if (historyFilter === 'active') return ['in_transit', 'accepted', 'matched', 'pending'].includes(b.status);
+      if (historyFilter === 'cancelled') return b.status === 'cancelled';
+      return true;
+    });
+
+    const completedCount = bookings.filter((b) => b.status === 'completed' || b.status === 'delivered').length;
+    const activeCount = bookings.filter((b) => ['in_transit', 'accepted', 'matched', 'pending'].includes(b.status)).length;
+    const cancelledCount = bookings.filter((b) => b.status === 'cancelled').length;
+
+    return (
+      <div className="space-y-4">
+        {/* Search & Filter Header */}
+        <div className="space-y-2.5">
+          <div className="relative">
+            <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search by destination, reference, driver..."
+              value={historySearch}
+              onChange={(e) => setHistorySearch(e.target.value)}
+              className="w-full pl-9 pr-8 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-800 placeholder:text-slate-400"
+            />
+            {historySearch && (
+              <button
+                type="button"
+                onClick={() => setHistorySearch('')}
+                className="absolute right-2.5 top-2.5 p-0.5 text-slate-400 hover:text-slate-600 rounded-full"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Filter Pills */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs custom-scrollbar">
+            {[
+              { key: 'all', label: 'All Trips', count: bookings.length },
+              { key: 'completed', label: 'Completed', count: completedCount },
+              { key: 'active', label: 'In Progress', count: activeCount },
+              { key: 'cancelled', label: 'Cancelled', count: cancelledCount },
+            ].map((pill) => (
+              <button
+                key={pill.key}
+                type="button"
+                onClick={() => setHistoryFilter(pill.key as any)}
+                className={`px-3 py-1 rounded-lg font-medium text-xs whitespace-nowrap transition-colors flex items-center gap-1.5 cursor-pointer ${
+                  historyFilter === pill.key
+                    ? 'bg-blue-600 text-white font-bold shadow-sm'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
               >
-                {b.status.charAt(0).toUpperCase() + b.status.slice(1)}
-              </span>
-            </div>
-            <div className="space-y-1.5 text-xs text-slate-600">
-              <div className="flex items-start gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" />
-                <span className="truncate">{b.pickup_location}</span>
-              </div>
-              {b.destination && (
-                <div className="flex items-start gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-orange-500 mt-1.5 shrink-0" />
-                  <span className="truncate">{b.destination}</span>
-                </div>
-              )}
-            </div>
-            <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-xs">
-              <span className="text-slate-400">
-                {new Date(b.created_at).toLocaleDateString('en-NG', {
-                  day: 'numeric',
-                  month: 'short',
-                  year: 'numeric',
-                })}
-              </span>
-              <span className="text-sm font-bold text-blue-700">
-                ₦{Number(b.total_price).toLocaleString()}
-              </span>
-            </div>
+                <span>{pill.label}</span>
+                <span className={`text-[10px] ${historyFilter === pill.key ? 'text-blue-100' : 'text-slate-400'}`}>
+                  ({pill.count})
+                </span>
+              </button>
+            ))}
           </div>
-        ))
-      )}
-    </div>
-  );
+        </div>
+
+        {/* Content */}
+        {loadingHistory ? (
+          <div className="flex flex-col items-center justify-center py-16 space-y-3">
+            <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+            <p className="text-xs text-slate-400 font-medium">Loading your trip history...</p>
+          </div>
+        ) : bookings.length === 0 ? (
+          <div className="text-center py-14 px-4 space-y-3 bg-slate-50/60 rounded-2xl border border-dashed border-slate-200">
+            <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center mx-auto text-blue-600">
+              <History className="w-6 h-6" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-slate-800">No Trips Yet</h4>
+              <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto">
+                Your past passenger rides and completed journeys will show up here.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setMainTab('ride')}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
+            >
+              <Car className="w-3.5 h-3.5" />
+              Order a Ride Now
+            </button>
+          </div>
+        ) : filteredTrips.length === 0 ? (
+          <div className="text-center py-10 space-y-2 bg-slate-50 rounded-2xl border border-slate-100">
+            <p className="text-xs text-slate-500">No trips match your search or filter.</p>
+            <button
+              type="button"
+              onClick={() => {
+                setHistoryFilter('all');
+                setHistorySearch('');
+              }}
+              className="text-xs font-semibold text-blue-600 hover:underline cursor-pointer"
+            >
+              Clear filters
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filteredTrips.map((trip) => {
+              const isFinished = trip.status === 'completed' || trip.status === 'delivered';
+              const isLive = ['in_transit', 'accepted', 'matched'].includes(trip.status);
+              const isCancel = trip.status === 'cancelled';
+
+              return (
+                <div
+                  key={trip.id}
+                  className={`p-4 rounded-2xl bg-white border transition-all shadow-sm space-y-3 ${
+                    isLive ? 'border-blue-300 ring-1 ring-blue-400/30' : 'border-slate-200/90 hover:border-slate-300'
+                  }`}
+                >
+                  {/* Top Bar: Tier & Status Badge */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                        <Car className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <span className="text-xs font-bold text-slate-900 truncate block">
+                          {trip.tierName}
+                        </span>
+                        <span className="text-[10px] font-mono text-slate-400 truncate block">
+                          {trip.reference}
+                        </span>
+                      </div>
+                    </div>
+
+                    <span
+                      className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border shrink-0 ${
+                        isFinished
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : isLive
+                          ? 'bg-blue-50 text-blue-700 border-blue-200 animate-pulse'
+                          : isCancel
+                          ? 'bg-rose-50 text-rose-700 border-rose-200'
+                          : 'bg-amber-50 text-amber-700 border-amber-200'
+                      }`}
+                    >
+                      {trip.status === 'delivered'
+                        ? 'Completed'
+                        : trip.status.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+                    </span>
+                  </div>
+
+                  {/* Route (Pickup → Dropoff) */}
+                  <div className="space-y-1.5 text-xs text-slate-600 bg-slate-50/70 p-2.5 rounded-xl border border-slate-100">
+                    <div className="flex items-start gap-2">
+                      <div className="w-2 h-2 rounded-full bg-blue-600 mt-1 shrink-0" />
+                      <span className="truncate text-slate-800 font-medium">{trip.pickupAddress}</span>
+                    </div>
+                    {trip.dropoffAddress && (
+                      <div className="flex items-start gap-2">
+                        <div className="w-2 h-2 rounded-full bg-orange-500 mt-1 shrink-0" />
+                        <span className="truncate text-slate-700">{trip.dropoffAddress}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Driver & Vehicle Details if available */}
+                  {(trip.driverName || trip.vehicleModel || trip.safetyPin) && (
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-100 text-[11px] text-slate-600">
+                      {trip.driverName && (
+                        <div className="flex items-center gap-1.5">
+                          <User className="w-3.5 h-3.5 text-slate-400" />
+                          <span className="font-semibold text-slate-800">{trip.driverName}</span>
+                          {trip.driverPhone && (
+                            <a
+                              href={`tel:${trip.driverPhone}`}
+                              className="text-blue-600 hover:text-blue-700 font-medium inline-flex items-center gap-0.5 ml-1"
+                            >
+                              <Phone className="w-3 h-3" /> Call
+                            </a>
+                          )}
+                        </div>
+                      )}
+                      {trip.vehicleModel && (
+                        <span className="text-slate-500 font-mono text-[10px]">
+                          {trip.vehicleModel} {trip.vehiclePlate ? `(${trip.vehiclePlate})` : ''}
+                        </span>
+                      )}
+                      {trip.safetyPin && (
+                        <span className="text-[10px] font-mono px-2 py-0.5 bg-slate-100 rounded text-slate-700">
+                          PIN: {trip.safetyPin}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Bottom Row: Date, Price & Re-order */}
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+                    <div className="space-y-0.5">
+                      <div className="text-[10px] text-slate-400">
+                        {new Date(trip.createdAt).toLocaleDateString('en-NG', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </div>
+                      {trip.distanceKm ? (
+                        <div className="text-[10px] text-slate-500 font-mono">
+                          {trip.distanceKm} km {trip.durationText ? `• ${trip.durationText}` : ''}
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-black text-slate-900">
+                        ₦{Number(trip.fare).toLocaleString()}
+                      </span>
+
+                      {isLive ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveOrderId(trip.id);
+                            setMainTab('ride');
+                          }}
+                          className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs transition-all shadow-sm cursor-pointer"
+                        >
+                          Track Live →
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPickupText(trip.pickupAddress);
+                            setDropoffText(trip.dropoffAddress);
+                            const pMatch = resolveJosLocation(trip.pickupAddress);
+                            if (pMatch?.lat && pMatch?.lng) {
+                              setPickup({ address: trip.pickupAddress, lat: pMatch.lat, lng: pMatch.lng });
+                            }
+                            const dMatch = resolveJosLocation(trip.dropoffAddress);
+                            if (dMatch?.lat && dMatch?.lng) {
+                              setDropoff({ address: trip.dropoffAddress, lat: dMatch.lat, lng: dMatch.lng });
+                            }
+                            setMainTab('ride');
+                            toast.success('Route loaded! Choose your ride tier.');
+                          }}
+                          className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg text-[11px] transition-all flex items-center gap-1 cursor-pointer"
+                          title="Re-order this trip"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                          <span>Re-order</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // ── Panel Content by Phase ────────────────────────────────────────────────
   const renderPanel = () => {

@@ -22,6 +22,13 @@ import {
   Info,
   ShieldCheck,
   PhoneCall,
+  History,
+  Clock,
+  Search,
+  X,
+  RotateCcw,
+  Copy,
+  Calendar,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
@@ -35,6 +42,10 @@ import { calculateGoogleRoute, haversineKm, resolveAddressToCoordinates } from '
 import { searchLocalLocations, resolveJosLocation } from '@/lib/location-suggestions';
 import { encodeDispatchMetadata, parseOrderMetadata } from '@/lib/swift-order';
 import { initializeSwiftPaystack } from '@/lib/payments.functions';
+import {
+  customerGetDispatchHistory,
+  type CustomerDispatchRecord,
+} from '@/lib/dispatcher.functions';
 
 export const Route = createFileRoute('/_authenticated/my-swift-move')({
   ssr: false,
@@ -119,6 +130,66 @@ function CustomerBookingPage() {
     supabase.from('profiles').select('phone').eq('user_id', user.id).maybeSingle()
       .then(({ data }) => { if (data?.phone) setCustomerOwnPhone(data.phone); });
   }, [user?.id]);
+
+  // Main Tab: 'dispatch' (book parcel) | 'history' (dispatch history)
+  const [mainTab, setMainTab] = useState<'dispatch' | 'history'>('dispatch');
+  const [dispatchHistory, setDispatchHistory] = useState<CustomerDispatchRecord[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historySearch, setHistorySearch] = useState('');
+  const [historyFilter, setHistoryFilter] = useState<'all' | 'active' | 'delivered' | 'cancelled'>('all');
+
+  const fetchDispatchHistory = useCallback(async () => {
+    if (!user?.id) return;
+    setLoadingHistory(true);
+    try {
+      const res = await customerGetDispatchHistory({ data: { customerId: user.id } });
+      if (res?.dispatches) {
+        setDispatchHistory(res.dispatches);
+      } else {
+        setDispatchHistory([]);
+      }
+    } catch (err) {
+      console.warn('[fetchDispatchHistory] server fn error, falling back to direct query:', err);
+      try {
+        const { data: deliveries } = await supabase
+          .from('swift_deliveries')
+          .select('*')
+          .eq('customer_id', user.id)
+          .order('created_at', { ascending: false });
+
+        const mapped: CustomerDispatchRecord[] = (deliveries || [])
+          .filter((d) => !parseOrderMetadata(d.package_type).isRide)
+          .map((d) => {
+            const meta = parseOrderMetadata(d.package_type);
+            return {
+              id: d.id,
+              reference: d.payment_reference || `TRK-${d.id.slice(0, 8)}`,
+              createdAt: d.created_at,
+              status: d.status || 'pending',
+              pickupAddress: d.pickup_address,
+              dropoffAddress: d.dropoff_address,
+              fare: d.estimated_price || 0,
+              distanceKm: d.distance_km ?? undefined,
+              weightKg: d.weight_kg ?? undefined,
+              packageType: meta.tierName || 'Standard Parcel',
+              description: meta.customerNotes || undefined,
+              riderName: meta.driverName || null,
+              riderPhone: meta.driverPhone || null,
+              paymentMethod: (d as any).payment_method || null,
+            };
+          });
+        setDispatchHistory(mapped);
+      } catch (_) {}
+    } finally {
+      setLoadingHistory(false);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchDispatchHistory();
+    }
+  }, [fetchDispatchHistory, user?.id]);
 
   // Wizard state
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -519,6 +590,314 @@ function CustomerBookingPage() {
   // Show pricing on step 3 — distance is always >0 by the time user reaches step 3
   const showMap = mapsLoaded && !mapError;
 
+  // ── Dispatch History Tab Render ──────────────────────────────────────────
+  const renderDispatchHistory = () => {
+    const q = historySearch.toLowerCase().trim();
+    const filtered = dispatchHistory.filter((d) => {
+      const matchesSearch =
+        !q ||
+        (d.pickupAddress && d.pickupAddress.toLowerCase().includes(q)) ||
+        (d.dropoffAddress && d.dropoffAddress.toLowerCase().includes(q)) ||
+        (d.reference && d.reference.toLowerCase().includes(q)) ||
+        (d.description && d.description.toLowerCase().includes(q)) ||
+        (d.riderName && d.riderName.toLowerCase().includes(q));
+
+      if (!matchesSearch) return false;
+
+      if (historyFilter === 'delivered') return d.status === 'delivered' || d.status === 'completed';
+      if (historyFilter === 'active') return ['in_transit', 'accepted', 'assigned', 'pending', 'picked_up'].includes(d.status);
+      if (historyFilter === 'cancelled') return d.status === 'cancelled';
+      return true;
+    });
+
+    const deliveredCount = dispatchHistory.filter((d) => d.status === 'delivered' || d.status === 'completed').length;
+    const activeCount = dispatchHistory.filter((d) => ['in_transit', 'accepted', 'assigned', 'pending', 'picked_up'].includes(d.status)).length;
+    const cancelledCount = dispatchHistory.filter((d) => d.status === 'cancelled').length;
+
+    return (
+      <div className="space-y-4">
+        {/* Search & Filter Header */}
+        <div className="space-y-2.5">
+          <div className="relative">
+            <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search tracking ref, address, rider..."
+              value={historySearch}
+              onChange={(e) => setHistorySearch(e.target.value)}
+              className="w-full pl-9 pr-8 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-slate-800 placeholder:text-slate-400"
+            />
+            {historySearch && (
+              <button
+                type="button"
+                onClick={() => setHistorySearch('')}
+                className="absolute right-2.5 top-2.5 p-0.5 text-slate-400 hover:text-slate-600 rounded-full cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Filter Pills */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs custom-scrollbar">
+            {[
+              { key: 'all', label: 'All Dispatches', count: dispatchHistory.length },
+              { key: 'active', label: 'In Transit', count: activeCount },
+              { key: 'delivered', label: 'Delivered', count: deliveredCount },
+              { key: 'cancelled', label: 'Cancelled', count: cancelledCount },
+            ].map((pill) => (
+              <button
+                key={pill.key}
+                type="button"
+                onClick={() => setHistoryFilter(pill.key as any)}
+                className={`px-3 py-1 rounded-lg font-medium text-xs whitespace-nowrap transition-colors flex items-center gap-1.5 cursor-pointer ${
+                  historyFilter === pill.key
+                    ? 'bg-orange-600 text-white font-bold shadow-sm'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                <span>{pill.label}</span>
+                <span className={`text-[10px] ${historyFilter === pill.key ? 'text-orange-100' : 'text-slate-400'}`}>
+                  ({pill.count})
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Content */}
+        {loadingHistory ? (
+          <div className="flex flex-col items-center justify-center py-16 space-y-3">
+            <Loader2 className="w-8 h-8 text-orange-600 animate-spin" />
+            <p className="text-xs text-slate-400 font-medium">Loading your dispatch records...</p>
+          </div>
+        ) : dispatchHistory.length === 0 ? (
+          <div className="text-center py-14 px-4 space-y-3 bg-slate-50/60 rounded-2xl border border-dashed border-slate-200">
+            <div className="w-12 h-12 rounded-full bg-orange-50 flex items-center justify-center mx-auto text-orange-600">
+              <Package className="w-6 h-6" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-slate-800">No Dispatches Yet</h4>
+              <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto">
+                Send packages, goods, or documents across the city with SwiftMove.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setMainTab('dispatch')}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
+            >
+              <Package className="w-3.5 h-3.5" />
+              Send a Parcel Now
+            </button>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-10 space-y-2 bg-slate-50 rounded-2xl border border-slate-100">
+            <p className="text-xs text-slate-500">No dispatches match your search or filter.</p>
+            <button
+              type="button"
+              onClick={() => {
+                setHistoryFilter('all');
+                setHistorySearch('');
+              }}
+              className="text-xs font-semibold text-orange-600 hover:underline cursor-pointer"
+            >
+              Clear filters
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filtered.map((item) => {
+              const isDelivered = item.status === 'delivered' || item.status === 'completed';
+              const isLive = ['in_transit', 'accepted', 'assigned', 'picked_up', 'pending'].includes(item.status);
+              const isCancel = item.status === 'cancelled';
+
+              return (
+                <div
+                  key={item.id}
+                  className={`p-4 rounded-2xl bg-white border transition-all shadow-sm space-y-3 ${
+                    isLive ? 'border-orange-300 ring-1 ring-orange-400/30' : 'border-slate-200/90 hover:border-slate-300'
+                  }`}
+                >
+                  {/* Top: Tracking Ref & Status */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-8 h-8 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
+                        <Package className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <span className="text-xs font-bold text-slate-900 truncate block">
+                          {item.packageType || 'Parcel Delivery'}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] font-mono text-slate-400 truncate">
+                            {item.reference}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(item.reference);
+                              toast.success('Tracking reference copied!');
+                            }}
+                            className="text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                            title="Copy tracking code"
+                          >
+                            <Copy className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <span
+                      className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border shrink-0 ${
+                        isDelivered
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : isLive
+                          ? 'bg-orange-50 text-orange-700 border-orange-200 animate-pulse'
+                          : isCancel
+                          ? 'bg-rose-50 text-rose-700 border-rose-200'
+                          : 'bg-amber-50 text-amber-700 border-amber-200'
+                      }`}
+                    >
+                      {item.status.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+                    </span>
+                  </div>
+
+                  {/* Description / Weight */}
+                  {(item.description || item.weightKg) && (
+                    <div className="text-[11px] text-slate-600 bg-amber-50/50 px-2.5 py-1.5 rounded-lg border border-amber-100 flex items-center gap-2">
+                      {item.weightKg ? (
+                        <span className="font-semibold text-slate-700 flex items-center gap-1">
+                          <Weight className="w-3 h-3 text-orange-500" />
+                          {item.weightKg} kg
+                        </span>
+                      ) : null}
+                      {item.description ? (
+                        <span className="truncate text-slate-600">{item.description}</span>
+                      ) : null}
+                    </div>
+                  )}
+
+                  {/* Route (Pickup → Delivery) */}
+                  <div className="space-y-1.5 text-xs text-slate-600 bg-slate-50/70 p-2.5 rounded-xl border border-slate-100">
+                    <div className="flex items-start gap-2">
+                      <div className="w-2 h-2 rounded-full bg-orange-500 mt-1 shrink-0" />
+                      <span className="truncate text-slate-800 font-medium">{item.pickupAddress}</span>
+                    </div>
+                    {item.dropoffAddress && (
+                      <div className="flex items-start gap-2">
+                        <div className="w-2 h-2 rounded-full bg-emerald-600 mt-1 shrink-0" />
+                        <span className="truncate text-slate-700">{item.dropoffAddress}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Rider Info if assigned */}
+                  {item.riderName && (
+                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100 text-[11px]">
+                      <div className="flex items-center gap-1.5 text-slate-700">
+                        <Truck className="w-3.5 h-3.5 text-orange-500" />
+                        <span className="font-semibold">{item.riderName}</span>
+                      </div>
+                      {item.riderPhone && (
+                        <a
+                          href={`tel:${item.riderPhone}`}
+                          className="text-orange-600 hover:text-orange-700 font-medium inline-flex items-center gap-0.5"
+                        >
+                          <PhoneCall className="w-3 h-3" /> Call Rider
+                        </a>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Bottom Row: Date & Fare */}
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+                    <div className="text-[10px] text-slate-400 flex items-center gap-1">
+                      <Calendar className="w-3 h-3" />
+                      {new Date(item.createdAt).toLocaleDateString('en-NG', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-black text-slate-900">
+                        ₦{Number(item.fare).toLocaleString()}
+                      </span>
+
+                      {isLive ? (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              const { data: fullOrder } = await supabase
+                                .from('swift_deliveries')
+                                .select('*')
+                                .eq('id', item.id)
+                                .maybeSingle();
+                              if (fullOrder) {
+                                setActiveOrder(fullOrder);
+                                setPickupText(fullOrder.pickup_address);
+                                setDropoffText(fullOrder.dropoff_address);
+                                const pMatch = resolveJosLocation(fullOrder.pickup_address);
+                                if (pMatch?.lat && pMatch?.lng) {
+                                  setPickup({ address: fullOrder.pickup_address, lat: pMatch.lat, lng: pMatch.lng });
+                                }
+                                const dMatch = resolveJosLocation(fullOrder.dropoff_address);
+                                if (dMatch?.lat && dMatch?.lng) {
+                                  setDropoff({ address: fullOrder.dropoff_address, lat: dMatch.lat, lng: dMatch.lng });
+                                }
+                                setMainTab('dispatch');
+                              }
+                            } catch (err) {
+                              toast.error('Could not load live order.');
+                            }
+                          }}
+                          className="px-2.5 py-1 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-lg text-xs transition-all shadow-sm cursor-pointer"
+                        >
+                          Track Live →
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPickupText(item.pickupAddress);
+                            setDropoffText(item.dropoffAddress);
+                            const pMatch = resolveJosLocation(item.pickupAddress);
+                            if (pMatch?.lat && pMatch?.lng) {
+                              setPickup({ address: item.pickupAddress, lat: pMatch.lat, lng: pMatch.lng });
+                            }
+                            const dMatch = resolveJosLocation(item.dropoffAddress);
+                            if (dMatch?.lat && dMatch?.lng) {
+                              setDropoff({ address: item.dropoffAddress, lat: dMatch.lat, lng: dMatch.lng });
+                            }
+                            if (item.weightKg) setWeightKg(item.weightKg);
+                            if (item.description) setParcelDescription(item.description);
+                            setMainTab('dispatch');
+                            setStep(1);
+                            toast.success('Addresses loaded! Click continue to proceed.');
+                          }}
+                          className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg text-[11px] transition-all flex items-center gap-1 cursor-pointer"
+                          title="Send another parcel with this route"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                          <span>Send Similar</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="relative min-h-dvh bg-slate-100 overflow-hidden flex flex-col md:flex-row">
 
@@ -825,6 +1204,52 @@ function CustomerBookingPage() {
         <div className="bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-[32px] shadow-2xl flex flex-col flex-1 pointer-events-auto overflow-hidden">
           
           <div className="p-6 space-y-6 flex-1 overflow-y-auto custom-scrollbar">
+            {/* Top Tabs: Book Dispatch vs Dispatch History */}
+            {!activeOrder && (
+              <div className="flex rounded-xl bg-slate-100 border border-slate-200 p-1 mb-1">
+                <button
+                  type="button"
+                  onClick={() => setMainTab('dispatch')}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    mainTab === 'dispatch'
+                      ? 'bg-orange-600 text-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Package className="w-4 h-4" />
+                  <span>Send a Parcel</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMainTab('history');
+                    fetchDispatchHistory();
+                  }}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    mainTab === 'history'
+                      ? 'bg-orange-600 text-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <History className="w-4 h-4" />
+                  <span>Dispatch History</span>
+                  {dispatchHistory.length > 0 && (
+                    <span
+                      className={`w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-bold ${
+                        mainTab === 'history' ? 'bg-orange-700 text-white' : 'bg-slate-200 text-slate-700'
+                      }`}
+                    >
+                      {dispatchHistory.length > 9 ? '9+' : dispatchHistory.length}
+                    </span>
+                  )}
+                </button>
+              </div>
+            )}
+
+            {!activeOrder && mainTab === 'history' ? (
+              renderDispatchHistory()
+            ) : (
+              <>
             {/* Header */}
             {!activeOrder ? (
               <div className="space-y-4">
@@ -1282,6 +1707,8 @@ function CustomerBookingPage() {
                   )}
                 </div>
               </div>
+            )}
+              </>
             )}
           </div>
         </div>

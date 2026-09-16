@@ -661,13 +661,13 @@ function DriverDashboard() {
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-sm space-y-4">
           <div className="flex justify-between items-center">
             <div className="text-left">
-              <span className="text-slate-400 text-sm block">Your Payout ({DRIVER_PAYOUT_PERCENT}%)</span>
-              <span className="text-[11px] text-slate-500">
-                Customer Fare: ₦{completedJob.estimated_price?.toLocaleString()}
+              <span className="text-slate-400 text-sm block">Total Passenger Fare</span>
+              <span className="text-[11px] text-emerald-400 font-semibold">
+                Your payout ({DRIVER_PAYOUT_PERCENT}%): ₦{calculateDriverEarnings(completedJob.estimated_price || 0).toLocaleString()}
               </span>
             </div>
-            <span className="text-2xl font-black text-emerald-400">
-              ₦{calculateDriverEarnings(completedJob.estimated_price || 0).toLocaleString()}
+            <span className="text-2xl font-black text-white">
+              ₦{completedJob.estimated_price?.toLocaleString()}
             </span>
           </div>
           <div className="flex justify-between items-center">
@@ -767,14 +767,14 @@ function DriverDashboard() {
             </div>
           </div>
           <div className="text-right">
-            <p className="text-emerald-400 text-[10px] uppercase font-bold tracking-wider">
-              Your Share ({DRIVER_PAYOUT_PERCENT}%)
+            <p className="text-white/60 text-[10px] uppercase font-bold tracking-wider">
+              Passenger Fare
             </p>
             <p className="font-black text-white text-xl">
-              ₦{calculateDriverEarnings(currentActiveJob.estimated_price || 0).toLocaleString()}
+              ₦{currentActiveJob.estimated_price?.toLocaleString()}
             </p>
-            <p className="text-[10px] text-white/60">
-              Fare: ₦{currentActiveJob.estimated_price?.toLocaleString()}
+            <p className="text-[10px] text-emerald-400 font-semibold">
+              Your cut ({DRIVER_PAYOUT_PERCENT}%): ₦{calculateDriverEarnings(currentActiveJob.estimated_price || 0).toLocaleString()}
             </p>
           </div>
         </div>
@@ -1143,18 +1143,20 @@ function DriverDashboard() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <span className="text-[10px] uppercase font-bold text-emerald-400 block tracking-wider">
-                          You Earn ({DRIVER_PAYOUT_PERCENT}%)
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                          Passenger Fare
                         </span>
                         <p className="text-2xl font-black text-white">
-                          ₦{calculateDriverEarnings(Number(job.estimated_price)).toLocaleString()}
+                          ₦{Number(job.estimated_price).toLocaleString()}
                         </p>
-                        <div className="flex items-center justify-end gap-1.5 text-xs text-slate-400">
-                          <span>Fare: ₦{Number(job.estimated_price).toLocaleString()}</span>
+                        <div className="flex items-center justify-end gap-1.5 text-xs">
+                          <span className="text-emerald-400 font-semibold">
+                            Your cut ({DRIVER_PAYOUT_PERCENT}%): ₦{calculateDriverEarnings(Number(job.estimated_price)).toLocaleString()}
+                          </span>
                           {job.distance_km && (
                             <>
-                              <span>•</span>
-                              <span>{job.distance_km} km</span>
+                              <span className="text-slate-500">•</span>
+                              <span className="text-slate-400">{job.distance_km} km</span>
                             </>
                           )}
                         </div>
