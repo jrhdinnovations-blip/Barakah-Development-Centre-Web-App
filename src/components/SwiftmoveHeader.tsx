@@ -1,7 +1,8 @@
 import { Link, useNavigate } from '@tanstack/react-router';
-import { Truck, ArrowLeft, LogOut, Radio, Shield } from 'lucide-react';
+import { ArrowLeft, LogOut, Radio, Shield } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { isSwiftmoveDomain } from '@/lib/domain-detection';
+import { SwiftmoveLogo } from '@/components/SwiftmoveLogo';
 
 export function SwiftmoveHeader() {
   const { user, role, logout } = useAuth();
@@ -35,15 +36,7 @@ export function SwiftmoveHeader() {
       </div>
 
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        <Link to={homePath as any} className="flex items-center gap-2.5 group" title="SwiftMove Home">
-          <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-md shadow-orange-500/20 group-hover:scale-105 transition-transform">
-            <Truck className="h-5 w-5 text-white" />
-          </div>
-          <div>
-            <span className="text-lg font-black text-slate-900 tracking-tight leading-tight block">SwiftMove</span>
-            <span className="text-xs text-orange-600 font-bold block -mt-1">Logistics &amp; Rides</span>
-          </div>
-        </Link>
+        <SwiftmoveLogo />
         
         {/* Customer & Role-Specific Navigation */}
         <nav className="flex items-center gap-3 sm:gap-6">

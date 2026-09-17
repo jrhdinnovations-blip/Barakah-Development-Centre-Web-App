@@ -6,9 +6,10 @@ import {
   Bike, Globe2, HeartHandshake, Car, UserCheck,
   Radio, Shield, LogOut, Search, X, Loader2,
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { isSwiftmoveDomain } from '@/lib/domain-detection';
+import { SwiftmoveLogo } from '@/components/SwiftmoveLogo';
 
 export const Route = createFileRoute('/swiftmove')({
   head: () => ({
@@ -152,15 +153,7 @@ export function SwiftMoveLanding() {
       {/* ── Navbar ─────────────────────────────────────────────────── */}
       <nav className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <Link to={homePath as any} className="flex items-center gap-3 group">
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-400 flex items-center justify-center shadow-md shadow-orange-500/20 group-hover:scale-105 transition-transform">
-              <Truck className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <span className="text-lg font-black text-slate-900 tracking-tight">SwiftMove</span>
-              <span className="text-xs text-orange-600 font-bold block -mt-1">Logistics &amp; Rides</span>
-            </div>
-          </Link>
+          <SwiftmoveLogo />
 
           {/* Quick service navigation */}
           <div className="hidden md:flex items-center gap-6 text-sm text-slate-600">
@@ -271,6 +264,11 @@ export function SwiftMoveLanding() {
         </div>
 
         <div className="relative max-w-6xl mx-auto text-center w-full">
+          {/* Official SwiftMove Brand Emblem */}
+          <div className="flex justify-center mb-6">
+            <SwiftmoveLogo variant="hero" />
+          </div>
+
           {/* Status / Welcome Badge */}
           {user ? (
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-emerald-200 bg-emerald-50 text-xs font-semibold text-emerald-800 mb-6 backdrop-blur shadow-sm">
