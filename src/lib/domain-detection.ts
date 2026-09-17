@@ -10,19 +10,41 @@
 
 export function isSwiftmoveDomain(): boolean {
   // 1. Environment variable override (build-time & runtime)
-  const envMode = (import.meta.env.VITE_APP_MODE || import.meta.env.VITE_SWIFTMOVE_ONLY || "").toLowerCase();
-  if (envMode === "swiftmove" || envMode === "true") {
+  const envMode = (
+    import.meta.env.VITE_APP_MODE ||
+    import.meta.env.VITE_SWIFTMOVE_ONLY ||
+    ""
+  ).toLowerCase();
+  if (envMode === "swiftmove" || envMode === "true" || envMode === "standalone") {
     return true;
   }
 
-  // 2. Client-side hostname & query detection
+  // 2. Explicit custom domains configured in env (e.g. "swiftmove.ng,swiftmovelogistics.com,swiftmove.app")
+  const customDomains = (
+    import.meta.env.VITE_SWIFTMOVE_CUSTOM_DOMAINS ||
+    import.meta.env.VITE_SWIFTMOVE_DOMAIN ||
+    ""
+  )
+    .toLowerCase()
+    .split(",")
+    .map((d: string) => d.trim())
+    .filter(Boolean);
+
+  // 3. Client-side hostname & query detection
   if (typeof window !== "undefined") {
     const host = window.location.hostname.toLowerCase();
+
+    // Check custom domains list
+    if (customDomains.some((d: string) => host === d || host.endsWith(`.${d}`))) {
+      return true;
+    }
+
+    // Default match: any hostname containing "swiftmove"
     if (host.includes("swiftmove")) {
       return true;
     }
 
-    // URL override for testing: ?mode=swiftmove or ?mode=barakah
+    // URL override for testing/preview: ?mode=swiftmove or ?mode=barakah
     try {
       const search = window.location.search;
       if (search) {

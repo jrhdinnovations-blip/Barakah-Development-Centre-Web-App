@@ -6,6 +6,7 @@ import {
   Radio, Shield, LogOut,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
+import { isSwiftmoveDomain } from '@/lib/domain-detection';
 
 export const Route = createFileRoute('/swiftmove')({
   head: () => ({
@@ -83,12 +84,14 @@ export function SwiftMoveLanding() {
   const isDriver = role === 'driver' || role === 'dispatch_rider';
   const isDispatcher = role === 'swift_dispatcher' || role === 'dispatcher';
   const isAdmin = role === 'administrator' || role === 'admin' || role === 'swift_manager';
+  const isSwiftDomain = isSwiftmoveDomain();
+  const homePath = isSwiftDomain ? '/' : '/swiftmove';
 
   const userDisplayName = (user?.user_metadata as Record<string, any> | undefined)?.['full_name'] || user?.email?.split('@')[0] || 'Customer';
 
   async function handleSignOut() {
     await logout();
-    navigate({ to: '/swiftmove' });
+    navigate({ to: homePath as any });
   }
 
   return (
@@ -97,7 +100,7 @@ export function SwiftMoveLanding() {
       {/* ── Navbar ─────────────────────────────────────────────────── */}
       <nav className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <Link to="/swiftmove" className="flex items-center gap-3 group">
+          <Link to={homePath as any} className="flex items-center gap-3 group">
             <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-400 flex items-center justify-center shadow-md shadow-orange-500/20 group-hover:scale-105 transition-transform">
               <Truck className="h-5 w-5 text-white" />
             </div>

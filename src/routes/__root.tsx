@@ -242,7 +242,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         },
 
         // --- PWA MANIFEST ---
-        { rel: "manifest", href: "/manifest.json?v=3" },
+        { rel: "manifest", href: isSwift ? "/manifest-swiftmove.json?v=1" : "/manifest.json?v=3" },
       ],
     };
   },

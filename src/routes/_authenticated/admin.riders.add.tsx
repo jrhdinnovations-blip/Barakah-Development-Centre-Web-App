@@ -156,8 +156,9 @@ function AddRiderPage() {
   };
 
   const handleCopyCredentials = () => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://barakahdevcentre.com';
     const text = [
-      '=== Barakah Fleet Personnel Account ===',
+      '=== Fleet Personnel Account ===',
       `Name: ${form.full_name}`,
       `Category: ${form.category === 'dispatch_rider' ? 'Dispatch Rider' : 'Vehicle Driver'}`,
       `Email: ${form.email}`,
@@ -165,7 +166,7 @@ function AddRiderPage() {
       `Password: ${form.password}`,
       `Vehicle: ${form.vehicle_color} ${form.vehicle_make} (${form.vehicle_type})`,
       `Plate: ${form.plate_number || 'N/A'}`,
-      `Login: https://barakahdevcentre.com/auth`,
+      `Login: ${origin}/auth`,
       '======================================',
     ].join('\n');
     navigator.clipboard.writeText(text);

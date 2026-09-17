@@ -156,13 +156,14 @@ function CreateUserPage() {
   };
 
   const handleCopyCredentials = () => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://barakahdevcentre.com';
     const text = [
-      '=== Barakah Platform Account ===',
+      '=== Platform Account ===',
       `Name: ${form.full_name || '—'}`,
       `Email: ${form.email}`,
       `Role: ${selectedRole.label}`,
       `Password: ${form.password}`,
-      `Login: https://barakahdevcentre.com/auth`,
+      `Login: ${origin}/auth`,
       '================================',
     ].join('\n');
     navigator.clipboard.writeText(text);

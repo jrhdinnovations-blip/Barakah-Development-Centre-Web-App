@@ -1,6 +1,7 @@
 import { Link, useNavigate } from '@tanstack/react-router';
 import { Truck, ArrowLeft, LogOut, Radio, Shield } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
+import { isSwiftmoveDomain } from '@/lib/domain-detection';
 
 export function SwiftmoveHeader() {
   const { user, role, logout } = useAuth();
@@ -9,6 +10,8 @@ export function SwiftmoveHeader() {
   const isDriver = role === 'driver' || role === 'dispatch_rider';
   const isDispatcher = role === 'swift_dispatcher' || role === 'dispatcher';
   const isAdmin = role === 'administrator' || role === 'admin' || role === 'swift_manager';
+  const isSwiftDomain = isSwiftmoveDomain();
+  const homePath = isSwiftDomain ? '/' : '/swiftmove';
 
   async function handleSignOut() {
     await logout();
@@ -17,7 +20,7 @@ export function SwiftmoveHeader() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-slate-200/80 bg-white/95 backdrop-blur-xl text-slate-800 shadow-sm">
-      {/* Top Bar linking back to parent ecosystem */}
+      {/* Top Bar */}
       <div className="bg-slate-50 border-b border-slate-200/70 px-4 py-1 text-xs text-slate-500">
         <div className="container mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -32,7 +35,7 @@ export function SwiftmoveHeader() {
       </div>
 
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        <Link to="/swiftmove" className="flex items-center gap-2.5 group" title="SwiftMove Home">
+        <Link to={homePath as any} className="flex items-center gap-2.5 group" title="SwiftMove Home">
           <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-md shadow-orange-500/20 group-hover:scale-105 transition-transform">
             <Truck className="h-5 w-5 text-white" />
           </div>
