@@ -124,6 +124,59 @@ function CustomerBookingPage() {
   // We store customer phone separately for the customer to share if needed
   const [customerOwnPhone, setCustomerOwnPhone] = useState<string | null>(null);
 
+  // Parcel tracking state
+  const [trackingInput, setTrackingInput] = useState('');
+  const [trackingResult, setTrackingResult] = useState<any>(null);
+  const [trackingLoading, setTrackingLoading] = useState(false);
+  const [trackingError, setTrackingError] = useState('');
+  const [showTrackingPanel, setShowTrackingPanel] = useState(false);
+
+  const handleTrackParcel = useCallback(async (inputRef?: string) => {
+    const query = (inputRef ?? trackingInput).trim();
+    if (!query) {
+      setTrackingError('Please enter a tracking ID or reference number.');
+      return;
+    }
+    setTrackingLoading(true);
+    setTrackingError('');
+    setTrackingResult(null);
+
+    try {
+      // Search by payment_reference (tracking ID) or partial order ID
+      const { data: byRef, error: refErr } = await supabase
+        .from('swift_deliveries')
+        .select('*')
+        .or(`payment_reference.eq.${query},id.eq.${query}`)
+        .maybeSingle();
+
+      if (byRef) {
+        setTrackingResult(byRef);
+        setShowTrackingPanel(true);
+        return;
+      }
+
+      // Fallback: partial match on payment_reference using ilike
+      const { data: byPartial } = await supabase
+        .from('swift_deliveries')
+        .select('*')
+        .ilike('payment_reference', `%${query}%`)
+        .limit(1)
+        .maybeSingle();
+
+      if (byPartial) {
+        setTrackingResult(byPartial);
+        setShowTrackingPanel(true);
+        return;
+      }
+
+      setTrackingError('No parcel found with that tracking ID. Please check and try again.');
+    } catch (err: any) {
+      setTrackingError('Tracking lookup failed. Please try again.');
+    } finally {
+      setTrackingLoading(false);
+    }
+  }, [trackingInput]);
+
   // Fetch the logged-in user's own phone once on mount
   useEffect(() => {
     if (!user?.id) return;
@@ -1278,6 +1331,210 @@ function CustomerBookingPage() {
                       {idx < 2 && <div className={`flex-1 h-[2px] rounded-full transition-all ${step > n ? 'bg-emerald-500' : 'bg-slate-200'}`} />}
                     </div>
                   ))}
+                </div>
+
+                {/* ─── Parcel Tracking Widget ─── */}
+                <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200 rounded-2xl p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-xl bg-blue-600 flex items-center justify-center shrink-0">
+                      <Search className="w-3.5 h-3.5 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-black text-slate-800">Track a Parcel</p>
+                      <p className="text-[10px] text-slate-500">Enter your tracking ID or reference number</p>
+                    </div>
+                  </div>
+
+                  <form
+                    onSubmit={(e) => { e.preventDefault(); handleTrackParcel(); }}
+                    className="flex gap-2"
+                  >
+                    <div className="relative flex-1">
+                      <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                      <input
+                        type="text"
+                        id="parcel-tracking-input"
+                        placeholder="e.g. TRK-A1B2C3D4 or SWF-…"
+                        value={trackingInput}
+                        onChange={(e) => {
+                          setTrackingInput(e.target.value);
+                          setTrackingError('');
+                        }}
+                        className="w-full pl-9 pr-8 py-2.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-800 placeholder:text-slate-400 font-medium"
+                      />
+                      {trackingInput && (
+                        <button
+                          type="button"
+                          onClick={() => { setTrackingInput(''); setTrackingResult(null); setTrackingError(''); setShowTrackingPanel(false); }}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 rounded-full cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={trackingLoading || !trackingInput.trim()}
+                      className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
+                    >
+                      {trackingLoading ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Search className="w-3.5 h-3.5" />
+                      )}
+                      <span>Track</span>
+                    </button>
+                  </form>
+
+                  {/* Error */}
+                  {trackingError && !trackingLoading && (
+                    <p className="text-xs text-red-600 font-medium flex items-center gap-1.5">
+                      <X className="w-3.5 h-3.5" /> {trackingError}
+                    </p>
+                  )}
+
+                  {/* Tracking Result Card */}
+                  {showTrackingPanel && trackingResult && (() => {
+                    const st = trackingResult.status || 'pending';
+                    const steps = [
+                      { key: 'pending', label: 'Order Placed', icon: '📦' },
+                      { key: 'accepted', label: 'Rider Accepted', icon: '✅' },
+                      { key: 'picked_up', label: 'Picked Up', icon: '🚀' },
+                      { key: 'in_transit', label: 'In Transit', icon: '🏍️' },
+                      { key: 'delivered', label: 'Delivered', icon: '🎉' },
+                    ];
+                    const cancelled = st === 'cancelled';
+                    const statusOrder = ['pending','accepted','picked_up','in_transit','delivered'];
+                    const currentIdx = statusOrder.indexOf(st === 'completed' ? 'delivered' : st);
+                    const meta = parseOrderMetadata(trackingResult.package_type);
+
+                    const statusColors: Record<string, string> = {
+                      pending: 'text-amber-600 bg-amber-50 border-amber-200',
+                      accepted: 'text-blue-600 bg-blue-50 border-blue-200',
+                      picked_up: 'text-indigo-600 bg-indigo-50 border-indigo-200',
+                      in_transit: 'text-orange-600 bg-orange-50 border-orange-200',
+                      delivered: 'text-emerald-600 bg-emerald-50 border-emerald-200',
+                      completed: 'text-emerald-600 bg-emerald-50 border-emerald-200',
+                      cancelled: 'text-red-600 bg-red-50 border-red-200',
+                      assigned: 'text-blue-600 bg-blue-50 border-blue-200',
+                    };
+
+                    return (
+                      <div className="bg-white border border-blue-100 rounded-2xl overflow-hidden shadow-sm animate-in slide-in-from-top-2 duration-300">
+                        {/* Result header */}
+                        <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-slate-100">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-lg bg-slate-900 flex items-center justify-center">
+                              <Truck className="w-3.5 h-3.5 text-white" />
+                            </div>
+                            <div>
+                              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Tracking Result</p>
+                              <p className="text-xs font-black text-slate-900 font-mono">
+                                {trackingResult.payment_reference || `ORD-${trackingResult.id?.slice(0,8)}`}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[10px] font-bold px-2 py-1 rounded-lg border capitalize ${statusColors[st] || 'text-slate-600 bg-slate-50 border-slate-200'}`}>
+                              {cancelled ? '✗ Cancelled' : st.replace('_',' ')}
+                            </span>
+                            <button type="button" onClick={() => setShowTrackingPanel(false)} className="p-1 text-slate-400 hover:text-slate-700 rounded-full cursor-pointer">
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="px-4 pb-4 pt-3 space-y-3">
+                          {/* Route */}
+                          <div className="text-xs space-y-1.5">
+                            <div className="flex items-start gap-2">
+                              <div className="w-2 h-2 rounded-full bg-emerald-500 mt-1 shrink-0" />
+                              <div>
+                                <span className="text-slate-400 font-semibold">From: </span>
+                                <span className="text-slate-800 font-semibold">{trackingResult.pickup_address || 'Pickup location'}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-start gap-2">
+                              <div className="w-2 h-2 rounded-full bg-rose-500 mt-1 shrink-0" />
+                              <div>
+                                <span className="text-slate-400 font-semibold">To: </span>
+                                <span className="text-slate-800 font-semibold">{trackingResult.dropoff_address || 'Dropoff location'}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Parcel info */}
+                          <div className="flex items-center gap-3 text-[10px] text-slate-500">
+                            {trackingResult.weight_kg && (
+                              <span className="flex items-center gap-1">⚖️ {trackingResult.weight_kg}kg</span>
+                            )}
+                            {trackingResult.distance_km && (
+                              <span className="flex items-center gap-1">📍 {trackingResult.distance_km}km</span>
+                            )}
+                            {trackingResult.estimated_price && (
+                              <span className="flex items-center gap-1 font-bold text-slate-700">₦{Number(trackingResult.estimated_price).toLocaleString()}</span>
+                            )}
+                            <span className="ml-auto text-[9px] text-slate-400">
+                              {new Date(trackingResult.created_at).toLocaleDateString('en-NG', { day:'numeric', month:'short', year:'numeric' })}
+                            </span>
+                          </div>
+
+                          {/* Progress timeline (hidden if cancelled) */}
+                          {!cancelled && (
+                            <div className="flex items-center gap-1 pt-1">
+                              {steps.map((s, i) => {
+                                const done = i <= currentIdx;
+                                const active = i === currentIdx;
+                                return (
+                                  <div key={s.key} className="flex items-center gap-1 flex-1 last:flex-none">
+                                    <div className="flex flex-col items-center gap-0.5">
+                                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-sm transition-all ${active ? 'bg-orange-500 shadow-md shadow-orange-200 scale-110' : done ? 'bg-emerald-500' : 'bg-slate-200'}`}>
+                                        {done ? (active ? <span className="text-[11px]">{s.icon}</span> : '✓') : ''}
+                                        {!done && <span className="text-[9px] font-bold text-slate-400">{i+1}</span>}
+                                      </div>
+                                      <span className={`text-[8px] font-bold text-center leading-tight w-10 ${active ? 'text-orange-600' : done ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                        {s.label}
+                                      </span>
+                                    </div>
+                                    {i < steps.length - 1 && (
+                                      <div className={`flex-1 h-0.5 rounded-full mb-3.5 ${i < currentIdx ? 'bg-emerald-400' : 'bg-slate-200'}`} />
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {/* Rider Info if assigned */}
+                          {meta.driverName && (
+                            <div className="flex items-center gap-2.5 p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+                              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-xs font-black text-white shrink-0">
+                                {meta.driverName.charAt(0)}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-bold text-slate-800 truncate">{meta.driverName}</p>
+                                <p className="text-[10px] text-slate-500">SwiftMove Rider</p>
+                              </div>
+                              {meta.driverPhone && (
+                                <a href={`tel:${meta.driverPhone}`} className="flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold transition-all">
+                                  <PhoneCall className="w-3 h-3" />
+                                  Call
+                                </a>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Delivered confirmation */}
+                          {(st === 'delivered' || st === 'completed') && (
+                            <div className="flex items-center gap-2 p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-700 font-semibold">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                              Your parcel has been successfully delivered! 🎉
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             ) : (
