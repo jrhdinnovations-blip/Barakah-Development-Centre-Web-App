@@ -1,10 +1,12 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
+import React, { useState } from 'react';
 import {
   Truck, Package, MapPin, Clock, ShieldCheck, Zap,
   ArrowRight, Star, PhoneCall, CheckCircle2, Navigation,
-  Bike, Globe2, HeartHandshake, Car, History, UserCheck,
-  Radio, Shield, LogOut,
+  Bike, Globe2, HeartHandshake, Car, UserCheck,
+  Radio, Shield, LogOut, Search, X, Loader2,
 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/use-auth';
 import { isSwiftmoveDomain } from '@/lib/domain-detection';
 
@@ -89,6 +91,56 @@ export function SwiftMoveLanding() {
 
   const userDisplayName = (user?.user_metadata as Record<string, any> | undefined)?.['full_name'] || user?.email?.split('@')[0] || 'Customer';
 
+  // ── Track Your Order state ──────────────────────────────────────────
+  const [trackingCode, setTrackingCode] = useState('');
+  const [trackingResult, setTrackingResult] = useState<{
+    status: string;
+    description: string;
+    pickup: string;
+    dropoff: string;
+  } | null>(null);
+  const [trackingError, setTrackingError] = useState('');
+  const [trackingLoading, setTrackingLoading] = useState(false);
+
+  async function handleTrackOrder(e: React.FormEvent) {
+    e.preventDefault();
+    if (!trackingCode.trim()) return;
+    setTrackingLoading(true);
+    setTrackingError('');
+    setTrackingResult(null);
+    try {
+      const { data, error } = await supabase
+        .from('swift_deliveries')
+        .select('status, description, package_type, pickup_address, dropoff_address')
+        .eq('tracking_code', trackingCode.trim().toUpperCase())
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) {
+        setTrackingError('No order found with that tracking code. Please check and try again.');
+      } else {
+        setTrackingResult({
+          status: data.status,
+          description: data.description || data.package_type || 'Package',
+          pickup: data.pickup_address,
+          dropoff: data.dropoff_address,
+        });
+      }
+    } catch {
+      setTrackingError('Something went wrong. Please try again.');
+    } finally {
+      setTrackingLoading(false);
+    }
+  }
+
+  const statusColors: Record<string, string> = {
+    pending: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+    assigned: 'bg-blue-100 text-blue-800 border-blue-300',
+    picked_up: 'bg-indigo-100 text-indigo-800 border-indigo-300',
+    in_transit: 'bg-orange-100 text-orange-800 border-orange-300',
+    delivered: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+    cancelled: 'bg-red-100 text-red-800 border-red-300',
+  };
+
   async function handleSignOut() {
     await logout();
     navigate({ to: homePath as any });
@@ -130,15 +182,7 @@ export function SwiftMoveLanding() {
                 Request a Ride
               </Link>
             )}
-            {user ? (
-              <Link to="/history" className="hover:text-emerald-600 font-medium transition-colors">
-                History
-              </Link>
-            ) : (
-              <Link to="/auth" search={{ redirect: "/history", mode: "login" }} className="hover:text-emerald-600 font-medium transition-colors">
-                History
-              </Link>
-            )}
+            <a href="#track-order" className="hover:text-emerald-600 font-medium transition-colors">Track Order</a>
             <a href="#services" className="text-slate-500 hover:text-slate-900 transition-colors">Services</a>
             <a href="#how-it-works" className="text-slate-500 hover:text-slate-900 transition-colors">How It Works</a>
           </div>
@@ -383,69 +427,88 @@ export function SwiftMoveLanding() {
               </Link>
             )}
 
-            {/* Action 3: History & Tracking */}
-            {user ? (
-              <Link
-                to="/history"
-                className="group relative flex flex-col justify-between p-6 sm:p-8 rounded-3xl border border-emerald-200/90 bg-white hover:border-emerald-400 shadow-xl shadow-emerald-500/5 hover:shadow-emerald-500/15 hover:-translate-y-1.5 transition-all duration-300"
-              >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-full blur-2xl pointer-events-none -mr-8 -mt-8 group-hover:bg-emerald-100 transition-all" />
-                <div>
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/25 group-hover:scale-110 transition-transform">
-                      <History className="h-7 w-7" />
-                    </div>
-                    <span className="px-3 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-emerald-50 border border-emerald-200 text-emerald-700">
-                      Records
-                    </span>
+            {/* Action 3: Track Your Order (no login required) */}
+            <div
+              id="track-order"
+              className="group relative flex flex-col justify-between p-6 sm:p-8 rounded-3xl border border-emerald-200/90 bg-white shadow-xl shadow-emerald-500/5 transition-all duration-300"
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-full blur-2xl pointer-events-none -mr-8 -mt-8" />
+              <div>
+                <div className="flex items-center justify-between mb-6">
+                  <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/25">
+                    <Navigation className="h-7 w-7" />
                   </div>
-                  <h3 className="text-2xl font-black text-slate-900 mb-2 group-hover:text-emerald-600 transition-colors flex items-center gap-2">
-                    Trip &amp; Order History
-                    <ArrowRight className="h-5 w-5 text-emerald-500 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-                  </h3>
-                  <p className="text-sm text-slate-600 leading-relaxed mb-6">
-                    Track your active packages in real time, view past delivery receipts, download PDF receipts, and review trips.
-                  </p>
-                </div>
-                <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-sm font-bold text-emerald-600 group-hover:text-emerald-700">
-                  <span>View My History</span>
-                  <span className="h-8 w-8 rounded-full bg-emerald-50 flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition-all">
-                    <ArrowRight className="h-4 w-4" />
+                  <span className="px-3 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-emerald-50 border border-emerald-200 text-emerald-700">
+                    No Login Needed
                   </span>
                 </div>
-              </Link>
-            ) : (
-              <Link
-                to="/auth"
-                search={{ redirect: "/history", mode: "login" }}
-                className="group relative flex flex-col justify-between p-6 sm:p-8 rounded-3xl border border-emerald-200/90 bg-white hover:border-emerald-400 shadow-xl shadow-emerald-500/5 hover:shadow-emerald-500/15 hover:-translate-y-1.5 transition-all duration-300"
-              >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-full blur-2xl pointer-events-none -mr-8 -mt-8 group-hover:bg-emerald-100 transition-all" />
-                <div>
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/25 group-hover:scale-110 transition-transform">
-                      <History className="h-7 w-7" />
-                    </div>
-                    <span className="px-3 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-emerald-50 border border-emerald-200 text-emerald-700">
-                      Records
-                    </span>
+                <h3 className="text-2xl font-black text-slate-900 mb-2">
+                  Track Your Order
+                </h3>
+                <p className="text-sm text-slate-600 leading-relaxed mb-4">
+                  Enter your tracking code to see live status, pickup, and delivery info — no account required.
+                </p>
+
+                {/* Tracking input */}
+                <form onSubmit={handleTrackOrder} className="flex gap-2 mb-4">
+                  <input
+                    type="text"
+                    value={trackingCode}
+                    onChange={e => setTrackingCode(e.target.value)}
+                    placeholder="e.g. SMV-20240917-ABCD"
+                    className="flex-1 px-4 py-2.5 text-sm rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent placeholder:text-slate-400 font-mono"
+                  />
+                  <button
+                    type="submit"
+                    disabled={trackingLoading || !trackingCode.trim()}
+                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 text-white text-sm font-bold shadow-md shadow-emerald-500/20 hover:shadow-emerald-500/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {trackingLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                    Track
+                  </button>
+                </form>
+
+                {/* Error state */}
+                {trackingError && (
+                  <div className="flex items-start gap-2 p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
+                    <X className="h-4 w-4 mt-0.5 shrink-0" />
+                    {trackingError}
                   </div>
-                  <h3 className="text-2xl font-black text-slate-900 mb-2 group-hover:text-emerald-600 transition-colors flex items-center gap-2">
-                    Trip &amp; Order History
-                    <ArrowRight className="h-5 w-5 text-emerald-500 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-                  </h3>
-                  <p className="text-sm text-slate-600 leading-relaxed mb-6">
-                    Track your active packages in real time, view past delivery receipts, download PDF receipts, and review trips.
-                  </p>
-                </div>
-                <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-sm font-bold text-emerald-600 group-hover:text-emerald-700">
-                  <span>View My History</span>
-                  <span className="h-8 w-8 rounded-full bg-emerald-50 flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition-all">
-                    <ArrowRight className="h-4 w-4" />
-                  </span>
-                </div>
-              </Link>
-            )}
+                )}
+
+                {/* Result state */}
+                {trackingResult && (
+                  <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Status</span>
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold border capitalize ${statusColors[trackingResult.status] || 'bg-slate-100 text-slate-700 border-slate-300'}`}>
+                        {trackingResult.status.replace('_', ' ')}
+                      </span>
+                    </div>
+                    <div className="text-sm text-slate-700">
+                      <span className="font-semibold">Item:</span> {trackingResult.description}
+                    </div>
+                    <div className="text-sm text-slate-700">
+                      <span className="font-semibold">From:</span> {trackingResult.pickup}
+                    </div>
+                    <div className="text-sm text-slate-700">
+                      <span className="font-semibold">To:</span> {trackingResult.dropoff}
+                    </div>
+                    {trackingResult.rider_name && (
+                      <div className="text-sm text-slate-700">
+                        <span className="font-semibold">Rider:</span> {trackingResult.rider_name}
+                      </div>
+                    )}
+                    <button
+                      onClick={() => { setTrackingResult(null); setTrackingCode(''); }}
+                      className="mt-1 text-xs text-emerald-700 hover:underline font-medium"
+                    >
+                      Track another order
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
 
           </div>
 
