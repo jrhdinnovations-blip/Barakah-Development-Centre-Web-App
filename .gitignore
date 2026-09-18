@@ -36,3 +36,7 @@ dist-ssr
 .env.local
 .env.*.local
 
+# Scratch and local build logs
+scratch/
+build_output.log
+

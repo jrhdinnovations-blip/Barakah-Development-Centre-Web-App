@@ -129,7 +129,7 @@ export function parseOrderMetadata(packageType?: string | null): ParsedOrderMeta
     isDispatch,
     tierId: tierVal,
     tier: tierVal,
-    tierName: tierName || (isRide ? 'Swift Go' : 'Parcel Delivery'),
+    tierName: tierName || (isRide ? 'SwiftMove Regular' : 'Parcel Delivery'),
     seats: seatsStr ? parseInt(seatsStr, 10) : (isRide ? 4 : undefined),
     safetyPin: pinVal,
     pin: pinVal,

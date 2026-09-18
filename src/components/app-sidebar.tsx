@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
+import { isSwiftmoveDomain } from "@/lib/domain-detection";
 import { Button } from "@/components/ui/button";
 import {
     Accordion,
@@ -346,6 +347,7 @@ export function AppSidebar({ className = "" }: SidebarProps) {
     const logout = auth?.logout || auth?.signOut;
     const role = auth?.role ?? "registered_user";
     const config = getRoleConfig(role, user);
+    const isSwift = isSwiftmoveDomain();
 
     const displayName =
         user?.user_metadata?.full_name || user?.email || "User";
@@ -365,25 +367,33 @@ export function AppSidebar({ className = "" }: SidebarProps) {
             {/* ═══ SCROLLABLE BODY ═══ */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
 
-                {/* Brand logo */}
+                {/* Brand logo — switches between SwiftMove and Barakah depending on domain */}
                 <Link
                     to="/"
                     className="flex items-center gap-3 hover:opacity-80 transition-opacity group"
-                    title="Return to Home Page"
+                    title={isSwift ? "SwiftMove Home" : "Return to Home Page"}
                 >
-                    <div className="h-10 w-10 shrink-0 rounded-full overflow-hidden ring-2 ring-amber-500/40 shadow-lg shadow-amber-950/30 group-hover:scale-105 transition-transform bg-white">
+                    <div className={`h-10 w-10 shrink-0 rounded-full overflow-hidden shadow-lg group-hover:scale-105 transition-transform bg-white ${
+                        isSwift
+                            ? "ring-2 ring-orange-500/50 shadow-orange-950/30"
+                            : "ring-2 ring-amber-500/40 shadow-amber-950/30"
+                    }`}>
                         <img
-                            src="/barakah-centre-logo.png"
-                            alt="Barakah Development Centre Logo"
+                            src={isSwift ? "/swiftmove-logo.jpg" : "/barakah-centre-logo.png"}
+                            alt={isSwift ? "SwiftMove Logo" : "Barakah Development Centre Logo"}
                             className="h-full w-full object-cover"
                         />
                     </div>
                     <div>
-                        <h2 className="text-base font-black text-white tracking-tight leading-none">
-                            BARAKAH
+                        <h2 className={`text-base font-black tracking-tight leading-none ${
+                            isSwift ? "text-orange-400" : "text-white"
+                        }`}>
+                            {isSwift ? "SwiftMove" : "BARAKAH"}
                         </h2>
-                        <p className="text-[9px] font-semibold text-emerald-400 mt-1 tracking-wider uppercase">
-                            Development Centre
+                        <p className={`text-[9px] font-semibold mt-1 tracking-wider uppercase ${
+                            isSwift ? "text-orange-300/70" : "text-emerald-400"
+                        }`}>
+                            {isSwift ? "Logistics & Ride Hailing" : "Development Centre"}
                         </p>
                     </div>
                 </Link>

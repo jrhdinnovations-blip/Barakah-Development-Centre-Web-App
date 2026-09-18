@@ -24,6 +24,7 @@ import { registerServiceWorker } from "@/pwa-register";
 import { ORG } from "@/lib/site";
 import { isSwiftmoveDomain } from "@/lib/domain-detection";
 import { isChunkLoadError, autoRecoverChunkError } from "@/lib/chunk-error-handler";
+import { initNativeMobile } from "@/lib/native-mobile";
 
 function NotFoundComponent() {
   return (
@@ -196,8 +197,16 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
-  head: () => {
-    const isSwift = typeof window !== "undefined" && isSwiftmoveDomain();
+  head: ({ location }: any) => {
+    const p = (location?.pathname || (typeof window !== "undefined" ? window.location.pathname : "") || "").toLowerCase();
+    const isSwiftRoute =
+      p.startsWith("/swift") ||
+      p.startsWith("/drive") ||
+      p.startsWith("/vehicle") ||
+      p.startsWith("/dispatcher") ||
+      p.startsWith("/my-swift") ||
+      p.startsWith("/my-vehicle");
+    const isSwift = isSwiftRoute || (typeof window !== "undefined" && isSwiftmoveDomain());
     return {
       meta: [
         { charSet: "utf-8" },
@@ -210,7 +219,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         {
           name: "description",
           content: isSwift
-            ? "SwiftMove by Barakah Development Centre. On-demand package delivery, dispatch courier, and vehicle hire across Nigeria."
+            ? "SwiftMove Express Network. On-demand package delivery, dispatch courier, passenger rides, and vehicle hire across Nigeria."
             : "Barakah Development Centre empowers people, strengthens institutions and transforms communities through knowledge, leadership, innovation and service.",
         },
         { property: "og:title", content: isSwift ? "SwiftMove Logistics — On-Demand Deliveries & Rides" : `${ORG.legalName}` },
@@ -228,12 +237,20 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       links: [
         { rel: "stylesheet", href: appCss },
         // --- FAVICONS & BRAND ICONS ---
-        { rel: "icon", href: isSwift ? "/swiftmove-logo.jpg" : "/favicon.ico?v=3", sizes: "any" },
-        { rel: "icon", href: "/favicon-32x32.png?v=3", type: "image/png", sizes: "32x32" },
-        { rel: "icon", href: "/favicon-16x16.png?v=3", type: "image/png", sizes: "16x16" },
-        { rel: "icon", href: isSwift ? "/swiftmove-logo.jpg" : "/barakah-centre-logo.png?v=3", type: "image/png" },
-        { rel: "shortcut icon", href: isSwift ? "/swiftmove-logo.jpg" : "/favicon.ico?v=3" },
-        { rel: "apple-touch-icon", href: isSwift ? "/swiftmove-logo.jpg" : "/apple-touch-icon.png?v=3" },
+        ...(isSwift
+          ? [
+              { rel: "icon", href: "/swiftmove-logo.jpg", type: "image/jpeg" },
+              { rel: "shortcut icon", href: "/swiftmove-logo.jpg" },
+              { rel: "apple-touch-icon", href: "/swiftmove-logo.jpg" },
+            ]
+          : [
+              { rel: "icon", href: "/favicon.ico?v=3", sizes: "any" },
+              { rel: "icon", href: "/favicon-32x32.png?v=3", type: "image/png", sizes: "32x32" },
+              { rel: "icon", href: "/favicon-16x16.png?v=3", type: "image/png", sizes: "16x16" },
+              { rel: "icon", href: "/barakah-centre-logo.png?v=3", type: "image/png" },
+              { rel: "shortcut icon", href: "/favicon.ico?v=3" },
+              { rel: "apple-touch-icon", href: "/apple-touch-icon.png?v=3" },
+            ]),
         { rel: "preconnect", href: "https://fonts.googleapis.com" },
         { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
         {
@@ -260,6 +277,28 @@ function RootShell({ children }: { children: ReactNode }) {
           dangerouslySetInnerHTML={{
             __html: `
 (function() {
+  try {
+    var h = (window.location.hostname || '').toLowerCase();
+    var p = (window.location.pathname || '').toLowerCase();
+    var isS = h.indexOf('swiftmove') !== -1 || p.indexOf('/swift') === 0 || p.indexOf('/drive') === 0 || p.indexOf('/dispatcher') === 0 || p.indexOf('/vehicle') === 0 || p.indexOf('/my-swift') === 0;
+    if (isS) {
+      document.title = "SwiftMove Logistics — Fast, Reliable Deliveries & Ride Hailing";
+      var icons = document.querySelectorAll("link[rel*='icon'], link[rel='apple-touch-icon']");
+      for (var i = 0; i < icons.length; i++) {
+        icons[i].parentNode.removeChild(icons[i]);
+      }
+      var icon = document.createElement('link');
+      icon.rel = 'icon';
+      icon.type = 'image/jpeg';
+      icon.href = '/swiftmove-logo.jpg';
+      document.head.appendChild(icon);
+      var apple = document.createElement('link');
+      apple.rel = 'apple-touch-icon';
+      apple.href = '/swiftmove-logo.jpg';
+      document.head.appendChild(apple);
+    }
+  } catch(e) {}
+
   function handleChunkError() {
     try {
       var key = 'barakah_chunk_reload_ts';
@@ -337,9 +376,10 @@ function RootComponent() {
   // Driver console, Dispatcher, and Admin dashboard get a completely standalone layout — no ecosystem chrome at all
   const isStandaloneApp = pathname.startsWith("/drive") || pathname.startsWith("/admin") || pathname.startsWith("/staff") || pathname.startsWith("/dispatcher");
 
-  // Register PWA Service Worker on startup and suppress Google Maps auth alerts
+  // Register PWA Service Worker on startup, initialize native mobile bridge, and suppress Google Maps auth alerts
   useEffect(() => {
     registerServiceWorker();
+    initNativeMobile();
     
     // Suppress the blocking window.alert() that freezes the page when Maps API Auth fails
     if (typeof window !== 'undefined') {

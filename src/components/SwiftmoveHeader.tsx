@@ -1,5 +1,5 @@
 import { Link, useNavigate } from '@tanstack/react-router';
-import { ArrowLeft, LogOut, Radio, Shield } from 'lucide-react';
+import { ArrowLeft, LogOut, Radio, Shield, Truck } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { isSwiftmoveDomain } from '@/lib/domain-detection';
 import { SwiftmoveLogo } from '@/components/SwiftmoveLogo';

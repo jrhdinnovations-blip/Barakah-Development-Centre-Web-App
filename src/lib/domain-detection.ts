@@ -8,7 +8,14 @@
  * 3. URL query override: ?mode=swiftmove (persisted to sessionStorage)
  */
 
+import { isNativeApp } from './native-mobile';
+
 export function isSwiftmoveDomain(): boolean {
+  // 0. Native Mobile App Shell (Android & iOS)
+  if (typeof window !== "undefined" && isNativeApp()) {
+    return true;
+  }
+
   // 1. Environment variable override (build-time & runtime)
   const envMode = (
     import.meta.env.VITE_APP_MODE ||

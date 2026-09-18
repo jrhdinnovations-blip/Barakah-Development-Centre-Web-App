@@ -18,8 +18,18 @@ export const Route = createFileRoute('/swiftmove')({
       {
         name: 'description',
         content:
-          'SwiftMove by Barakah Development Centre. Send parcels, request on-demand rides, and track deliveries across Nigeria with real-time GPS.',
+          'SwiftMove Express Network. Send parcels, request on-demand rides (SwiftMove Regular & SwiftMove Keke), and track deliveries across Nigeria with real-time GPS.',
       },
+      { property: 'og:title', content: 'SwiftMove Logistics — Fast, Reliable Deliveries & Rides' },
+      { property: 'og:description', content: 'Express parcel dispatch, passenger rides, and vehicle hire across Nigeria.' },
+      { name: 'theme-color', content: '#080c17' },
+      { name: 'apple-mobile-web-app-title', content: 'SwiftMove' },
+    ],
+    links: [
+      { rel: 'icon', href: '/swiftmove-logo.jpg', type: 'image/jpeg' },
+      { rel: 'shortcut icon', href: '/swiftmove-logo.jpg' },
+      { rel: 'apple-touch-icon', href: '/swiftmove-logo.jpg' },
+      { rel: 'manifest', href: '/manifest-swiftmove.json?v=1' },
     ],
   }),
   component: SwiftMoveLanding,
@@ -264,9 +274,26 @@ export function SwiftMoveLanding() {
         </div>
 
         <div className="relative max-w-6xl mx-auto text-center w-full">
-          {/* Official SwiftMove Brand Emblem */}
-          <div className="flex justify-center mb-6">
-            <SwiftmoveLogo variant="hero" />
+          {/* Official SwiftMove Brand Hero Poster — Perfect Width & Fit */}
+          <div className="flex justify-center mb-10 w-full px-2">
+            <div className="relative group w-full max-w-xl sm:max-w-2xl md:max-w-3xl">
+              {/* Glow halo behind poster */}
+              <div className="absolute -inset-4 bg-gradient-to-tr from-orange-500 via-amber-400 to-blue-500 rounded-[2.5rem] blur-2xl opacity-45 group-hover:opacity-70 transition-opacity duration-500" />
+              {/* Poster card */}
+              <div className="relative overflow-hidden rounded-[2rem] border-2 border-orange-400/40 bg-slate-950 shadow-2xl shadow-orange-500/25 transition-transform duration-500 group-hover:scale-[1.006]">
+                <img
+                  src="/swiftmove-hero-banner.jpg"
+                  alt="SwiftMove Express Network — Need it moved? We move it swift."
+                  className="w-full h-auto block object-contain mx-auto"
+                  style={{ maxHeight: '82vh' }}
+                  loading="eager"
+                />
+                <div className="absolute top-4 right-4 px-3.5 py-1.5 rounded-full bg-slate-900/90 backdrop-blur-md border border-white/20 text-white text-xs font-bold flex items-center gap-2 shadow-xl">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>Live Operations</span>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Status / Welcome Badge */}
@@ -283,19 +310,27 @@ export function SwiftMoveLanding() {
           )}
 
           <h1 className="text-4xl sm:text-6xl md:text-7xl font-black tracking-tight mb-4 leading-tight">
-            <span className="text-slate-900">Delivery &amp; Rides, </span>
+            <span className="text-slate-900">Need It Moved? </span>
             <span className="bg-gradient-to-r from-orange-600 via-amber-500 to-orange-500 bg-clip-text text-transparent">
-              Done Swift.
+              We Move It Swift.
             </span>
           </h1>
 
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-black tracking-widest uppercase shadow-md mb-6">
+            <span>Book</span>
+            <span className="text-orange-400">•</span>
+            <span>Track</span>
+            <span className="text-orange-400">•</span>
+            <span>Deliver</span>
+          </div>
+
           <p className="text-base sm:text-lg md:text-xl text-slate-600 max-w-2xl mx-auto mb-12 leading-relaxed">
-            Same-day package dispatch, on-demand passenger rides, and live tracking across Jos and Nigeria.
-            No phone calls needed — click a service below:
+            Same-day package dispatch, on-demand passenger rides (<strong className="text-slate-900">SwiftMove Regular</strong> &amp; <strong className="text-slate-900">SwiftMove Keke</strong>), and live GPS tracking across Jos and Nigeria.
+            No phone calls needed — choose a service below:
           </p>
 
-          {/* ── 3 PRIMARY ACTION BUTTONS / CARDS ──────────────────────── */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left max-w-5xl mx-auto">
+          {/* ── 4 PRIMARY ACTION BUTTONS / CARDS ──────────────────────── */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 text-left max-w-6xl mx-auto">
             
             {/* Action 1: Send a Parcel */}
             {user ? (
@@ -361,34 +396,34 @@ export function SwiftMoveLanding() {
               </Link>
             )}
 
-            {/* Action 2: Request a Ride */}
+            {/* Action 2: SwiftMove Regular */}
             {user ? (
               <Link
                 to="/my-vehicle-hires"
-                className="group relative flex flex-col justify-between p-6 sm:p-8 rounded-3xl border border-blue-200/90 bg-white hover:border-blue-400 shadow-xl shadow-blue-500/5 hover:shadow-blue-500/15 hover:-translate-y-1.5 transition-all duration-300"
+                className="group relative flex flex-col justify-between p-6 rounded-3xl border border-blue-200/90 bg-white hover:border-blue-400 shadow-xl shadow-blue-500/5 hover:shadow-blue-500/15 hover:-translate-y-1.5 transition-all duration-300"
               >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full blur-2xl pointer-events-none -mr-8 -mt-8 group-hover:bg-blue-100 transition-all" />
+                <div className="absolute top-0 right-0 w-28 h-28 bg-blue-50 rounded-full blur-2xl pointer-events-none -mr-6 -mt-6 group-hover:bg-blue-100 transition-all" />
                 <div>
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/25 group-hover:scale-110 transition-transform">
-                      <Car className="h-7 w-7" />
+                  <div className="flex items-center justify-between mb-5">
+                    <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/25 group-hover:scale-110 transition-transform">
+                      <Car className="h-6 w-6" />
                     </div>
-                    <span className="px-3 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-blue-50 border border-blue-200 text-blue-700">
-                      Ride Hailing
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase bg-blue-50 border border-blue-200 text-blue-700">
+                      Most Popular
                     </span>
                   </div>
-                  <h3 className="text-2xl font-black text-slate-900 mb-2 group-hover:text-blue-600 transition-colors flex items-center gap-2">
-                    Request a Ride
-                    <ArrowRight className="h-5 w-5 text-blue-500 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                  <h3 className="text-xl font-black text-slate-900 mb-1.5 group-hover:text-blue-600 transition-colors flex items-center gap-2">
+                    SwiftMove Regular
+                    <ArrowRight className="h-4 w-4 text-blue-500 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
                   </h3>
-                  <p className="text-sm text-slate-600 leading-relaxed mb-6">
-                    On-demand passenger transport, executive city rides, and airport drop-offs with verified nearby drivers.
+                  <p className="text-sm text-slate-600 leading-relaxed mb-5">
+                    Comfortable 4-seater sedan for daily city commutes. Air-conditioned, verified drivers.
                   </p>
                 </div>
-                <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-sm font-bold text-blue-600 group-hover:text-blue-700">
-                  <span>Book a Ride</span>
-                  <span className="h-8 w-8 rounded-full bg-blue-50 flex items-center justify-center group-hover:bg-blue-500 group-hover:text-white transition-all">
-                    <ArrowRight className="h-4 w-4" />
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-sm font-bold text-blue-600 group-hover:text-blue-700">
+                  <span>Book Car Ride</span>
+                  <span className="h-7 w-7 rounded-full bg-blue-50 flex items-center justify-center group-hover:bg-blue-500 group-hover:text-white transition-all">
+                    <ArrowRight className="h-3.5 w-3.5" />
                   </span>
                 </div>
               </Link>
@@ -396,51 +431,115 @@ export function SwiftMoveLanding() {
               <Link
                 to="/auth"
                 search={{ redirect: "/my-vehicle-hires", mode: "login" }}
-                className="group relative flex flex-col justify-between p-6 sm:p-8 rounded-3xl border border-blue-200/90 bg-white hover:border-blue-400 shadow-xl shadow-blue-500/5 hover:shadow-blue-500/15 hover:-translate-y-1.5 transition-all duration-300"
+                className="group relative flex flex-col justify-between p-6 rounded-3xl border border-blue-200/90 bg-white hover:border-blue-400 shadow-xl shadow-blue-500/5 hover:shadow-blue-500/15 hover:-translate-y-1.5 transition-all duration-300"
               >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full blur-2xl pointer-events-none -mr-8 -mt-8 group-hover:bg-blue-100 transition-all" />
+                <div className="absolute top-0 right-0 w-28 h-28 bg-blue-50 rounded-full blur-2xl pointer-events-none -mr-6 -mt-6 group-hover:bg-blue-100 transition-all" />
                 <div>
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/25 group-hover:scale-110 transition-transform">
-                      <Car className="h-7 w-7" />
+                  <div className="flex items-center justify-between mb-5">
+                    <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/25 group-hover:scale-110 transition-transform">
+                      <Car className="h-6 w-6" />
                     </div>
-                    <span className="px-3 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-blue-50 border border-blue-200 text-blue-700">
-                      Ride Hailing
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase bg-blue-50 border border-blue-200 text-blue-700">
+                      Most Popular
                     </span>
                   </div>
-                  <h3 className="text-2xl font-black text-slate-900 mb-2 group-hover:text-blue-600 transition-colors flex items-center gap-2">
-                    Request a Ride
-                    <ArrowRight className="h-5 w-5 text-blue-500 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                  <h3 className="text-xl font-black text-slate-900 mb-1.5 group-hover:text-blue-600 transition-colors flex items-center gap-2">
+                    SwiftMove Regular
+                    <ArrowRight className="h-4 w-4 text-blue-500 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
                   </h3>
-                  <p className="text-sm text-slate-600 leading-relaxed mb-6">
-                    On-demand passenger transport, executive city rides, and airport drop-offs with verified nearby drivers.
+                  <p className="text-sm text-slate-600 leading-relaxed mb-5">
+                    Comfortable 4-seater sedan for daily city commutes. Air-conditioned, verified drivers.
                   </p>
                 </div>
-                <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-sm font-bold text-blue-600 group-hover:text-blue-700">
-                  <span>Book a Ride</span>
-                  <span className="h-8 w-8 rounded-full bg-blue-50 flex items-center justify-center group-hover:bg-blue-500 group-hover:text-white transition-all">
-                    <ArrowRight className="h-4 w-4" />
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-sm font-bold text-blue-600 group-hover:text-blue-700">
+                  <span>Book Car Ride</span>
+                  <span className="h-7 w-7 rounded-full bg-blue-50 flex items-center justify-center group-hover:bg-blue-500 group-hover:text-white transition-all">
+                    <ArrowRight className="h-3.5 w-3.5" />
                   </span>
                 </div>
               </Link>
             )}
 
-            {/* Action 3: Track Your Order (no login required) */}
+            {/* Action 3: SwiftMove Keke */}
+            {user ? (
+              <Link
+                to="/my-vehicle-hires"
+                className="group relative flex flex-col justify-between p-6 rounded-3xl border border-amber-200/90 bg-white hover:border-amber-400 shadow-xl shadow-amber-500/5 hover:shadow-amber-500/15 hover:-translate-y-1.5 transition-all duration-300"
+              >
+                <div className="absolute top-0 right-0 w-28 h-28 bg-amber-50 rounded-full blur-2xl pointer-events-none -mr-6 -mt-6 group-hover:bg-amber-100 transition-all" />
+                <div>
+                  <div className="flex items-center justify-between mb-5">
+                    <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-amber-500 to-yellow-400 flex items-center justify-center text-white shadow-lg shadow-amber-500/25 group-hover:scale-110 transition-transform">
+                      <Bike className="h-6 w-6" />
+                    </div>
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase bg-amber-50 border border-amber-200 text-amber-700">
+                      Affordable
+                    </span>
+                  </div>
+                  <h3 className="text-xl font-black text-slate-900 mb-1.5 group-hover:text-amber-600 transition-colors flex items-center gap-2">
+                    SwiftMove Keke
+                    <ArrowRight className="h-4 w-4 text-amber-500 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                  </h3>
+                  <p className="text-sm text-slate-600 leading-relaxed mb-5">
+                    Budget-friendly tricycle ride for short local hops. Quick, nimble, and beats traffic.
+                  </p>
+                </div>
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-sm font-bold text-amber-600 group-hover:text-amber-700">
+                  <span>Book Keke Ride</span>
+                  <span className="h-7 w-7 rounded-full bg-amber-50 flex items-center justify-center group-hover:bg-amber-500 group-hover:text-white transition-all">
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </span>
+                </div>
+              </Link>
+            ) : (
+              <Link
+                to="/auth"
+                search={{ redirect: "/my-vehicle-hires", mode: "login" }}
+                className="group relative flex flex-col justify-between p-6 rounded-3xl border border-amber-200/90 bg-white hover:border-amber-400 shadow-xl shadow-amber-500/5 hover:shadow-amber-500/15 hover:-translate-y-1.5 transition-all duration-300"
+              >
+                <div className="absolute top-0 right-0 w-28 h-28 bg-amber-50 rounded-full blur-2xl pointer-events-none -mr-6 -mt-6 group-hover:bg-amber-100 transition-all" />
+                <div>
+                  <div className="flex items-center justify-between mb-5">
+                    <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-amber-500 to-yellow-400 flex items-center justify-center text-white shadow-lg shadow-amber-500/25 group-hover:scale-110 transition-transform">
+                      <Bike className="h-6 w-6" />
+                    </div>
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase bg-amber-50 border border-amber-200 text-amber-700">
+                      Affordable
+                    </span>
+                  </div>
+                  <h3 className="text-xl font-black text-slate-900 mb-1.5 group-hover:text-amber-600 transition-colors flex items-center gap-2">
+                    SwiftMove Keke
+                    <ArrowRight className="h-4 w-4 text-amber-500 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                  </h3>
+                  <p className="text-sm text-slate-600 leading-relaxed mb-5">
+                    Budget-friendly tricycle ride for short local hops. Quick, nimble, and beats traffic.
+                  </p>
+                </div>
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-sm font-bold text-amber-600 group-hover:text-amber-700">
+                  <span>Book Keke Ride</span>
+                  <span className="h-7 w-7 rounded-full bg-amber-50 flex items-center justify-center group-hover:bg-amber-500 group-hover:text-white transition-all">
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </span>
+                </div>
+              </Link>
+            )}
+
+            {/* Action 4: Track Your Order (no login required) */}
             <div
               id="track-order"
-              className="group relative flex flex-col justify-between p-6 sm:p-8 rounded-3xl border border-emerald-200/90 bg-white shadow-xl shadow-emerald-500/5 transition-all duration-300"
+              className="group relative flex flex-col justify-between p-6 rounded-3xl border border-emerald-200/90 bg-white shadow-xl shadow-emerald-500/5 transition-all duration-300"
             >
-              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-full blur-2xl pointer-events-none -mr-8 -mt-8" />
+              <div className="absolute top-0 right-0 w-28 h-28 bg-emerald-50 rounded-full blur-2xl pointer-events-none -mr-6 -mt-6" />
               <div>
-                <div className="flex items-center justify-between mb-6">
-                  <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/25">
-                    <Navigation className="h-7 w-7" />
+                <div className="flex items-center justify-between mb-5">
+                  <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/25">
+                    <Navigation className="h-6 w-6" />
                   </div>
-                  <span className="px-3 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-emerald-50 border border-emerald-200 text-emerald-700">
+                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase bg-emerald-50 border border-emerald-200 text-emerald-700">
                     No Login Needed
                   </span>
                 </div>
-                <h3 className="text-2xl font-black text-slate-900 mb-2">
+                <h3 className="text-xl font-black text-slate-900 mb-1.5">
                   Track Your Order
                 </h3>
                 <p className="text-sm text-slate-600 leading-relaxed mb-4">
@@ -665,14 +764,8 @@ export function SwiftMoveLanding() {
         <div className="max-w-6xl mx-auto">
           <div className="grid sm:grid-cols-3 gap-10 mb-10">
             <div>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-400 flex items-center justify-center shadow-md shadow-orange-500/20">
-                  <Truck className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <span className="text-base font-black text-slate-900">SwiftMove</span>
-                  <span className="text-xs text-orange-600 font-bold block -mt-0.5">by Barakah</span>
-                </div>
+              <div className="mb-4">
+                <SwiftmoveLogo variant="footer" />
               </div>
               <p className="text-slate-600 text-sm leading-relaxed">
                 Nigeria's fast, reliable logistics service. Part of the Barakah Development Centre family.

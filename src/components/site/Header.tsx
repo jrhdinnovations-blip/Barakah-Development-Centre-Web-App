@@ -20,12 +20,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import { BarakahCentreLogo } from "@/components/BarakahCentreLogo";
+import { SwiftmoveLogo } from "@/components/SwiftmoveLogo";
+import { isSwiftmoveDomain } from "@/lib/domain-detection";
 
 
 export function SiteHeader() {
   const { user, role } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const isSwift = isSwiftmoveDomain();
 
   const dashboardTarget =
     role === "driver" || role === "dispatch_rider"
@@ -52,7 +55,7 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
-        <BarakahCentreLogo />
+        {isSwift ? <SwiftmoveLogo variant="header" /> : <BarakahCentreLogo />}
 
         {/* Desktop nav */}
         <nav className="hidden items-center gap-1 lg:flex" aria-label="Primary">
@@ -146,7 +149,7 @@ export function SiteHeader() {
           <SheetContent side="right" className="w-80 overflow-y-auto">
             <SheetHeader>
               <SheetTitle className="text-left">
-                <BarakahCentreLogo />
+                {isSwift ? <SwiftmoveLogo variant="header" /> : <BarakahCentreLogo />}
               </SheetTitle>
             </SheetHeader>
             <nav className="mt-6 flex flex-col gap-1" aria-label="Mobile">

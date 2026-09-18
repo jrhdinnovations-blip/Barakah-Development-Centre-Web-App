@@ -1,0 +1,53 @@
+name: Build SwiftMove Mobile Apps (Android)
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    name: Build Android APK & Play Store Bundle (AAB)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Set up Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Web Bundle & Sync Capacitor
+        run: |
+          npm run build
+          npx cap sync android
+
+      - name: Build Android Release Bundle (.aab) & APK
+        working-directory: ./android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease bundleRelease
+
+      - name: Upload Android App Bundle (AAB for Google Play Store)
+        uses: actions/upload-artifact@v4
+        with:
+          name: swiftmove-playstore-aab
+          path: android/app/build/outputs/bundle/release/*.aab
+
+      - name: Upload Android APK (For Direct Phone Installation)
+        uses: actions/upload-artifact@v4
+        with:
+          name: swiftmove-release-apk
+          path: android/app/build/outputs/apk/release/*.apk

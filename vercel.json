@@ -4,7 +4,7 @@
             "has": [
                 {
                     "type": "host",
-                    "value": "swiftmove.com"
+                    "value": "(.*)swiftmove\\.(com|ng)"
                 }
             ],
             "source": "/(.*)",
@@ -14,7 +14,7 @@
             "has": [
                 {
                     "type": "host",
-                    "value": "swiftmove.com"
+                    "value": "(.*)swiftmove\\.(com|ng)"
                 }
             ],
             "source": "/",

@@ -809,7 +809,7 @@ export const fetchAvailableDrivers = createServerFn({ method: "POST" })
         vehicleModel: `${vehicleColor} ${vehicleMake} ${vehicleModel}`,
         lat,
         lng,
-        tierId: "swift_go",
+        tierId: "swift_regular",
       };
     });
 

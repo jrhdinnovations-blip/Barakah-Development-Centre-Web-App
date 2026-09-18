@@ -109,6 +109,19 @@ const mapOptions = {
 // ── Vehicle Tier Icons ────────────────────────────────────────────────────────
 function TierIcon({ type, className = '' }: { type: string; className?: string }) {
   const base = `w-10 h-10 ${className}`;
+  if (type === 'keke') {
+    return (
+      <svg className={base} viewBox="0 0 48 48" fill="none">
+        <path d="M14 27 L18 15 L32 15 L37 23 L37 31 L14 31 Z" stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round" fill="none" />
+        <path d="M18 15 L10 27" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <path d="M23 15 L23 27" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M30 20 L36 24" stroke="currentColor" strokeWidth="1.5" />
+        <circle cx="11" cy="33" r="5" stroke="currentColor" strokeWidth="2.5" />
+        <circle cx="34" cy="33" r="5" stroke="currentColor" strokeWidth="2.5" />
+        <path d="M7 23 L11 23" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    );
+  }
   if (type === 'moto') {
     return (
       <svg className={base} viewBox="0 0 48 48" fill="none">
@@ -203,7 +216,7 @@ function RideHailingDashboard() {
 
   // ── Ride State ────────────────────────────────────────────────────────────
   const [phase, setPhase] = useState<RidePhase>('idle');
-  // Default to Swift Go (first tier) so a tier is always selected
+  // Default to SwiftMove Regular (first tier) so a tier is always selected
   const [selectedTier, setSelectedTier] = useState<VehicleTier>(VEHICLE_TIERS[0]!);
   const [useInDriveMode, setUseInDriveMode] = useState(false);
   const [customFare, setCustomFare] = useState(0);
@@ -924,7 +937,7 @@ function RideHailingDashboard() {
           entityType: 'swift_ride',
           entityId: activeOrderId,
           amountKobo: Math.round(fare * 100),
-          description: `SwiftRide Payment: ${selectedTier.name} (${pickup?.address || 'Pickup'} → ${dropoff?.address || 'Dropoff'})`,
+          description: `SwiftMove Ride Payment: ${selectedTier.name} (${pickup?.address || 'Pickup'} → ${dropoff?.address || 'Dropoff'})`,
           callbackPath: `/my-vehicle-hires?paid=true&orderId=${activeOrderId}`,
         },
       });
@@ -2461,12 +2474,12 @@ function RideHailingDashboard() {
           {/* Branding */}
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
+              <div className="w-8 h-8 rounded-xl bg-orange-500 flex items-center justify-center shadow-lg shadow-orange-500/30">
                 <Zap className="w-4 h-4 text-white fill-current" />
               </div>
               <div>
-                <p className="text-slate-900 font-bold text-sm leading-tight">SwiftRide</p>
-                <p className="text-slate-500 text-[10px] leading-tight">by Barakah</p>
+                <p className="text-slate-900 font-bold text-sm leading-tight">SwiftMove</p>
+                <p className="text-slate-500 text-[10px] leading-tight">On-Demand Rides</p>
               </div>
             </div>
             {phase === 'idle' && (
