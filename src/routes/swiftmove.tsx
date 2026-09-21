@@ -475,44 +475,27 @@ export function SwiftMoveLanding() {
       </nav>
 
       {/* ── Hero & Primary 3-Action Customer Hub ────────────────────── */}
-      <section className="relative min-h-[90vh] flex items-center justify-center px-4 sm:px-6 pt-12 pb-20">
-        {/* Background glow */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 h-[600px] w-[900px] rounded-full bg-orange-100/70 blur-[140px]" />
-          <div className="absolute top-1/3 right-0 h-[400px] w-[500px] rounded-full bg-blue-100/50 blur-[120px]" />
-          <div className="absolute bottom-1/4 left-0 h-[350px] w-[450px] rounded-full bg-emerald-100/50 blur-[120px]" />
-          {/* Animated subtle grid */}
-          <div
-            className="absolute inset-0 opacity-[0.04]"
-            style={{
-              backgroundImage: 'linear-gradient(rgba(249,115,22,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(249,115,22,0.5) 1px, transparent 1px)',
-              backgroundSize: '64px 64px',
-            }}
-          />
-        </div>
+      <section
+        className="relative min-h-[90vh] flex items-center justify-center px-4 sm:px-6 pt-12 pb-20"
+        style={{
+          backgroundImage: 'url(/swiftmove-hero-banner.jpg)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center top',
+          backgroundRepeat: 'no-repeat',
+        }}
+      >
+        {/* Dark gradient overlay so text is readable */}
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-900/70 via-slate-900/50 to-slate-50/95 pointer-events-none" />
+        {/* Subtle animated grid on top */}
+        <div
+          className="absolute inset-0 opacity-[0.03] pointer-events-none"
+          style={{
+            backgroundImage: 'linear-gradient(rgba(249,115,22,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(249,115,22,0.6) 1px, transparent 1px)',
+            backgroundSize: '64px 64px',
+          }}
+        />
 
-        <div className="relative max-w-6xl mx-auto text-center w-full">
-          {/* Official SwiftMove Brand Hero Poster — Perfect Expansive Width & Fit */}
-          <div className="flex justify-center mb-8 w-full px-2">
-            <div className="relative group w-full max-w-2xl md:max-w-4xl lg:max-w-5xl xl:max-w-6xl">
-              {/* Glow halo behind poster */}
-              <div className="absolute -inset-4 bg-gradient-to-tr from-orange-500 via-amber-400 to-blue-500 rounded-[2.5rem] blur-2xl opacity-45 group-hover:opacity-70 transition-opacity duration-500" />
-              {/* Poster card */}
-              <div className="relative overflow-hidden rounded-[2rem] border-2 border-orange-400/40 bg-slate-950 shadow-2xl shadow-orange-500/25 transition-transform duration-500 group-hover:scale-[1.006]">
-                <img
-                  src="/swiftmove-hero-banner.jpg"
-                  alt="SwiftMove Express Network — Need it moved? We move it swift."
-                  className="w-full h-auto block object-contain mx-auto"
-                  style={{ maxHeight: '85vh' }}
-                  loading="eager"
-                />
-                <div className="absolute top-4 right-4 px-3.5 py-1.5 rounded-full bg-slate-900/90 backdrop-blur-md border border-white/20 text-white text-xs font-bold flex items-center gap-2 shadow-xl">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>Live Operations</span>
-                </div>
-              </div>
-            </div>
-          </div>
+        <div className="relative max-w-6xl mx-auto text-center w-full pt-16">
 
           {/* 4 Interactive Service Highlights matching Hero Banner */}
           <div className="flex flex-wrap items-center justify-center gap-3 mb-10 px-2">
@@ -599,9 +582,9 @@ export function SwiftMoveLanding() {
             </div>
           )}
 
-          <h1 className="text-4xl sm:text-6xl md:text-7xl font-black tracking-tight mb-4 leading-tight">
-            <span className="text-slate-900">Need It Moved? </span>
-            <span className="bg-gradient-to-r from-orange-600 via-amber-500 to-orange-500 bg-clip-text text-transparent">
+          <h1 className="text-4xl sm:text-6xl md:text-7xl font-black tracking-tight mb-4 leading-tight drop-shadow-lg">
+            <span className="text-white">Need It Moved? </span>
+            <span className="bg-gradient-to-r from-orange-400 via-amber-300 to-orange-400 bg-clip-text text-transparent">
               We Move It Swift.
             </span>
           </h1>
@@ -614,8 +597,8 @@ export function SwiftMoveLanding() {
             <span>Ride</span>
           </div>
 
-          <p className="text-base sm:text-lg md:text-xl text-slate-600 max-w-2xl mx-auto mb-10 leading-relaxed">
-            Same-day package dispatch, on-demand passenger rides (<strong className="text-slate-900">SwiftMove Regular</strong> &amp; <strong className="text-slate-900">SwiftMove Keke</strong>), and live GPS tracking across Jos and Nigeria.
+          <p className="text-base sm:text-lg md:text-xl text-slate-200 max-w-2xl mx-auto mb-10 leading-relaxed drop-shadow">
+            Same-day package dispatch, on-demand passenger rides (<strong className="text-white">SwiftMove Regular</strong> &amp; <strong className="text-white">SwiftMove Keke</strong>), and live GPS tracking across Jos and Nigeria.
             Book for right now or pick an exact date and time below:
           </p>
 
