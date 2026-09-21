@@ -96,6 +96,13 @@ function CustomerBookingPage() {
   const [isCalculatingRoute, setIsCalculatingRoute] = useState(false);
   const [fare, setFare] = useState<number>(0);
 
+  // ── Scheduling state ─────────────────────────────────────────────────────
+  const [dispatchTiming, setDispatchTiming] = useState<'now' | 'scheduled'>('now');
+  const todayStr = useMemo(() => new Date().toISOString().split('T')[0]!, []);
+  const tomorrowStr = useMemo(() => new Date(Date.now() + 86400000).toISOString().split('T')[0]!, []);
+  const [schedDate, setSchedDate] = useState<string>(todayStr);
+  const [schedTime, setSchedTime] = useState<string>('09:30');
+
   // Jos, Plateau State, Nigeria default center
   const defaultCenter = { lat: 9.8965, lng: 8.8583 };
   const mapCenter = useMemo(() => {
@@ -523,9 +530,12 @@ function CustomerBookingPage() {
     setShowPayment(false);
     setPaymentMethod(null);
     setPaymentDone(false);
+    setDispatchTiming('now');
+    setSchedDate(todayStr);
+    setSchedTime('09:30');
     if (pickupInputRef.current) pickupInputRef.current.value = '';
     if (dropoffInputRef.current) dropoffInputRef.current.value = '';
-  }, []);
+  }, [todayStr]);
 
   // ─── Confirm payment ───
   const handleConfirmPayment = async () => {
@@ -582,6 +592,9 @@ function CustomerBookingPage() {
           cargoType: 'Dispatch Parcel',
           description: parcelDescription,
           customerPhone,
+          isScheduled: dispatchTiming === 'scheduled',
+          scheduledDate: dispatchTiming === 'scheduled' ? schedDate : undefined,
+          scheduledTime: dispatchTiming === 'scheduled' ? schedTime : undefined,
         });
 
         const { data, error } = await supabase
@@ -1710,6 +1723,84 @@ function CustomerBookingPage() {
                           placeholder="Describe the items securely..."
                           className="w-full h-24 p-4 rounded-2xl bg-slate-50 border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-orange-500/30 focus:border-orange-400 transition-all resize-none"
                         />
+                      </div>
+
+                      {/* ── Dispatch Timing Selector ── */}
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                          <Clock className="h-3.5 w-3.5 text-orange-500" /> Pickup Timing
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setDispatchTiming('now')}
+                            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                              dispatchTiming === 'now'
+                                ? 'bg-slate-900 text-white shadow-sm'
+                                : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-400'
+                            }`}
+                          >
+                            ⚡ Pick Up Now
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDispatchTiming('scheduled')}
+                            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                              dispatchTiming === 'scheduled'
+                                ? 'bg-orange-500 text-white shadow-sm'
+                                : 'bg-white border border-slate-200 text-slate-600 hover:border-orange-400'
+                            }`}
+                          >
+                            <Calendar className="h-3.5 w-3.5" /> Schedule for Later
+                          </button>
+                        </div>
+
+                        {dispatchTiming === 'scheduled' && (
+                          <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200/60 animate-in fade-in duration-200">
+                            <div>
+                              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                                Date <span className="text-red-500">*</span>
+                              </label>
+                              <input
+                                type="date"
+                                min={todayStr}
+                                value={schedDate}
+                                onChange={(e) => setSchedDate(e.target.value)}
+                                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400 shadow-sm"
+                                required
+                              />
+                              <div className="flex gap-1.5 mt-1.5">
+                                <button type="button" onClick={() => setSchedDate(todayStr)}
+                                  className={`px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${ schedDate === todayStr ? 'bg-orange-100 border-orange-300 text-orange-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100' }`}>
+                                  Today
+                                </button>
+                                <button type="button" onClick={() => setSchedDate(tomorrowStr)}
+                                  className={`px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${ schedDate === tomorrowStr ? 'bg-orange-100 border-orange-300 text-orange-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100' }`}>
+                                  Tomorrow
+                                </button>
+                              </div>
+                            </div>
+                            <div>
+                              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                                Time
+                              </label>
+                              <input
+                                type="time"
+                                value={schedTime}
+                                onChange={(e) => setSchedTime(e.target.value)}
+                                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400 shadow-sm"
+                              />
+                              <div className="flex gap-1.5 mt-1.5">
+                                {['08:00', '12:00', '17:00'].map((t) => (
+                                  <button key={t} type="button" onClick={() => setSchedTime(t)}
+                                    className={`px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${ schedTime === t ? 'bg-orange-100 border-orange-300 text-orange-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100' }`}>
+                                    {t}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
 

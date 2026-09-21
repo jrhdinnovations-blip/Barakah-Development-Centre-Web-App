@@ -641,6 +641,68 @@ export const customerCreateRideRequest = createServerFn({ method: "POST" })
     };
   });
 
+export interface CreateDispatchInput {
+  customerId: string;
+  pickupAddress: string;
+  dropoffAddress: string;
+  packageType: string;
+  weightKg?: number;
+  distanceKm: number;
+  fare: number;
+  trackingId: string;
+}
+
+/**
+ * 10b. Customer Create Dispatch Order (Bypasses Client JWT Expiration)
+ * Inserts parcel dispatch order into swift_deliveries via service role
+ */
+export const customerCreateDispatchOrder = createServerFn({ method: "POST" })
+  .validator((input: CreateDispatchInput) => input)
+  .handler(async ({ data }) => {
+    const { getAdmin } = await import("@/lib/payments.server");
+    const admin = await getAdmin();
+
+    let finalPackageType = data.packageType;
+    if (!finalPackageType.includes("CPHONE:")) {
+      try {
+        const { data: prof } = await admin
+          .from("profiles")
+          .select("phone")
+          .eq("user_id", data.customerId)
+          .maybeSingle();
+        if (prof?.phone) {
+          finalPackageType += `|||CPHONE:${prof.phone}`;
+        }
+      } catch (_) {}
+    }
+
+    const { data: delivData, error: delivErr } = await admin
+      .from("swift_deliveries")
+      .insert({
+        customer_id: data.customerId,
+        pickup_address: data.pickupAddress,
+        dropoff_address: data.dropoffAddress,
+        package_type: finalPackageType,
+        weight_kg: data.weightKg || 1,
+        distance_km: data.distanceKm,
+        estimated_price: data.fare,
+        payment_reference: data.trackingId,
+        status: "pending",
+      })
+      .select()
+      .single();
+
+    if (delivErr) {
+      console.error("[customerCreateDispatchOrder] delivErr:", delivErr.message);
+      throw new Error(delivErr.message);
+    }
+
+    return {
+      success: true,
+      delivery: delivData,
+    };
+  });
+
 /**
  * 11. Customer Cancel Ride Request (Bypasses Client JWT Expiration)
  */

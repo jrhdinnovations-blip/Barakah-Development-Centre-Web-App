@@ -1,15 +1,24 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Truck, Package, MapPin, Clock, ShieldCheck, Zap,
   ArrowRight, Star, PhoneCall, CheckCircle2, Navigation,
   Bike, Globe2, HeartHandshake, Car, UserCheck,
-  Radio, Shield, LogOut, Search, X, Loader2,
+  Radio, Shield, LogOut, Search, X, Loader2, Calendar,
+  CalendarClock, Check, Phone, FileText, ChevronRight, AlertCircle,
+  Sparkles,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { isSwiftmoveDomain } from '@/lib/domain-detection';
 import { SwiftmoveLogo } from '@/components/SwiftmoveLogo';
+import { encodeDispatchMetadata, encodeRideMetadata } from '@/lib/swift-order';
+import { customerCreateDispatchOrder, customerCreateRideRequest } from '@/lib/dispatcher.functions';
+import { calculateDeliveryPrice } from '@/lib/swift-pricing';
+import { VEHICLE_TIERS, calculateTierFare, POPULAR_DESTINATIONS } from '@/lib/ride-pricing';
+import { searchLocalLocations, resolveJosLocation, JOS_LOCATIONS } from '@/lib/location-suggestions';
+import { haversineKm } from '@/lib/google-maps-client';
 
 export const Route = createFileRoute('/swiftmove')({
   head: () => ({
@@ -18,10 +27,10 @@ export const Route = createFileRoute('/swiftmove')({
       {
         name: 'description',
         content:
-          'SwiftMove Express Network. Send parcels, request on-demand rides (SwiftMove Regular & SwiftMove Keke), and track deliveries across Nigeria with real-time GPS.',
+          'SwiftMove Express Network. Send parcels, schedule on-demand or future dispatches, request rides (SwiftMove Regular & SwiftMove Keke), and track live across Nigeria.',
       },
       { property: 'og:title', content: 'SwiftMove Logistics — Fast, Reliable Deliveries & Rides' },
-      { property: 'og:description', content: 'Express parcel dispatch, passenger rides, and vehicle hire across Nigeria.' },
+      { property: 'og:description', content: 'Express parcel dispatch, passenger rides, and scheduled logistics across Nigeria.' },
       { name: 'theme-color', content: '#080c17' },
       { name: 'apple-mobile-web-app-title', content: 'SwiftMove' },
     ],
@@ -78,10 +87,10 @@ const SERVICES = [
 ];
 
 const HOW_IT_WORKS = [
-  { step: '01', title: 'Book Online', desc: 'Enter your pickup and delivery address. Get an instant price quote.' },
-  { step: '02', title: 'We Dispatch', desc: 'A verified courier is assigned and picks up within minutes.' },
-  { step: '03', title: 'Track Live', desc: 'Watch your delivery on the live map in real time.' },
-  { step: '04', title: 'Delivered', desc: 'Your package arrives safely. Rate the experience.' },
+  { step: '01', title: 'Schedule or Book', desc: 'Enter pickup and destination. Pick instant or a scheduled future date & time.' },
+  { step: '02', title: 'We Dispatch', desc: 'A verified courier or driver is assigned on schedule.' },
+  { step: '03', title: 'Track Live', desc: 'Watch your delivery or ride on the live map in real time.' },
+  { step: '04', title: 'Delivered', desc: 'Your package arrives or you reach your destination safely.' },
 ];
 
 const REVIEWS = [
@@ -102,6 +111,212 @@ export function SwiftMoveLanding() {
 
   const userDisplayName = (user?.user_metadata as Record<string, any> | undefined)?.['full_name'] || user?.email?.split('@')[0] || 'Customer';
 
+  // ── Scheduling Console State ──────────────────────────────────────
+  const [scheduleMode, setScheduleMode] = useState<'dispatch' | 'ride'>('dispatch');
+  const [scheduleTiming, setScheduleTiming] = useState<'scheduled' | 'now'>('scheduled');
+
+  // Dates & Times
+  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const tomorrowStr = useMemo(() => new Date(Date.now() + 86400000).toISOString().split('T')[0], []);
+  const nextDayStr = useMemo(() => new Date(Date.now() + 172800000).toISOString().split('T')[0], []);
+
+  const [schedDate, setSchedDate] = useState<string>(todayStr);
+  const [schedTime, setSchedTime] = useState<string>('09:30');
+
+  // Locations
+  const [schedPickup, setSchedPickup] = useState('');
+  const [schedDropoff, setSchedDropoff] = useState('');
+  const [schedPickupSuggestions, setSchedPickupSuggestions] = useState<any[]>([]);
+  const [schedDropoffSuggestions, setSchedDropoffSuggestions] = useState<any[]>([]);
+  const [activeSuggestionField, setActiveSuggestionField] = useState<'pickup' | 'dropoff' | null>(null);
+
+  // Dispatch fields
+  const [dispatchCategory, setDispatchCategory] = useState('Standard Parcel');
+  const [dispatchWeight, setDispatchWeight] = useState<number>(2);
+  const [dispatchNotes, setDispatchNotes] = useState('');
+  const [dispatchPhone, setDispatchPhone] = useState('');
+
+  // Ride fields
+  const [rideTierId, setRideTierId] = useState('regular');
+  const [rideSeats, setRideSeats] = useState(1);
+  const [ridePhone, setRidePhone] = useState('');
+  const [rideNotes, setRideNotes] = useState('');
+
+  // Submission state
+  const [isSubmittingSchedule, setIsSubmittingSchedule] = useState(false);
+
+  // Autocomplete suggestion queries
+  useEffect(() => {
+    if (activeSuggestionField === 'pickup' && schedPickup.trim().length >= 2) {
+      setSchedPickupSuggestions(searchLocalLocations(schedPickup).slice(0, 5));
+    } else {
+      setSchedPickupSuggestions([]);
+    }
+  }, [schedPickup, activeSuggestionField]);
+
+  useEffect(() => {
+    if (activeSuggestionField === 'dropoff' && schedDropoff.trim().length >= 2) {
+      setSchedDropoffSuggestions(searchLocalLocations(schedDropoff).slice(0, 5));
+    } else {
+      setSchedDropoffSuggestions([]);
+    }
+  }, [schedDropoff, activeSuggestionField]);
+
+  // Distance estimation based on Plateau/Jos database
+  const calculatedDistanceKm = useMemo(() => {
+    if (!schedPickup.trim() || !schedDropoff.trim()) return 0;
+    const pLoc = resolveJosLocation(schedPickup);
+    const dLoc = resolveJosLocation(schedDropoff);
+    if (pLoc && dLoc) {
+      const straight = haversineKm(pLoc.lat, pLoc.lng, dLoc.lat, dLoc.lng);
+      return Math.max(1.5, Math.round(straight * 1.35 * 10) / 10);
+    }
+    return 4.5;
+  }, [schedPickup, schedDropoff]);
+
+  // Estimated Fares
+  const calculatedDispatchFare = useMemo(() => {
+    const dist = calculatedDistanceKm > 0 ? calculatedDistanceKm : 4.5;
+    return calculateDeliveryPrice(dist, dispatchWeight);
+  }, [calculatedDistanceKm, dispatchWeight]);
+
+  const selectedTier = useMemo(() => {
+    return VEHICLE_TIERS.find((t) => t.id === rideTierId) || VEHICLE_TIERS[0];
+  }, [rideTierId]);
+
+  const calculatedRideFare = useMemo(() => {
+    const dist = calculatedDistanceKm > 0 ? calculatedDistanceKm : 4.5;
+    return calculateTierFare(selectedTier, dist);
+  }, [selectedTier, calculatedDistanceKm]);
+
+  // Handle Schedule submission
+  async function handleConfirmSchedule(e: React.FormEvent) {
+    e.preventDefault();
+    if (!schedPickup.trim()) {
+      toast.error('Please enter a pickup address.');
+      return;
+    }
+    if (!schedDropoff.trim()) {
+      toast.error('Please enter a destination address.');
+      return;
+    }
+    if (scheduleTiming === 'scheduled' && !schedDate) {
+      toast.error('Please select a scheduled date.');
+      return;
+    }
+
+    setIsSubmittingSchedule(true);
+    try {
+      const trackingId = `SMV-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`;
+
+      if (scheduleMode === 'dispatch') {
+        const metadata = encodeDispatchMetadata({
+          cargoType: dispatchCategory,
+          description: dispatchNotes || dispatchCategory,
+          customerPhone: dispatchPhone || null,
+          isScheduled: scheduleTiming === 'scheduled',
+          scheduledDate: scheduleTiming === 'scheduled' ? schedDate : undefined,
+          scheduledTime: scheduleTiming === 'scheduled' ? schedTime : undefined,
+        });
+
+        if (user?.id) {
+          await customerCreateDispatchOrder({
+            data: {
+              customerId: user.id,
+              pickupAddress: schedPickup.trim(),
+              dropoffAddress: schedDropoff.trim(),
+              packageType: metadata,
+              weightKg: dispatchWeight,
+              distanceKm: calculatedDistanceKm > 0 ? calculatedDistanceKm : 4.5,
+              fare: calculatedDispatchFare,
+              trackingId,
+            },
+          });
+          toast.success(
+            scheduleTiming === 'scheduled'
+              ? `📅 Dispatch scheduled for ${schedDate} at ${schedTime}!`
+              : '📦 Dispatch order placed successfully!'
+          );
+          navigate({ to: '/my-swift-move' });
+        } else {
+          localStorage.setItem(
+            'pending_dispatch_schedule',
+            JSON.stringify({
+              pickupText: schedPickup.trim(),
+              dropoffText: schedDropoff.trim(),
+              weightKg: dispatchWeight,
+              description: dispatchNotes || dispatchCategory,
+              timingType: scheduleTiming,
+              scheduleDate: schedDate,
+              scheduleTime: schedTime,
+              phone: dispatchPhone,
+            })
+          );
+          toast.info('Please sign in or register to complete your scheduled dispatch.');
+          navigate({ to: '/auth', search: { mode: 'login', redirect: '/my-swift-move' } });
+        }
+      } else {
+        // Ride mode
+        const pin = String(Math.floor(1000 + Math.random() * 9000));
+        const metadata = encodeRideMetadata({
+          tierName: selectedTier.name,
+          tierId: selectedTier.id,
+          seats: rideSeats,
+          safetyPin: pin,
+          customerPhone: ridePhone || null,
+          notes: rideNotes || null,
+          isScheduled: scheduleTiming === 'scheduled',
+          scheduledDate: scheduleTiming === 'scheduled' ? schedDate : undefined,
+          scheduledTime: scheduleTiming === 'scheduled' ? schedTime : undefined,
+        });
+
+        if (user?.id) {
+          await customerCreateRideRequest({
+            data: {
+              customerId: user.id,
+              pickupAddress: schedPickup.trim(),
+              dropoffAddress: schedDropoff.trim(),
+              packageType: metadata,
+              capacity: selectedTier.capacity,
+              distanceKm: calculatedDistanceKm > 0 ? calculatedDistanceKm : 4.5,
+              fare: calculatedRideFare,
+              trackingId,
+              category: selectedTier.category,
+              subCategoryDb: selectedTier.subCategoryDb,
+            },
+          });
+          toast.success(
+            scheduleTiming === 'scheduled'
+              ? `📅 Ride scheduled for ${schedDate} at ${schedTime}!`
+              : '🚗 Ride requested! Looking for nearby drivers...'
+          );
+          navigate({ to: '/my-vehicle-hires' });
+        } else {
+          localStorage.setItem(
+            'pending_ride_schedule',
+            JSON.stringify({
+              pickupText: schedPickup.trim(),
+              dropoffText: schedDropoff.trim(),
+              tierId: selectedTier.id,
+              seats: rideSeats,
+              timingType: scheduleTiming,
+              scheduleDate: schedDate,
+              scheduleTime: schedTime,
+              phone: ridePhone,
+              notes: rideNotes,
+            })
+          );
+          toast.info('Please sign in or register to complete your scheduled ride.');
+          navigate({ to: '/auth', search: { mode: 'login', redirect: '/my-vehicle-hires' } });
+        }
+      }
+    } catch (err: any) {
+      toast.error('Booking failed: ' + (err.message || 'Please try again.'));
+    } finally {
+      setIsSubmittingSchedule(false);
+    }
+  }
+
   // ── Track Your Order state ──────────────────────────────────────────
   const [trackingCode, setTrackingCode] = useState('');
   const [trackingResult, setTrackingResult] = useState<{
@@ -109,22 +324,25 @@ export function SwiftMoveLanding() {
     description: string;
     pickup: string;
     dropoff: string;
+    rider_name?: string;
   } | null>(null);
   const [trackingError, setTrackingError] = useState('');
   const [trackingLoading, setTrackingLoading] = useState(false);
 
   async function handleTrackOrder(e: React.FormEvent) {
     e.preventDefault();
-    if (!trackingCode.trim()) return;
+    const cleanCode = trackingCode.trim().toUpperCase();
+    if (!cleanCode) return;
     setTrackingLoading(true);
     setTrackingError('');
     setTrackingResult(null);
     try {
       const { data, error } = await supabase
         .from('swift_deliveries')
-        .select('status, description, package_type, pickup_address, dropoff_address')
-        .eq('tracking_code', trackingCode.trim().toUpperCase())
+        .select('*')
+        .or(`payment_reference.eq.${cleanCode},id.eq.${cleanCode}`)
         .maybeSingle();
+
       if (error) throw error;
       if (!data) {
         setTrackingError('No order found with that tracking code. Please check and try again.');
@@ -145,7 +363,7 @@ export function SwiftMoveLanding() {
 
   const statusColors: Record<string, string> = {
     pending: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-    assigned: 'bg-blue-100 text-blue-800 border-blue-300',
+    accepted: 'bg-blue-100 text-blue-800 border-blue-300',
     picked_up: 'bg-indigo-100 text-indigo-800 border-indigo-300',
     in_transit: 'bg-orange-100 text-orange-800 border-orange-300',
     delivered: 'bg-emerald-100 text-emerald-800 border-emerald-300',
@@ -274,9 +492,9 @@ export function SwiftMoveLanding() {
         </div>
 
         <div className="relative max-w-6xl mx-auto text-center w-full">
-          {/* Official SwiftMove Brand Hero Poster — Perfect Width & Fit */}
-          <div className="flex justify-center mb-10 w-full px-2">
-            <div className="relative group w-full max-w-xl sm:max-w-2xl md:max-w-3xl">
+          {/* Official SwiftMove Brand Hero Poster — Perfect Expansive Width & Fit */}
+          <div className="flex justify-center mb-8 w-full px-2">
+            <div className="relative group w-full max-w-2xl md:max-w-4xl lg:max-w-5xl xl:max-w-6xl">
               {/* Glow halo behind poster */}
               <div className="absolute -inset-4 bg-gradient-to-tr from-orange-500 via-amber-400 to-blue-500 rounded-[2.5rem] blur-2xl opacity-45 group-hover:opacity-70 transition-opacity duration-500" />
               {/* Poster card */}
@@ -285,7 +503,7 @@ export function SwiftMoveLanding() {
                   src="/swiftmove-hero-banner.jpg"
                   alt="SwiftMove Express Network — Need it moved? We move it swift."
                   className="w-full h-auto block object-contain mx-auto"
-                  style={{ maxHeight: '82vh' }}
+                  style={{ maxHeight: '85vh' }}
                   loading="eager"
                 />
                 <div className="absolute top-4 right-4 px-3.5 py-1.5 rounded-full bg-slate-900/90 backdrop-blur-md border border-white/20 text-white text-xs font-bold flex items-center gap-2 shadow-xl">
@@ -296,16 +514,88 @@ export function SwiftMoveLanding() {
             </div>
           </div>
 
+          {/* 4 Interactive Service Highlights matching Hero Banner */}
+          <div className="flex flex-wrap items-center justify-center gap-3 mb-10 px-2">
+            <button
+              type="button"
+              onClick={() => {
+                setScheduleMode('ride');
+                setRideTierId('regular');
+                document.getElementById('schedule-console')?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-white border border-slate-200/90 shadow-sm hover:border-blue-400 hover:shadow-md hover:-translate-y-0.5 transition-all text-left group cursor-pointer"
+            >
+              <div className="h-10 w-10 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                <Car className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors">Car &amp; Keke</p>
+                <p className="text-[10px] sm:text-[11px] text-slate-500">Quick &amp; Comfortable</p>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setScheduleMode('dispatch');
+                document.getElementById('schedule-console')?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-white border border-slate-200/90 shadow-sm hover:border-orange-400 hover:shadow-md hover:-translate-y-0.5 transition-all text-left group cursor-pointer"
+            >
+              <div className="h-10 w-10 rounded-xl bg-orange-50 border border-orange-200 flex items-center justify-center text-orange-600 shrink-0 group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                <Package className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-orange-600 transition-colors">Book Delivery</p>
+                <p className="text-[10px] sm:text-[11px] text-slate-500">Parcels • Documents • Goods</p>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                document.getElementById('track-order')?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-white border border-slate-200/90 shadow-sm hover:border-emerald-400 hover:shadow-md hover:-translate-y-0.5 transition-all text-left group cursor-pointer"
+            >
+              <div className="h-10 w-10 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 shrink-0 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                <MapPin className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">Track Your Order</p>
+                <p className="text-[10px] sm:text-[11px] text-slate-500">Live GPS &amp; Status Updates</p>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setScheduleMode('dispatch');
+                setScheduleTiming('scheduled');
+                document.getElementById('schedule-console')?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-white border border-slate-200/90 shadow-sm hover:border-purple-400 hover:shadow-md hover:-translate-y-0.5 transition-all text-left group cursor-pointer"
+            >
+              <div className="h-10 w-10 rounded-xl bg-purple-50 border border-purple-200 flex items-center justify-center text-purple-600 shrink-0 group-hover:bg-purple-600 group-hover:text-white transition-colors">
+                <Bike className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-purple-600 transition-colors">Dispatch</p>
+                <p className="text-[10px] sm:text-[11px] text-slate-500">Track • Coordinate • Support</p>
+              </div>
+            </button>
+          </div>
+
           {/* Status / Welcome Badge */}
           {user ? (
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-emerald-200 bg-emerald-50 text-xs font-semibold text-emerald-800 mb-6 backdrop-blur shadow-sm">
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-              Welcome back, {userDisplayName}! Select an action to begin:
+              Welcome back, {userDisplayName}! Schedule an order or select a service:
             </div>
           ) : (
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-orange-200 bg-orange-50 text-xs font-semibold text-orange-800 mb-6 backdrop-blur shadow-sm">
               <span className="h-2 w-2 rounded-full bg-orange-500 animate-ping" />
-              Couriers &amp; Verified Drivers Active — Book Directly Online
+              Couriers &amp; Verified Drivers Active Across Jos — Instant &amp; Advance Scheduling
             </div>
           )}
 
@@ -317,17 +607,445 @@ export function SwiftMoveLanding() {
           </h1>
 
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-black tracking-widest uppercase shadow-md mb-6">
-            <span>Book</span>
+            <span>Schedule</span>
             <span className="text-orange-400">•</span>
-            <span>Track</span>
+            <span>Dispatch</span>
             <span className="text-orange-400">•</span>
-            <span>Deliver</span>
+            <span>Ride</span>
           </div>
 
-          <p className="text-base sm:text-lg md:text-xl text-slate-600 max-w-2xl mx-auto mb-12 leading-relaxed">
+          <p className="text-base sm:text-lg md:text-xl text-slate-600 max-w-2xl mx-auto mb-10 leading-relaxed">
             Same-day package dispatch, on-demand passenger rides (<strong className="text-slate-900">SwiftMove Regular</strong> &amp; <strong className="text-slate-900">SwiftMove Keke</strong>), and live GPS tracking across Jos and Nigeria.
-            No phone calls needed — choose a service below:
+            Book for right now or pick an exact date and time below:
           </p>
+
+          {/* ── INTERACTIVE SCHEDULE CONSOLE ──────────────────────────── */}
+          <div id="schedule-console" className="mb-14 scroll-mt-24 text-left max-w-4xl mx-auto">
+            <div className="relative overflow-hidden rounded-[2.5rem] border-2 border-orange-500/30 bg-white/95 backdrop-blur-xl p-6 sm:p-10 shadow-2xl shadow-orange-500/10">
+              
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
+                <div>
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-50 border border-orange-200 text-xs font-bold text-orange-700 mb-2">
+                    <CalendarClock className="h-3.5 w-3.5 text-orange-600" />
+                    <span>Instant &amp; Advance Scheduling</span>
+                  </div>
+                  <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                    Schedule a Dispatch or Ride
+                  </h2>
+                  <p className="text-xs sm:text-sm text-slate-600 mt-1">
+                    Book for right now or pick an exact date and time in advance. Verified couriers &amp; drivers ready.
+                  </p>
+                </div>
+
+                {/* Mode Selector: Dispatch vs Ride */}
+                <div className="inline-flex p-1.5 rounded-2xl bg-slate-100 border border-slate-200/80 shrink-0 self-start sm:self-center">
+                  <button
+                    type="button"
+                    onClick={() => setScheduleMode('dispatch')}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                      scheduleMode === 'dispatch'
+                        ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/30'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Package className="h-4 w-4" />
+                    <span>Parcel Dispatch</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setScheduleMode('ride')}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                      scheduleMode === 'ride'
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Car className="h-4 w-4" />
+                    <span>Passenger Ride</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Form */}
+              <form onSubmit={handleConfirmSchedule} className="pt-6 space-y-6">
+                
+                {/* Timing Selector: Instant vs Scheduled */}
+                <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 sm:p-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                      <Clock className="h-3.5 w-3.5 text-orange-500" />
+                      When should we pick up?
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setScheduleTiming('scheduled')}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                          scheduleTiming === 'scheduled'
+                            ? 'bg-orange-500 text-white shadow-sm'
+                            : 'bg-white border border-slate-200 text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        <Calendar className="h-3.5 w-3.5" />
+                        <span>Schedule for Later</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setScheduleTiming('now')}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                          scheduleTiming === 'now'
+                            ? 'bg-slate-900 text-white shadow-sm'
+                            : 'bg-white border border-slate-200 text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        <Zap className="h-3.5 w-3.5 text-amber-400" />
+                        <span>Pick Up Now</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Scheduled Date & Time Fields */}
+                  {scheduleTiming === 'scheduled' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-200/60 animate-in fade-in duration-200">
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block mb-1.5">
+                          Pickup Date <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="date"
+                          min={todayStr}
+                          value={schedDate}
+                          onChange={(e) => setSchedDate(e.target.value)}
+                          className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400 shadow-sm"
+                          required
+                        />
+                        <div className="flex items-center gap-1.5 mt-2">
+                          <button
+                            type="button"
+                            onClick={() => setSchedDate(todayStr)}
+                            className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${
+                              schedDate === todayStr ? 'bg-orange-100 border-orange-300 text-orange-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'
+                            }`}
+                          >
+                            Today
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setSchedDate(tomorrowStr)}
+                            className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${
+                              schedDate === tomorrowStr ? 'bg-orange-100 border-orange-300 text-orange-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'
+                            }`}
+                          >
+                            Tomorrow
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setSchedDate(nextDayStr)}
+                            className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${
+                              schedDate === nextDayStr ? 'bg-orange-100 border-orange-300 text-orange-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'
+                            }`}
+                          >
+                            In 2 Days
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block mb-1.5">
+                          Pickup Time <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="time"
+                          value={schedTime}
+                          onChange={(e) => setSchedTime(e.target.value)}
+                          className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400 shadow-sm"
+                          required
+                        />
+                        <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                          {['08:30', '11:00', '14:00', '17:30'].map((slot) => (
+                            <button
+                              key={slot}
+                              type="button"
+                              onClick={() => setSchedTime(slot)}
+                              className={`px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${
+                                schedTime === slot ? 'bg-orange-100 border-orange-300 text-orange-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'
+                              }`}
+                            >
+                              {slot}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Locations Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Pickup Address */}
+                  <div className="relative">
+                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+                      <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                      Pickup Location <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-emerald-600" />
+                      <input
+                        type="text"
+                        value={schedPickup}
+                        onChange={(e) => {
+                          setSchedPickup(e.target.value);
+                          setActiveSuggestionField('pickup');
+                        }}
+                        onFocus={() => setActiveSuggestionField('pickup')}
+                        placeholder="e.g. Jos Main Market, Rayfield, UNIJOS..."
+                        className="w-full pl-10 pr-8 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-400"
+                        required
+                      />
+                      {schedPickup && (
+                        <button
+                          type="button"
+                          onClick={() => { setSchedPickup(''); setSchedPickupSuggestions([]); }}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                    {/* Autocomplete Dropdown */}
+                    {activeSuggestionField === 'pickup' && schedPickupSuggestions.length > 0 && (
+                      <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden">
+                        {schedPickupSuggestions.map((sug) => (
+                          <button
+                            key={sug.id || sug.label}
+                            type="button"
+                            onClick={() => {
+                              setSchedPickup(`${sug.label}, ${sug.sublabel}`);
+                              setActiveSuggestionField(null);
+                            }}
+                            className="w-full px-4 py-2.5 text-left hover:bg-orange-50 border-b border-slate-100 last:border-b-0 flex items-center justify-between text-xs cursor-pointer"
+                          >
+                            <span className="font-bold text-slate-800">{sug.label}</span>
+                            <span className="text-slate-400 text-[10px] truncate max-w-[180px]">{sug.sublabel}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Destination Address */}
+                  <div className="relative">
+                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+                      <span className="h-2 w-2 rounded-full bg-orange-500" />
+                      Destination <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <Navigation className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-orange-600" />
+                      <input
+                        type="text"
+                        value={schedDropoff}
+                        onChange={(e) => {
+                          setSchedDropoff(e.target.value);
+                          setActiveSuggestionField('dropoff');
+                        }}
+                        onFocus={() => setActiveSuggestionField('dropoff')}
+                        placeholder="e.g. Yakubu Gowon Airport, Bukuru, Old Airport..."
+                        className="w-full pl-10 pr-8 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-400"
+                        required
+                      />
+                      {schedDropoff && (
+                        <button
+                          type="button"
+                          onClick={() => { setSchedDropoff(''); setSchedDropoffSuggestions([]); }}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                    {/* Autocomplete Dropdown */}
+                    {activeSuggestionField === 'dropoff' && schedDropoffSuggestions.length > 0 && (
+                      <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden">
+                        {schedDropoffSuggestions.map((sug) => (
+                          <button
+                            key={sug.id || sug.label}
+                            type="button"
+                            onClick={() => {
+                              setSchedDropoff(`${sug.label}, ${sug.sublabel}`);
+                              setActiveSuggestionField(null);
+                            }}
+                            className="w-full px-4 py-2.5 text-left hover:bg-orange-50 border-b border-slate-100 last:border-b-0 flex items-center justify-between text-xs cursor-pointer"
+                          >
+                            <span className="font-bold text-slate-800">{sug.label}</span>
+                            <span className="text-slate-400 text-[10px] truncate max-w-[180px]">{sug.sublabel}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Mode Specific Customizations */}
+                {scheduleMode === 'dispatch' ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-slate-100">
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block mb-1.5">
+                        Package Type
+                      </label>
+                      <select
+                        value={dispatchCategory}
+                        onChange={(e) => setDispatchCategory(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                      >
+                        <option value="Documents & Letters">Documents &amp; Envelopes</option>
+                        <option value="Standard Parcel">Standard Parcel</option>
+                        <option value="Electronics & Fragile">Electronics &amp; Fragile</option>
+                        <option value="Food & Catering">Food &amp; Catering</option>
+                        <option value="Heavy Cargo & Boxes">Heavy Cargo &amp; Boxes</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block mb-1.5">
+                        Estimated Weight (kg)
+                      </label>
+                      <select
+                        value={dispatchWeight}
+                        onChange={(e) => setDispatchWeight(Number(e.target.value))}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                      >
+                        <option value={1}>Up to 1 kg (Light)</option>
+                        <option value={2}>Up to 2 kg (Standard)</option>
+                        <option value={5}>Up to 5 kg (Box)</option>
+                        <option value={10}>Up to 10 kg (Medium)</option>
+                        <option value={25}>25+ kg (Bulk / Heavy)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block mb-1.5">
+                        Recipient Phone (optional)
+                      </label>
+                      <input
+                        type="tel"
+                        value={dispatchPhone}
+                        onChange={(e) => setDispatchPhone(e.target.value)}
+                        placeholder="e.g. 0803 000 0000"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400 placeholder:text-slate-400"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-slate-100">
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block mb-1.5">
+                        Vehicle Type
+                      </label>
+                      <select
+                        value={rideTierId}
+                        onChange={(e) => setRideTierId(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      >
+                        <option value="regular">SwiftMove Regular (Comfort Sedan)</option>
+                        <option value="keke">SwiftMove Keke (Nimble Tricycle)</option>
+                        <option value="van">SwiftMove Van (Group &amp; Luggage)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block mb-1.5">
+                        Passenger Seats
+                      </label>
+                      <select
+                        value={rideSeats}
+                        onChange={(e) => setRideSeats(Number(e.target.value))}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      >
+                        <option value={1}>1 Passenger</option>
+                        <option value={2}>2 Passengers</option>
+                        <option value={3}>3 Passengers</option>
+                        <option value={4}>4 Passengers (Full Car)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block mb-1.5">
+                        Passenger Phone
+                      </label>
+                      <input
+                        type="tel"
+                        value={ridePhone}
+                        onChange={(e) => setRidePhone(e.target.value)}
+                        placeholder="e.g. 0803 000 0000"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-400 placeholder:text-slate-400"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Fare & Confirmation Card */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-850 to-slate-900 text-white shadow-xl">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-400 uppercase tracking-widest font-bold">Estimated Fare</span>
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold">
+                        Guaranteed
+                      </span>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl sm:text-4xl font-black tracking-tight text-white">
+                        ₦{scheduleMode === 'dispatch' ? calculatedDispatchFare.toLocaleString() : calculatedRideFare.toLocaleString()}
+                      </span>
+                      <span className="text-xs text-slate-400">
+                        {calculatedDistanceKm > 0 ? `(~${calculatedDistanceKm} km)` : '(Base fare)'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-300">
+                      {scheduleTiming === 'scheduled' ? (
+                        <span className="text-orange-300 font-semibold">
+                          📅 Scheduled for {schedDate} at {schedTime}
+                        </span>
+                      ) : (
+                        <span className="text-emerald-300 font-semibold">
+                          ⚡ Instant request — dispatching immediately
+                        </span>
+                      )}
+                    </p>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isSubmittingSchedule || !schedPickup.trim() || !schedDropoff.trim()}
+                    className={`px-8 py-4 rounded-2xl text-sm sm:text-base font-black shadow-xl transition-all duration-300 flex items-center justify-center gap-2 shrink-0 cursor-pointer ${
+                      scheduleMode === 'dispatch'
+                        ? 'bg-gradient-to-r from-orange-500 via-amber-500 to-orange-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-orange-500/25 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100'
+                        : 'bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white shadow-blue-500/25 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100'
+                    }`}
+                  >
+                    {isSubmittingSchedule ? (
+                      <>
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <span>Processing Schedule…</span>
+                      </>
+                    ) : (
+                      <>
+                        <CalendarClock className="h-5 w-5" />
+                        <span>
+                          {scheduleTiming === 'scheduled'
+                            ? scheduleMode === 'dispatch' ? 'Confirm & Schedule Dispatch' : 'Confirm & Schedule Ride'
+                            : scheduleMode === 'dispatch' ? 'Book Dispatch Now' : 'Request Ride Now'
+                          }
+                        </span>
+                        <ArrowRight className="h-4 w-4" />
+                      </>
+                    )}
+                  </button>
+                </div>
+
+              </form>
+            </div>
+          </div>
 
           {/* ── 4 PRIMARY ACTION BUTTONS / CARDS ──────────────────────── */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 text-left max-w-6xl mx-auto">

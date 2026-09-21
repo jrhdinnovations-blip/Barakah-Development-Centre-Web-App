@@ -21,7 +21,7 @@ import {
   AlertTriangle, ChevronRight, Check, Clock, X, History,
   Plus, Minus, Zap, User, Info, ChevronDown, Locate,
   ArrowUpDown, MessageCircle, ReceiptText, Sparkles, CreditCard,
-  RotateCcw, Search,
+  RotateCcw, Search, Calendar,
 } from 'lucide-react';
 
 import { supabase } from '@/integrations/supabase/client';
@@ -233,6 +233,13 @@ function RideHailingDashboard() {
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const [activeOrder, setActiveOrder] = useState<any>(null);
   const [isSearchingTimer, setIsSearchingTimer] = useState(0);
+
+  // ── Ride Scheduling State ───────────────────────────────────────────────────────
+  const [rideTiming, setRideTiming] = useState<'now' | 'scheduled'>('now');
+  const rideTodayStr = useMemo(() => new Date().toISOString().split('T')[0]!, []);
+  const rideTomorrowStr = useMemo(() => new Date(Date.now() + 86400000).toISOString().split('T')[0]!, []);
+  const [rideSchedDate, setRideSchedDate] = useState<string>(rideTodayStr);
+  const [rideSchedTime, setRideSchedTime] = useState<string>('09:30');
 
   // ── Preemptive Session Health Check ───────────────────────────────────────
   useEffect(() => {
@@ -538,10 +545,13 @@ function RideHailingDashboard() {
     setActiveOrderId(null);
     setActiveOrder(null);
     setIsSearchingTimer(0);
+    setRideTiming('now');
+    setRideSchedDate(rideTodayStr);
+    setRideSchedTime('09:30');
     if (pickupInputRef.current) pickupInputRef.current.value = '';
     if (dropoffInputRef.current) dropoffInputRef.current.value = '';
     fetchHistory();
-  }, []);
+  }, [rideTodayStr]);
 
   // ── Process Order Status Changes ──────────────────────────────────────────
   const processOrderUpdate = useCallback(
@@ -806,6 +816,9 @@ function RideHailingDashboard() {
       safetyPin: pin,
       customerPhone,
       notes: useInDriveMode ? `Custom fare offer: ₦${customFare}` : null,
+      isScheduled: rideTiming === 'scheduled',
+      scheduledDate: rideTiming === 'scheduled' ? rideSchedDate : undefined,
+      scheduledTime: rideTiming === 'scheduled' ? rideSchedTime : undefined,
     });
 
     setPhase('searching');
@@ -1547,6 +1560,83 @@ function RideHailingDashboard() {
           </div>
         </div>
       )}
+
+      {/* ── Ride Timing Selector ── */}
+      <div className="px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50 mx-0 space-y-3 mb-1">
+        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+          <Clock className="h-3.5 w-3.5 text-blue-500" /> Ride Timing
+        </p>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setRideTiming('now')}
+            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              rideTiming === 'now'
+                ? 'bg-slate-900 text-white shadow-sm'
+                : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-400'
+            }`}
+          >
+            <Zap className="h-3.5 w-3.5" /> Ride Now
+          </button>
+          <button
+            type="button"
+            onClick={() => setRideTiming('scheduled')}
+            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              rideTiming === 'scheduled'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'bg-white border border-slate-200 text-slate-600 hover:border-blue-400'
+            }`}
+          >
+            <Calendar className="h-3.5 w-3.5" /> Schedule Ride
+          </button>
+        </div>
+
+        {rideTiming === 'scheduled' && (
+          <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200/60 animate-in fade-in duration-200">
+            <div>
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                Date <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="date"
+                min={rideTodayStr}
+                value={rideSchedDate}
+                onChange={(e) => setRideSchedDate(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-sm"
+              />
+              <div className="flex gap-1.5 mt-1.5">
+                <button type="button" onClick={() => setRideSchedDate(rideTodayStr)}
+                  className={`px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${ rideSchedDate === rideTodayStr ? 'bg-blue-100 border-blue-300 text-blue-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100' }`}>
+                  Today
+                </button>
+                <button type="button" onClick={() => setRideSchedDate(rideTomorrowStr)}
+                  className={`px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${ rideSchedDate === rideTomorrowStr ? 'bg-blue-100 border-blue-300 text-blue-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100' }`}>
+                  Tomorrow
+                </button>
+              </div>
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                Time
+              </label>
+              <input
+                type="time"
+                value={rideSchedTime}
+                onChange={(e) => setRideSchedTime(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-sm"
+              />
+              <div className="flex gap-1.5 mt-1.5">
+                {['07:00', '12:00', '17:00'].map((t) => (
+                  <button key={t} type="button" onClick={() => setRideSchedTime(t)}
+                    className={`px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${ rideSchedTime === t ? 'bg-blue-100 border-blue-300 text-blue-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100' }`}>
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* PRIMARY ACTION BUTTON (ALWAYS VISIBLE) */}
       <div className="pt-1">

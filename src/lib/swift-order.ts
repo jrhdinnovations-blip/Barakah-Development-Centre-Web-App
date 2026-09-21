@@ -20,6 +20,9 @@ export interface ParsedOrderMetadata {
   plateNumber?: string | undefined;
   vehicleColor?: string | undefined;
   driverRating?: number | undefined;
+  isScheduled?: boolean | undefined;
+  scheduledDate?: string | undefined;
+  scheduledTime?: string | undefined;
   rawPackageType: string;
 }
 
@@ -33,10 +36,18 @@ export function encodeRideMetadata(opts: {
   safetyPin: string;
   customerPhone?: string | null;
   notes?: string | null;
+  scheduledDate?: string | null;
+  scheduledTime?: string | null;
+  isScheduled?: boolean;
 }): string {
   let pkg = `Ride: ${opts.tierName}|||KIND:ride|||TIER:${opts.tierId}|||SEATS:${opts.seats}|||PIN:${opts.safetyPin}`;
   if (opts.customerPhone) pkg += `|||CPHONE:${opts.customerPhone}`;
   if (opts.notes) pkg += `|||NOTES:${opts.notes.trim()}`;
+  if (opts.isScheduled || opts.scheduledDate) {
+    pkg += `|||SCHEDULED:true`;
+    if (opts.scheduledDate) pkg += `|||SCHED_DATE:${opts.scheduledDate.trim()}`;
+    if (opts.scheduledTime) pkg += `|||SCHED_TIME:${opts.scheduledTime.trim()}`;
+  }
   return pkg;
 }
 
@@ -47,10 +58,18 @@ export function encodeDispatchMetadata(opts: {
   cargoType?: string | null;
   customerPhone?: string | null;
   description?: string | null;
+  scheduledDate?: string | null;
+  scheduledTime?: string | null;
+  isScheduled?: boolean;
 }): string {
   let pkg = `${opts.cargoType || 'Parcel Delivery'}|||KIND:dispatch`;
   if (opts.customerPhone) pkg += `|||CPHONE:${opts.customerPhone}`;
   if (opts.description) pkg += `|||NOTES:${opts.description.trim()}`;
+  if (opts.isScheduled || opts.scheduledDate) {
+    pkg += `|||SCHEDULED:true`;
+    if (opts.scheduledDate) pkg += `|||SCHED_DATE:${opts.scheduledDate.trim()}`;
+    if (opts.scheduledTime) pkg += `|||SCHED_TIME:${opts.scheduledTime.trim()}`;
+  }
   return pkg;
 }
 
@@ -123,6 +142,9 @@ export function parseOrderMetadata(packageType?: string | null): ParsedOrderMeta
   const ratingStr = matchKey('DRATING');
   const tierVal = matchKey('TIER');
   const pinVal = matchKey('PIN');
+  const isSched = matchKey('SCHEDULED') === 'true' || !!matchKey('SCHED_DATE');
+  const schedDate = matchKey('SCHED_DATE');
+  const schedTime = matchKey('SCHED_TIME');
 
   return {
     isRide,
@@ -141,6 +163,9 @@ export function parseOrderMetadata(packageType?: string | null): ParsedOrderMeta
     plateNumber: matchKey('DPLATE'),
     vehicleColor: matchKey('DCOLOR'),
     driverRating: ratingStr ? parseFloat(ratingStr) : undefined,
+    isScheduled: isSched,
+    scheduledDate: schedDate,
+    scheduledTime: schedTime,
     rawPackageType: raw,
   };
 }
