@@ -166,31 +166,34 @@ export function MobileNav() {
     }, [isOpen]);
 
     return (
-        <div className="md:hidden sticky top-0 z-40 bg-slate-950/90 backdrop-blur-md border-b border-slate-800/80 px-4 py-3 flex items-center justify-between">
-            {/* Brand */}
-            <Link to="/" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
-                <div className="p-2 bg-blue-600 rounded-lg text-white shadow-md shadow-blue-600/30">
-                    <Truck className="h-5 w-5" />
-                </div>
-                <div>
-                    <h2 className="text-sm font-black text-white leading-tight">SwiftMove</h2>
-                    <p className={`text-[10px] font-semibold ${config.roleColor}`}>{config.roleLabel} Portal</p>
-                </div>
-            </Link>
+        <>
+            {/* ── Sticky Top Bar ── */}
+            <div className="md:hidden sticky top-0 z-40 bg-slate-950/90 backdrop-blur-md border-b border-slate-800/80 px-4 py-3 flex items-center justify-between">
+                {/* Brand */}
+                <Link to="/" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
+                    <div className="p-2 bg-blue-600 rounded-lg text-white shadow-md shadow-blue-600/30">
+                        <Truck className="h-5 w-5" />
+                    </div>
+                    <div>
+                        <h2 className="text-sm font-black text-white leading-tight">SwiftMove</h2>
+                        <p className={`text-[10px] font-semibold ${config.roleColor}`}>{config.roleLabel} Portal</p>
+                    </div>
+                </Link>
 
-            <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsOpen(!isOpen)}
-                className="text-slate-300 hover:text-white hover:bg-slate-900"
-                aria-label="Toggle Navigation"
-            >
-                {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-            </Button>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsOpen(!isOpen)}
+                    className="text-slate-300 hover:text-white hover:bg-slate-900"
+                    aria-label="Toggle Navigation"
+                >
+                    {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+                </Button>
+            </div>
 
-            {/* ── Full-screen Drawer ── */}
+            {/* ── Full-screen Drawer (sibling to header, not nested inside) ── */}
             {isOpen && (
-                <div className="fixed inset-0 z-50 flex flex-col bg-slate-950/98 backdrop-blur-xl pt-4 pb-6 px-5 animate-in fade-in slide-in-from-top-4 duration-200">
+                <div className="fixed inset-0 z-[100] flex flex-col bg-slate-950 pt-4 pb-6 px-5 overflow-y-auto animate-in fade-in slide-in-from-top-4 duration-200">
                     {/* Drawer Header */}
                     <div className="flex items-center justify-between mb-6">
                         <Link to="/" onClick={() => setIsOpen(false)} className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
@@ -211,7 +214,7 @@ export function MobileNav() {
                     </div>
 
                     {/* Role-specific nav sections */}
-                    <div className="flex-1 overflow-y-auto space-y-5">
+                    <div className="flex-1 space-y-5">
                         {config.sections.map((section) => (
                             <nav key={section.title} className="space-y-1">
                                 <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-2 pb-1 border-b border-slate-800/60 mb-2">
@@ -282,6 +285,6 @@ export function MobileNav() {
                     </div>
                 </div>
             )}
-        </div>
+        </>
     );
 }
