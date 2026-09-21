@@ -95,10 +95,11 @@ function AuthPage() {
   }
 
   async function handleGoogle() {
+    const defaultAfterAuth = isSwiftmoveDomain() ? "/" : "/my-swift-move";
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}${redirectParam || "/my-swift-move"}`,
+        redirectTo: `${window.location.origin}${redirectParam || defaultAfterAuth}`,
       },
     });
     if (error) toast.error(error.message);
@@ -158,11 +159,13 @@ function AuthPage() {
       return;
     }
     setBusy(true);
+    // On swiftmove.ng new users land on the SwiftMove home page, not the Barakah dashboard
+    const defaultAfterSignup = isSwiftmoveDomain() ? "/" : "/my-swift-move";
     const { data: signUpData, error } = await supabase.auth.signUp({
       email: parsed.data.email,
       password: parsed.data.password,
       options: {
-        emailRedirectTo: `${window.location.origin}${redirectParam || "/my-swift-move"}`,
+        emailRedirectTo: `${window.location.origin}${redirectParam || defaultAfterSignup}`,
         data: {
           full_name: parsed.data.fullName,
           phone: parsed.data.phone,
@@ -179,7 +182,7 @@ function AuthPage() {
     setBusy(false);
     if (signUpData?.session) {
       toast.success("Account created successfully!");
-      navigate({ to: (redirectParam || "/my-swift-move") as any });
+      navigate({ to: (redirectParam || defaultAfterSignup) as any });
       return;
     }
     setRegistered(true);
