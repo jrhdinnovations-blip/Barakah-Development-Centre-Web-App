@@ -408,12 +408,12 @@ function OrderHistoryPage() {
                                                         {trip.tier.toUpperCase()}
                                                     </span>
 
-                                                    <span className="text-xs font-mono text-slate-500">
+                                                    <span className="text-xs font-mono text-slate-500 break-all">
                                                         REF: {trip.reference || trip.id.slice(0, 8).toUpperCase()}
                                                     </span>
 
-                                                    <span className="text-xs text-slate-400 ml-auto md:ml-0 flex items-center gap-1">
-                                                        <Clock className="h-3 w-3" />
+                                                    <span className="text-xs text-slate-400 flex items-center gap-1">
+                                                        <Clock className="h-3 w-3 shrink-0" />
                                                         {new Date(trip.createdAt).toLocaleString(undefined, {
                                                             month: 'short',
                                                             day: 'numeric',
@@ -425,16 +425,16 @@ function OrderHistoryPage() {
 
                                                 {/* Route */}
                                                 <div className="text-xs text-slate-300 space-y-1.5">
-                                                    <div className="flex items-center gap-2 truncate">
+                                                    <div className="flex items-center gap-2 min-w-0">
                                                         <div className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
-                                                        <span className="text-slate-400 font-medium">Pickup:</span>
+                                                        <span className="text-slate-400 font-medium shrink-0">Pickup:</span>
                                                         <span className="truncate text-white font-semibold">
                                                             {trip.pickupAddress || 'Unspecified location'}
                                                         </span>
                                                     </div>
-                                                    <div className="flex items-center gap-2 truncate">
+                                                    <div className="flex items-center gap-2 min-w-0">
                                                         <div className="w-2 h-2 rounded-full bg-rose-400 shrink-0" />
-                                                        <span className="text-slate-400 font-medium">Dropoff:</span>
+                                                        <span className="text-slate-400 font-medium shrink-0">Dropoff:</span>
                                                         <span className="truncate text-white font-semibold">
                                                             {trip.dropoffAddress || 'Unspecified location'}
                                                         </span>
@@ -442,9 +442,9 @@ function OrderHistoryPage() {
                                                 </div>
 
                                                 {/* Passenger Info */}
-                                                <div className="flex items-center gap-4 text-xs text-slate-400 pt-1">
+                                                <div className="flex flex-wrap items-center gap-2.5 sm:gap-4 text-xs text-slate-400 pt-1">
                                                     <span className="flex items-center gap-1.5">
-                                                        <User className="h-3.5 w-3.5 text-cyan-400" />
+                                                        <User className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
                                                         <strong className="text-slate-200">{trip.customerName || 'Passenger'}</strong>
                                                     </span>
                                                     {trip.customerPhone && (
@@ -452,13 +452,13 @@ function OrderHistoryPage() {
                                                             href={`tel:${trip.customerPhone}`}
                                                             className="flex items-center gap-1 text-cyan-400 hover:underline"
                                                         >
-                                                            <Phone className="h-3 w-3" />
+                                                            <Phone className="h-3 w-3 shrink-0" />
                                                             <span>{trip.customerPhone}</span>
                                                         </a>
                                                     )}
                                                     {trip.pickupPin && (
                                                         <span className="flex items-center gap-1 text-cyan-300 font-mono bg-cyan-950/50 px-2 py-0.5 rounded border border-cyan-800/40">
-                                                            <Shield className="h-3 w-3" /> PIN: {trip.pickupPin}
+                                                            <Shield className="h-3 w-3 shrink-0" /> PIN: {trip.pickupPin}
                                                         </span>
                                                     )}
                                                 </div>
@@ -525,7 +525,7 @@ function OrderHistoryPage() {
                                     className="bg-slate-900/70 border-slate-800/80 hover:border-slate-700 transition-all rounded-2xl overflow-hidden shadow-lg"
                                 >
                                     <div className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                        <div className="flex items-start gap-4">
+                                        <div className="flex items-start gap-3.5 flex-1 min-w-0">
                                             <div
                                                 className={`p-3 rounded-2xl shrink-0 ${
                                                     item.type === 'package' ? 'bg-blue-500/10 text-blue-400' : 'bg-orange-500/10 text-orange-400'
@@ -534,19 +534,23 @@ function OrderHistoryPage() {
                                                 {item.type === 'package' ? <Package className="h-6 w-6" /> : <Car className="h-6 w-6" />}
                                             </div>
 
-                                            <div className="space-y-1">
-                                                <div className="flex items-center gap-2">
+                                            <div className="space-y-1 flex-1 min-w-0">
+                                                <div className="flex flex-wrap items-center gap-2">
                                                     <h3 className="font-bold text-white text-base">{item.title}</h3>
                                                     {getStatusBadge(item.status)}
                                                 </div>
-                                                <p className="text-xs font-mono text-slate-400">REF: {item.reference}</p>
+                                                <p className="text-xs font-mono text-slate-400 break-all">REF: {item.reference}</p>
 
-                                                <div className="text-xs text-slate-400 pt-1 space-y-1">
-                                                    <div className="flex items-center gap-1.5 truncate">
-                                                        <MapPin className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                                                        <span className="truncate">{item.pickup}</span>
-                                                        <span className="text-slate-600">→</span>
-                                                        <span className="truncate">{item.dropoff}</span>
+                                                <div className="text-xs text-slate-300 pt-1 space-y-1 min-w-0">
+                                                    <div className="flex items-center gap-2 min-w-0">
+                                                        <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+                                                        <span className="text-slate-400 shrink-0">From:</span>
+                                                        <span className="truncate text-white font-medium">{item.pickup}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 min-w-0">
+                                                        <span className="w-2 h-2 rounded-full bg-rose-400 shrink-0" />
+                                                        <span className="text-slate-400 shrink-0">To:</span>
+                                                        <span className="truncate text-white font-medium">{item.dropoff}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -580,7 +584,7 @@ function OrderHistoryPage() {
             {/* DRIVER TRIP DETAILS MODAL */}
             {selectedDriverTrip && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200">
-                    <div className="relative w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-5 max-h-[90dvh] overflow-y-auto text-white">
+                    <div className="relative w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-2xl space-y-4 sm:space-y-5 max-h-[90dvh] overflow-y-auto text-white">
                         <div className="flex items-center justify-between border-b border-slate-800 pb-4">
                             <div className="flex items-center gap-3">
                                 <div
@@ -594,11 +598,11 @@ function OrderHistoryPage() {
                                 >
                                     {selectedDriverTrip.isDeclined ? <XCircle className="h-6 w-6" /> : <FileText className="h-6 w-6" />}
                                 </div>
-                                <div>
-                                    <h3 className="text-lg font-bold text-white">
+                                <div className="min-w-0">
+                                    <h3 className="text-base sm:text-lg font-bold text-white truncate">
                                         {selectedDriverTrip.isDeclined ? 'Declined Ride Record' : 'Driver Trip Details'}
                                     </h3>
-                                    <p className="text-xs text-slate-400 font-mono">
+                                    <p className="text-xs text-slate-400 font-mono break-all">
                                         REF: {selectedDriverTrip.reference || selectedDriverTrip.id.slice(0, 10).toUpperCase()}
                                     </p>
                                 </div>
@@ -614,8 +618,8 @@ function OrderHistoryPage() {
 
                         {/* Status & Tier */}
                         <div className="flex items-center justify-between gap-2 p-3 rounded-2xl bg-slate-950/70 border border-slate-800/80">
-                            <div className="flex items-center gap-2">
-                                <span className="text-xs text-slate-400">Status:</span>
+                            <div className="flex items-center gap-2 min-w-0">
+                                <span className="text-xs text-slate-400 shrink-0">Status:</span>
                                 {selectedDriverTrip.isDeclined ? (
                                     <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/30 inline-flex items-center gap-1.5">
                                         <XCircle className="h-3.5 w-3.5" /> Declined by Driver
@@ -630,7 +634,7 @@ function OrderHistoryPage() {
                                     </span>
                                 )}
                             </div>
-                            <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-slate-800 text-slate-300 border border-slate-700">
+                            <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-slate-800 text-slate-300 border border-slate-700 shrink-0">
                                 {selectedDriverTrip.tier.toUpperCase()}
                             </span>
                         </div>
@@ -662,7 +666,7 @@ function OrderHistoryPage() {
                         </div>
 
                         {/* Passenger */}
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div className="bg-slate-950/50 p-3 rounded-2xl border border-slate-800/60">
                                 <div className="flex items-center gap-1.5 text-[10px] text-slate-400 uppercase font-bold mb-1">
                                     <User className="h-3 w-3 text-cyan-400" /> Passenger
@@ -753,11 +757,11 @@ function OrderHistoryPage() {
             {/* CUSTOMER RECEIPT MODAL DIALOG */}
             {selectedItem && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
-                    <div className="relative w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-6 max-h-[90dvh] overflow-y-auto">
+                    <div className="relative w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-2xl space-y-4 sm:space-y-6 max-h-[90dvh] overflow-y-auto">
                         <div className="flex items-center justify-between border-b border-slate-800 pb-4">
                             <div className="flex items-center gap-2">
-                                <ShieldCheck className="h-5 w-5 text-blue-400" />
-                                <h2 className="text-lg font-bold text-white">Official Tax Invoice</h2>
+                                <ShieldCheck className="h-5 w-5 text-blue-400 shrink-0" />
+                                <h2 className="text-base sm:text-lg font-bold text-white">Official Tax Invoice</h2>
                             </div>
                             <button
                                 onClick={() => setSelectedItem(null)}
@@ -768,23 +772,23 @@ function OrderHistoryPage() {
                         </div>
 
                         {/* PRINTABLE RECEIPT CONTAINER */}
-                        <div ref={receiptRef} className="bg-slate-950 p-6 rounded-2xl border border-slate-800/80 space-y-6 text-slate-300 font-sans">
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <h3 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-                                        <Package className="h-5 w-5 text-blue-500" /> SwiftMove Logistics & Express Hire
+                        <div ref={receiptRef} className="bg-slate-950 p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-slate-800/80 space-y-5 sm:space-y-6 text-slate-300 font-sans">
+                            <div className="flex justify-between items-start gap-2">
+                                <div className="min-w-0">
+                                    <h3 className="text-lg sm:text-xl font-black text-white tracking-tight flex items-center gap-2">
+                                        <Package className="h-5 w-5 text-blue-500 shrink-0" /> <span className="truncate">SwiftMove Logistics &amp; Hire</span>
                                     </h3>
-                                    <p className="text-[11px] text-slate-400 mt-0.5">Express Courier & Vehicle Rental Platform</p>
+                                    <p className="text-[11px] text-slate-400 mt-0.5">Express Courier &amp; Vehicle Rental Platform</p>
                                 </div>
-                                <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 font-mono text-[10px]">
+                                <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 font-mono text-[10px] shrink-0">
                                     PAID
                                 </Badge>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4 text-xs bg-slate-900/60 p-4 rounded-xl border border-slate-800/60">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-xs bg-slate-900/60 p-3.5 sm:p-4 rounded-xl border border-slate-800/60">
                                 <div>
                                     <span className="text-slate-500 block text-[10px] uppercase font-semibold">Transaction Ref</span>
-                                    <strong className="text-white font-mono">{selectedItem.reference}</strong>
+                                    <strong className="text-white font-mono break-all">{selectedItem.reference}</strong>
                                 </div>
                                 <div>
                                     <span className="text-slate-500 block text-[10px] uppercase font-semibold">Issue Date</span>

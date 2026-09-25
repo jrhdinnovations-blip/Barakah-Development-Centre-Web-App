@@ -133,6 +133,7 @@
  */
 :root.swiftmove-theme,
 .swiftmove-theme {
+  --font-display: "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --background: oklch(0.985 0.005 240);
   --foreground: oklch(0.18 0.025 260);
 
@@ -160,6 +161,21 @@
   --sidebar-primary: oklch(0.65 0.22 45);
   --sidebar-primary-foreground: oklch(1 0 0);
 }
+
+@utility swift-glass {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+@utility swift-glow-orange {
+  box-shadow: 0 12px 40px -10px rgba(249, 115, 22, 0.25);
+}
+
+@utility swift-glow-blue {
+  box-shadow: 0 12px 40px -10px rgba(59, 130, 246, 0.25);
+}
+
 
 /* Leaflet Map Rendering Fixes */
 .leaflet-container {

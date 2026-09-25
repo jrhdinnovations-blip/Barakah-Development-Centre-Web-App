@@ -1756,7 +1756,7 @@ function CustomerBookingPage() {
                         </div>
 
                         {dispatchTiming === 'scheduled' && (
-                          <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200/60 animate-in fade-in duration-200">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-200/60 animate-in fade-in duration-200">
                             <div>
                               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
                                 Date <span className="text-red-500">*</span>
@@ -1769,7 +1769,7 @@ function CustomerBookingPage() {
                                 className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400 shadow-sm"
                                 required
                               />
-                              <div className="flex gap-1.5 mt-1.5">
+                              <div className="flex flex-wrap gap-1.5 mt-1.5">
                                 <button type="button" onClick={() => setSchedDate(todayStr)}
                                   className={`px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${ schedDate === todayStr ? 'bg-orange-100 border-orange-300 text-orange-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100' }`}>
                                   Today
@@ -1790,7 +1790,7 @@ function CustomerBookingPage() {
                                 onChange={(e) => setSchedTime(e.target.value)}
                                 className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400 shadow-sm"
                               />
-                              <div className="flex gap-1.5 mt-1.5">
+                              <div className="flex flex-wrap gap-1.5 mt-1.5">
                                 {['08:00', '12:00', '17:00'].map((t) => (
                                   <button key={t} type="button" onClick={() => setSchedTime(t)}
                                     className={`px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${ schedTime === t ? 'bg-orange-100 border-orange-300 text-orange-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100' }`}>

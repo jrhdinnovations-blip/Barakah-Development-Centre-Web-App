@@ -509,9 +509,10 @@ function AdminDashboard() {
               className="h-9 bg-orange-500/10 border-orange-500/30 text-orange-400 hover:bg-orange-500/20 text-xs font-bold"
               asChild
             >
-              <Link to="/dispatcher">
-                <Radio className="h-3.5 w-3.5 mr-1.5 animate-pulse text-orange-400" />
-                Dispatcher Console (Live Ops) →
+              <Link to="/dispatcher" className="flex items-center">
+                <Radio className="h-3.5 w-3.5 mr-1.5 animate-pulse text-orange-400 shrink-0" />
+                <span className="hidden sm:inline">Dispatcher Console (Live Ops) →</span>
+                <span className="sm:hidden">Console</span>
               </Link>
             </Button>
 

@@ -55,7 +55,7 @@ export function NotificationBell() {
           )}
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80 p-0">
+      <DropdownMenuContent align="end" className="w-[calc(100vw-2rem)] sm:w-80 max-w-sm p-0">
         <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
           <p className="text-sm font-semibold text-foreground">Notifications</p>
           <button

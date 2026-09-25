@@ -1114,7 +1114,7 @@ function RideHailingDashboard() {
                 }
               }}
               placeholder="Pickup location (e.g. Terminus, Rayfield, UNIJOS)..."
-              className="w-full py-2 bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
+              className="w-full min-w-0 flex-1 py-2 bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
             />
             {pickupText ? (
               <button
@@ -1212,7 +1212,7 @@ function RideHailingDashboard() {
                 }
               }}
               placeholder="Where to? (e.g. Airport, Bukuru, JUTH)..."
-              className="w-full py-2 bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
+              className="w-full min-w-0 flex-1 py-2 bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
             />
             {dropoffText && (
               <button
@@ -1368,7 +1368,7 @@ function RideHailingDashboard() {
                   <TierIcon type={tier.iconType} className="w-9 h-9" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <span className={`font-semibold text-sm ${isSelected ? 'text-slate-900' : 'text-slate-800'}`}>
                       {tier.name}
                     </span>
@@ -1592,7 +1592,7 @@ function RideHailingDashboard() {
         </div>
 
         {rideTiming === 'scheduled' && (
-          <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200/60 animate-in fade-in duration-200">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-200/60 animate-in fade-in duration-200">
             <div>
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
                 Date <span className="text-red-500">*</span>
@@ -1604,7 +1604,7 @@ function RideHailingDashboard() {
                 onChange={(e) => setRideSchedDate(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-sm"
               />
-              <div className="flex gap-1.5 mt-1.5">
+              <div className="flex flex-wrap gap-1.5 mt-1.5">
                 <button type="button" onClick={() => setRideSchedDate(rideTodayStr)}
                   className={`px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${ rideSchedDate === rideTodayStr ? 'bg-blue-100 border-blue-300 text-blue-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100' }`}>
                   Today
@@ -1625,7 +1625,7 @@ function RideHailingDashboard() {
                 onChange={(e) => setRideSchedTime(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-sm"
               />
-              <div className="flex gap-1.5 mt-1.5">
+              <div className="flex flex-wrap gap-1.5 mt-1.5">
                 {['07:00', '12:00', '17:00'].map((t) => (
                   <button key={t} type="button" onClick={() => setRideSchedTime(t)}
                     className={`px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${ rideSchedTime === t ? 'bg-blue-100 border-blue-300 text-blue-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100' }`}>
