@@ -57,7 +57,8 @@ export function calculateTierFare(
   distanceKm: number,
   trafficMultiplier: number = 1.0
 ): number {
-  if (distanceKm <= 0) return tier.baseFare;
+  if (!tier) return 0;
+  if (distanceKm <= 0) return tier.baseFare || 0;
   // Estimated minutes based on typical city speed (approx 30km/h => 2 mins per km)
   const estimatedMins = Math.max(5, distanceKm * 2);
   const distanceCost = distanceKm * tier.perKmRate;
