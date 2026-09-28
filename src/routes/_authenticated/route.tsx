@@ -41,7 +41,9 @@ function AuthenticatedErrorFallback({ error, reset }: { error: Error; reset: () 
   }, [error]);
 
   const isChunk = isChunkLoadError(error);
-  const isSwift = isSwiftmoveDomain();
+  const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+  const isAdminRoute = pathname.startsWith('/admin') || pathname.startsWith('/dispatcher');
+  const isSwift = !isAdminRoute && isSwiftmoveDomain();
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-slate-950 text-slate-100 overflow-x-hidden">
@@ -93,10 +95,18 @@ function AuthenticatedLayout() {
   const location = useLocation();
   const pathname = location.pathname;
   const isSwiftDomain = isSwiftmoveDomain();
+
+  // Admin and dispatcher routes ALWAYS need the sidebar, regardless of domain.
+  const isAdminRoute =
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/dispatcher');
+
+  // SwiftMove customer routes: clean full-width shell (no sidebar — SwiftmoveHeader handles nav)
   const isSwiftRoute =
-    isSwiftDomain ||
-    isSwiftmovePath(pathname) ||
-    pathname === '/history';
+    !isAdminRoute &&
+    (isSwiftDomain ||
+      isSwiftmovePath(pathname) ||
+      pathname === '/history');
 
   // For SwiftMove customer routes, use clean full-width shell (SwiftmoveHeader provides full navigation)
   if (isSwiftRoute) {
