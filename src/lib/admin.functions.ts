@@ -426,9 +426,23 @@ export const createStaffAdmin = createServerFn({ method: "POST" })
       authEmail = signUpData.user.email ?? data.email;
 
       try {
+        await supabaseAdmin.auth.admin.updateUserById(newUserId, {
+          email_confirm: true,
+        });
+      } catch (confirmErr) {
+        console.warn("Could not auto-confirm staff email:", confirmErr);
+      }
+
+      try {
         await supabase
           .from("profiles")
           .upsert({ user_id: newUserId, full_name: data.full_name, phone: data.phone || null } as any, { onConflict: "user_id" });
+      } catch {}
+
+      try {
+        await supabase
+          .from("user_roles")
+          .upsert({ user_id: newUserId, role: data.role as any, status: "active" } as any, { onConflict: "user_id,role" });
       } catch {}
     }
 

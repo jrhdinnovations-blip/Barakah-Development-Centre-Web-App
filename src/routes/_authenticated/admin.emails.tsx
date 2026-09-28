@@ -55,6 +55,7 @@ import {
   type CompanyDomain,
   type StaffMailbox,
 } from '@/lib/company-email-service';
+import { createStaffAdmin } from '@/lib/admin.functions';
 
 export const Route = createFileRoute('/_authenticated/admin/emails')({
   ssr: false,
@@ -205,38 +206,20 @@ function AdminCompanyEmailsPage() {
     setIsSubmittingMailbox(true);
 
     try {
-      // 1. Create auth user in Supabase
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: fullEmail,
-        password: newMailboxPassword,
-        email_confirm: true,
-        user_metadata: {
+      // 1. Create auth user in Supabase via server function with service role & email_confirm: true
+      const res = await createStaffAdmin({
+        data: {
           full_name: newMailboxName,
+          email: fullEmail,
+          password: newMailboxPassword,
           role: 'staff',
-          department: newMailboxDept,
-          designation: newMailboxRole,
+          department: newMailboxDept || null,
+          designation: newMailboxRole || null,
           recovery_email: newMailboxRecovery || null,
         },
       });
 
-      const userId = authData?.user?.id;
-
-      if (userId) {
-        await supabase.from('profiles').upsert(
-          {
-            user_id: userId,
-            full_name: newMailboxName,
-            department: newMailboxDept,
-            designation: newMailboxRole,
-          } as any,
-          { onConflict: 'user_id' }
-        );
-
-        await supabase.from('user_roles').upsert(
-          { user_id: userId, role: 'staff', status: 'active' },
-          { onConflict: 'user_id,role' }
-        );
-      }
+      const userId = res.userId;
 
       // 2. Record staff mailbox
       const newMailbox: StaffMailbox = {

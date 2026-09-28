@@ -7,16 +7,6 @@
                     "value": "(.*)swiftmove\\.(com|ng)"
                 }
             ],
-            "source": "/(.*)",
-            "destination": "/swiftmove/$1"
-        },
-        {
-            "has": [
-                {
-                    "type": "host",
-                    "value": "(.*)swiftmove\\.(com|ng)"
-                }
-            ],
             "source": "/",
             "destination": "/swiftmove"
         },

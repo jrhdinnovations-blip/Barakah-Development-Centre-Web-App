@@ -156,7 +156,7 @@ function AddRiderPage() {
   };
 
   const handleCopyCredentials = () => {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://barakahdevcentre.com';
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://swiftmove.ng';
     const text = [
       '=== Fleet Personnel Account ===',
       `Name: ${form.full_name}`,

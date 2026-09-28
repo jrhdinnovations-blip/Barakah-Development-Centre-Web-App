@@ -16,14 +16,41 @@ export function isSwiftmoveDomain(): boolean {
     return true;
   }
 
-  // 1. Client-side hostname & query detection (highest priority for multi-domain routing)
-  if (typeof window !== "undefined") {
-    const host = window.location.hostname.toLowerCase();
-
-    // If explicit barakah domain, always return false
-    if (host.includes("barakah")) {
-      return false;
+  // 1. SSR check via global request host set by server entry
+  if (typeof window === "undefined") {
+    const ssrHost = ((globalThis as any).__SSR_REQUEST_HOST__ || "").toLowerCase();
+    if (ssrHost) {
+      if (ssrHost.includes("swiftmove")) return true;
+      if (ssrHost.includes("barakah")) return false;
     }
+  }
+
+  // 2. Client-side hostname & query detection (highest priority for multi-domain routing)
+  if (typeof window !== "undefined") {
+    // URL override for testing/preview: ?mode=swiftmove or ?mode=barakah
+    try {
+      const search = window.location.search;
+      if (search) {
+        const params = new URLSearchParams(search);
+        const mode = params.get("mode") || params.get("app");
+        if (mode === "swiftmove") {
+          sessionStorage.setItem("barakah_swiftmove_mode", "true");
+          return true;
+        }
+        if (mode === "barakah") {
+          sessionStorage.removeItem("barakah_swiftmove_mode");
+          return false;
+        }
+      }
+
+      if (sessionStorage.getItem("barakah_swiftmove_mode") === "true") {
+        return true;
+      }
+    } catch {
+      // Ignore storage errors in restrictive browser environments
+    }
+
+    const host = window.location.hostname.toLowerCase();
 
     // Explicit custom domains list
     const customDomains = (
@@ -46,27 +73,9 @@ export function isSwiftmoveDomain(): boolean {
       return true;
     }
 
-    // URL override for testing/preview: ?mode=swiftmove or ?mode=barakah
-    try {
-      const search = window.location.search;
-      if (search) {
-        const params = new URLSearchParams(search);
-        const mode = params.get("mode") || params.get("app");
-        if (mode === "swiftmove") {
-          sessionStorage.setItem("barakah_swiftmove_mode", "true");
-          return true;
-        }
-        if (mode === "barakah") {
-          sessionStorage.removeItem("barakah_swiftmove_mode");
-          return false;
-        }
-      }
-
-      if (sessionStorage.getItem("barakah_swiftmove_mode") === "true") {
-        return true;
-      }
-    } catch {
-      // Ignore storage errors in restrictive browser environments
+    // If explicit barakah domain, always return false
+    if (host.includes("barakah")) {
+      return false;
     }
   }
 

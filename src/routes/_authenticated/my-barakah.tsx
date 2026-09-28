@@ -16,6 +16,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { parseOrderMetadata } from "@/lib/swift-order";
+import { isSwiftmoveDomain } from "@/lib/domain-detection";
 
 export const Route = createFileRoute("/_authenticated/my-barakah")({
   ssr: false,
@@ -51,10 +52,10 @@ export const Route = createFileRoute("/_authenticated/my-barakah")({
         throw redirect({ to: '/drive' });
       }
 
-      // If accessed on swiftmove.ng, redirect to SwiftMove homepage
+      // If accessed on swiftmove.ng, redirect to SwiftMove customer dashboard immediately
       const { isSwiftmoveDomain } = await import("@/lib/domain-detection");
       if (isSwiftmoveDomain()) {
-        throw redirect({ to: "/" });
+        throw redirect({ to: "/my-swift-move" });
       }
     } catch (err: any) {
       if (isRedirect(err) || err?.isRedirect || err?.to || err?.statusCode) throw err;
@@ -85,6 +86,11 @@ function MyBarakahDashboard() {
   const [userRole, setUserRole] = useState<string>("user");
 
   useEffect(() => {
+    if (isSwiftmoveDomain()) {
+      window.location.replace("/my-swift-move");
+      return;
+    }
+
     supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) return;
 

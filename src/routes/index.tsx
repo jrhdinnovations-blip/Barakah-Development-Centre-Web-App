@@ -7,7 +7,7 @@ import { SwiftMoveLanding } from './swiftmove';
 
 export const Route = createFileRoute('/')({
   head: () => {
-    const isSwift = typeof window !== 'undefined' && isSwiftmoveDomain();
+    const isSwift = isSwiftmoveDomain();
     if (isSwift) {
       return {
         meta: [

@@ -47,8 +47,19 @@ function isH3SwallowedErrorBody(body: string): boolean {
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     const url = new URL(request.url);
-    const host = (request.headers.get("host") || url.hostname || "").toLowerCase();
-    const isSwiftDomain = host.includes("swiftmove") || url.searchParams.has("swiftmove");
+    const host = (
+      request.headers.get("x-forwarded-host") ||
+      request.headers.get("host") ||
+      url.hostname ||
+      ""
+    ).toLowerCase();
+    const isSwiftDomain =
+      host.includes("swiftmove") ||
+      url.hostname.includes("swiftmove") ||
+      url.searchParams.has("swiftmove");
+
+    // Expose request host globally during SSR so synchronous checks can determine platform
+    (globalThis as any).__SSR_REQUEST_HOST__ = host;
 
     // 1. When hitting root on SwiftMove domain, immediately redirect to /swiftmove
     if (isSwiftDomain && url.pathname === "/") {

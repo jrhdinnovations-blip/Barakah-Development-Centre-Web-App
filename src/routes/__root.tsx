@@ -206,7 +206,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       p.startsWith("/dispatcher") ||
       p.startsWith("/my-swift") ||
       p.startsWith("/my-vehicle");
-    const isSwift = isSwiftRoute || (typeof window !== "undefined" && isSwiftmoveDomain());
+    const isSwift = isSwiftRoute || isSwiftmoveDomain();
     return {
       meta: [
         { charSet: "utf-8" },
