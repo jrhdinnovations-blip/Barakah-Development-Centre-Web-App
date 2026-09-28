@@ -163,8 +163,13 @@ export const createUserAdmin = createServerFn({ method: "POST" })
   .validator((input: any) =>
     z
       .object({
-        email: z.string().email(),
-        password: z.string().min(6),
+        // Accept any x@y.z including custom domains like @barakahdevcentre.com
+        email: z.string().min(5).refine((v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v), {
+          message: "Invalid email address",
+        }),
+        // password is optional when login_method is 'google'
+        password: z.string().min(6).optional().nullable(),
+        login_method: z.enum(["password", "google"]).default("password"),
         full_name: z.string().min(1),
         phone: z.string().optional(),
         vehicle_type: z.string().optional(),
@@ -183,6 +188,10 @@ export const createUserAdmin = createServerFn({ method: "POST" })
           "staff",
         ]),
       })
+      .refine((d) => d.login_method === "google" || (d.password && d.password.length >= 6), {
+        message: "Password is required for email/password login (min 6 characters)",
+        path: ["password"],
+      })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
@@ -200,9 +209,9 @@ export const createUserAdmin = createServerFn({ method: "POST" })
     const vColor = data.vehicle_color || "";
 
     if (hasServiceRoleKey) {
-      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      // Build createUser payload — omit password for Google/OAuth accounts
+      const createUserPayload: Parameters<typeof supabaseAdmin.auth.admin.createUser>[0] = {
         email: data.email,
-        password: data.password,
         email_confirm: true,
         user_metadata: {
           full_name: data.full_name,
@@ -213,8 +222,14 @@ export const createUserAdmin = createServerFn({ method: "POST" })
           vehicle_make: vMake,
           plate_number: vPlate,
           vehicle_color: vColor,
+          login_method: data.login_method || "password",
         },
-      });
+      };
+      if (data.login_method !== "google" && data.password) {
+        createUserPayload.password = data.password;
+      }
+
+      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser(createUserPayload);
 
       if (authError) throw new Error(authError.message);
       if (!authData.user) throw new Error("Failed to create user");
@@ -234,6 +249,18 @@ export const createUserAdmin = createServerFn({ method: "POST" })
         .then(() => {});
 
       if (data.role === "driver") {
+        // Insert into drivers table
+        await supabaseAdmin
+          .from("drivers")
+          .upsert({
+            user_id: newUserId,
+            full_name: data.full_name,
+            phone: data.phone || "",
+            email: data.email,
+            status: "active" as any,
+          } as any, { onConflict: "user_id" })
+          .then(() => {});
+
         // Insert into active_drivers so rider shows as "active" immediately
         await supabaseAdmin
           .from("active_drivers")
@@ -265,9 +292,10 @@ export const createUserAdmin = createServerFn({ method: "POST" })
         },
       });
 
+      const fallbackPass = data.password || `GoogleAuth_${Math.random().toString(36).slice(2)}!A1`;
       const { data: signUpData, error: signUpError } = await isolatedClient.auth.signUp({
         email: data.email,
-        password: data.password,
+        password: fallbackPass,
         options: {
           data: {
             full_name: data.full_name,
@@ -336,8 +364,13 @@ export const createStaffAdmin = createServerFn({ method: "POST" })
   .validator((input: any) =>
     z
       .object({
-        email: z.string().email(),
-        password: z.string().min(6),
+        // Accept any x@y.z including custom domains like @barakahdevcentre.com
+        email: z.string().min(5).refine((v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v), {
+          message: "Invalid email address",
+        }),
+        // password is optional when login_method is 'google'
+        password: z.string().min(6).optional().nullable(),
+        login_method: z.enum(["password", "google"]).default("password"),
         full_name: z.string().min(1),
         phone: z.string().optional().nullable(),
         recovery_email: z.string().optional().nullable(),
@@ -346,6 +379,10 @@ export const createStaffAdmin = createServerFn({ method: "POST" })
         designation: z.string().optional().nullable(),
         branch: z.string().optional().nullable(),
         employee_id: z.string().optional().nullable(),
+      })
+      .refine((d) => d.login_method === "google" || (d.password && d.password.length >= 6), {
+        message: "Password is required for email/password login (min 6 characters)",
+        path: ["password"],
       })
       .parse(input),
   )
@@ -359,9 +396,9 @@ export const createStaffAdmin = createServerFn({ method: "POST" })
     let authEmail: string;
 
     if (hasServiceRoleKey) {
-      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      // Build createUser payload — omit password for Google/OAuth accounts
+      const createStaffPayload: Parameters<typeof supabaseAdmin.auth.admin.createUser>[0] = {
         email: data.email,
-        password: data.password,
         email_confirm: true,
         user_metadata: {
           full_name: data.full_name,
@@ -372,8 +409,14 @@ export const createStaffAdmin = createServerFn({ method: "POST" })
           designation: data.designation || null,
           branch: data.branch || null,
           employee_id: data.employee_id || null,
+          login_method: data.login_method || "password",
         },
-      });
+      };
+      if (data.login_method !== "google" && data.password) {
+        createStaffPayload.password = data.password;
+      }
+
+      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser(createStaffPayload);
 
       if (authError) throw new Error(authError.message);
       if (!authData.user) throw new Error("Failed to create staff account");
@@ -401,9 +444,10 @@ export const createStaffAdmin = createServerFn({ method: "POST" })
         auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
       });
 
+      const fallbackPass = data.password || `GoogleAuth_${Math.random().toString(36).slice(2)}!A1`;
       const { data: signUpData, error: signUpError } = await isolatedClient.auth.signUp({
         email: data.email,
-        password: data.password,
+        password: fallbackPass,
         options: {
           data: {
             full_name: data.full_name,

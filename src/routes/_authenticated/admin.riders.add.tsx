@@ -35,6 +35,7 @@ function AddRiderPage() {
   const [showPass, setShowPass] = useState(false);
   const [done, setDone] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [loginMethod, setLoginMethod] = useState<'google' | 'password'>('google');
   const [form, setForm] = useState({
     full_name: '',
     email: '',
@@ -59,7 +60,7 @@ function AddRiderPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.email || !form.password || !form.full_name) {
+    if (!form.email || (!form.password && loginMethod === 'password') || !form.full_name) {
       toast.error('Please fill all required fields.');
       return;
     }
@@ -69,7 +70,8 @@ function AddRiderPage() {
         await createUserAdmin({
           data: {
             email: form.email.trim().toLowerCase(),
-            password: form.password,
+            password: loginMethod === 'google' ? undefined : form.password,
+            login_method: loginMethod,
             full_name: form.full_name,
             phone: form.phone,
             rider_category: form.category,
@@ -157,7 +159,18 @@ function AddRiderPage() {
 
   const handleCopyCredentials = () => {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'https://swiftmove.ng';
-    const text = [
+    const text = loginMethod === 'google' ? [
+      '=== Fleet Personnel Account (Google Account) ===',
+      `Name: ${form.full_name}`,
+      `Category: ${form.category === 'dispatch_rider' ? 'Dispatch Rider' : 'Vehicle Driver'}`,
+      `Google Email: ${form.email}`,
+      `Phone: ${form.phone}`,
+      `Vehicle: ${form.vehicle_color} ${form.vehicle_make} (${form.vehicle_type})`,
+      `Plate: ${form.plate_number || 'N/A'}`,
+      `Login URL: ${origin}/auth`,
+      'Instructions: Click "Continue with Google" using this email to log in directly.',
+      '================================================',
+    ].join('\n') : [
       '=== Fleet Personnel Account ===',
       `Name: ${form.full_name}`,
       `Category: ${form.category === 'dispatch_rider' ? 'Dispatch Rider' : 'Vehicle Driver'}`,
@@ -166,9 +179,10 @@ function AddRiderPage() {
       `Password: ${form.password}`,
       `Vehicle: ${form.vehicle_color} ${form.vehicle_make} (${form.vehicle_type})`,
       `Plate: ${form.plate_number || 'N/A'}`,
-      `Login: ${origin}/auth`,
+      `Login URL: ${origin}/auth`,
       '======================================',
     ].join('\n');
+
     navigator.clipboard.writeText(text);
     setCopied(true);
     toast.success('Personnel credentials copied!');
@@ -196,6 +210,12 @@ function AddRiderPage() {
             </div>
 
             <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2 text-left text-xs">
+              <div className="flex items-center justify-between gap-4 pb-1.5 border-b border-slate-800">
+                <span className="font-bold text-slate-500 uppercase tracking-wider shrink-0">Login Method</span>
+                <span className="font-semibold text-emerald-400">
+                  {loginMethod === 'google' ? 'Google OAuth (Sign in with Google)' : 'Email & Password'}
+                </span>
+              </div>
               {[
                 { label: 'Name', value: form.full_name },
                 { label: 'Email', value: form.email },
@@ -208,11 +228,17 @@ function AddRiderPage() {
                   <span className="font-mono text-slate-200 text-right truncate">{value}</span>
                 </div>
               ))}
+              {loginMethod !== 'google' && form.password && (
+                <div className="flex items-center justify-between gap-4 pt-1">
+                  <span className="font-bold text-slate-500 uppercase tracking-wider shrink-0">Password</span>
+                  <span className="font-mono text-slate-200">{form.password}</span>
+                </div>
+              )}
             </div>
 
             <div className="space-y-3">
               <Button onClick={handleCopyCredentials} className={`w-full font-bold gap-2 ${isRider ? 'bg-amber-600 hover:bg-amber-500' : 'bg-blue-600 hover:bg-blue-500'}`}>
-                {copied ? <><Check className="h-4 w-4" />Copied!</> : <><Copy className="h-4 w-4" />Copy Credentials</>}
+                {copied ? <><Check className="h-4 w-4" />Copied!</> : <><Copy className="h-4 w-4" />{loginMethod === 'google' ? 'Copy Sign-In Instructions' : 'Copy Credentials'}</>}
               </Button>
               <div className="grid grid-cols-2 gap-2">
                 <Button
@@ -317,9 +343,52 @@ function AddRiderPage() {
 
           {/* Section 2: Personal Details */}
           <div className="space-y-4 pt-2 border-t border-slate-800">
-            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-              1. Personnel Contact & Account
-            </h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                1. Personnel Contact & Account
+              </h2>
+            </div>
+
+            {/* Login Method Tabs */}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setLoginMethod('google')}
+                className={`p-3 rounded-xl border text-left transition-all ${
+                  loginMethod === 'google'
+                    ? 'border-blue-500 bg-blue-500/10 ring-1 ring-blue-500/30'
+                    : 'border-slate-800 bg-slate-900/60 hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
+                  </svg>
+                  <span className="text-xs font-bold text-white">Google Account</span>
+                </div>
+                <p className="text-[11px] text-slate-400">Sign in with Google OAuth</p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setLoginMethod('password')}
+                className={`p-3 rounded-xl border text-left transition-all ${
+                  loginMethod === 'password'
+                    ? 'border-amber-500 bg-amber-500/10 ring-1 ring-amber-500/30'
+                    : 'border-slate-800 bg-slate-900/60 hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <Lock className="h-4 w-4 text-amber-400" />
+                  <span className="text-xs font-bold text-white">Password Account</span>
+                </div>
+                <p className="text-[11px] text-slate-400">Email &amp; temporary password</p>
+              </button>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="sm:col-span-2">
                 <label className="text-xs font-medium text-slate-300">Full Name <span className="text-red-400">*</span></label>
@@ -332,13 +401,15 @@ function AddRiderPage() {
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-slate-300">Email Address <span className="text-red-400">*</span></label>
+                <label className="text-xs font-medium text-slate-300">
+                  {loginMethod === 'google' ? 'Google / Gmail Address' : 'Email Address'} <span className="text-red-400">*</span>
+                </label>
                 <Input
                   type="email"
                   required
                   value={form.email}
                   onChange={e => setForm({ ...form, email: e.target.value })}
-                  placeholder="driver@swiftmove.com"
+                  placeholder={loginMethod === 'google' ? 'driver@gmail.com' : 'driver@swiftmove.com'}
                   className="mt-1 bg-slate-900 border-slate-700 h-10 text-sm"
                 />
               </div>
@@ -352,40 +423,47 @@ function AddRiderPage() {
                   className="mt-1 bg-slate-900 border-slate-700 h-10 text-sm"
                 />
               </div>
-              <div className="sm:col-span-2">
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-medium text-slate-300">Temporary Password <span className="text-red-400">*</span></label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const p = generatePassword();
-                      setForm(prev => ({ ...prev, password: p }));
-                      setShowPass(true);
-                      toast.info('Password auto-generated!');
-                    }}
-                    className="text-[11px] font-semibold text-amber-400 hover:text-amber-300 flex items-center gap-1"
-                  >
-                    <Sparkles className="h-3 w-3" /> Auto-Generate
-                  </button>
+
+              {loginMethod === 'google' ? (
+                <div className="sm:col-span-2 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-300 leading-relaxed">
+                  ✓ Driver will sign in by clicking <strong>"Continue with Google"</strong> using this email. No temporary password needed.
                 </div>
-                <div className="relative mt-1">
-                  <Input
-                    type={showPass ? 'text' : 'password'}
-                    required
-                    value={form.password}
-                    onChange={e => setForm({ ...form, password: e.target.value })}
-                    placeholder="Min 8 characters"
-                    className="bg-slate-900 border-slate-700 h-10 pr-11 text-sm font-mono"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPass(!showPass)}
-                    className="absolute right-3 top-2.5 text-slate-400 hover:text-white"
-                  >
-                    {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
+              ) : (
+                <div className="sm:col-span-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-medium text-slate-300">Temporary Password <span className="text-red-400">*</span></label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const p = generatePassword();
+                        setForm(prev => ({ ...prev, password: p }));
+                        setShowPass(true);
+                        toast.info('Password auto-generated!');
+                      }}
+                      className="text-[11px] font-semibold text-amber-400 hover:text-amber-300 flex items-center gap-1"
+                    >
+                      <Sparkles className="h-3 w-3" /> Auto-Generate
+                    </button>
+                  </div>
+                  <div className="relative mt-1">
+                    <Input
+                      type={showPass ? 'text' : 'password'}
+                      required
+                      value={form.password}
+                      onChange={e => setForm({ ...form, password: e.target.value })}
+                      placeholder="Min 8 characters"
+                      className="bg-slate-900 border-slate-700 h-10 pr-11 text-sm font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPass(!showPass)}
+                      className="absolute right-3 top-2.5 text-slate-400 hover:text-white"
+                    >
+                      {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
 

@@ -111,6 +111,7 @@ function CreateUserPage() {
   const [done, setDone] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showPass, setShowPass] = useState(false);
+  const [loginMethod, setLoginMethod] = useState<'google' | 'password'>('google');
 
   const [form, setForm] = useState({
     full_name: '',
@@ -132,7 +133,7 @@ function CreateUserPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.email || !form.password) {
+    if (!form.email || (loginMethod === 'password' && !form.password)) {
       toast.error('Please fill all required fields.');
       return;
     }
@@ -141,7 +142,8 @@ function CreateUserPage() {
       await createUserAdmin({
         data: {
           email: form.email.trim().toLowerCase(),
-          password: form.password,
+          password: loginMethod === 'google' ? undefined : form.password,
+          login_method: loginMethod,
           full_name: form.full_name,
           phone: form.phone || undefined,
           role: form.role as any,
@@ -157,15 +159,28 @@ function CreateUserPage() {
 
   const handleCopyCredentials = () => {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'https://barakahdevcentre.com';
-    const text = [
-      '=== Platform Account ===',
-      `Name: ${form.full_name || '—'}`,
-      `Email: ${form.email}`,
-      `Role: ${selectedRole.label}`,
-      `Password: ${form.password}`,
-      `Login: ${origin}/auth`,
-      '================================',
-    ].join('\n');
+    let text = '';
+    if (loginMethod === 'google') {
+      text = [
+        '=== Barakah Platform Account (Google Account) ===',
+        `Name: ${form.full_name || '—'}`,
+        `Email: ${form.email}`,
+        `Role: ${selectedRole.label}`,
+        `Login URL: ${origin}/auth`,
+        'Instructions: Click "Continue with Google" with this email to access your account directly.',
+        '================================================',
+      ].join('\n');
+    } else {
+      text = [
+        '=== Platform Account ===',
+        `Name: ${form.full_name || '—'}`,
+        `Email: ${form.email}`,
+        `Role: ${selectedRole.label}`,
+        `Password: ${form.password}`,
+        `Login URL: ${origin}/auth`,
+        '================================',
+      ].join('\n');
+    }
     navigator.clipboard.writeText(text);
     setCopied(true);
     toast.success('Credentials copied to clipboard!');
@@ -191,6 +206,12 @@ function CreateUserPage() {
             </div>
 
             <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2.5 text-left text-xs">
+              <div className="flex items-center justify-between gap-4 pb-2 border-b border-slate-800">
+                <span className="font-bold text-slate-500 uppercase tracking-wider">Login Method</span>
+                <span className="font-semibold text-emerald-400">
+                  {loginMethod === 'google' ? 'Google OAuth (Sign in with Google)' : 'Email & Password'}
+                </span>
+              </div>
               {[
                 { label: 'Name', value: form.full_name || '—' },
                 { label: 'Email', value: form.email },
@@ -202,11 +223,17 @@ function CreateUserPage() {
                   <span className={`font-mono truncate max-w-[200px] ${label === 'Role' ? selectedRole.color : 'text-slate-200'}`}>{value}</span>
                 </div>
               ))}
+              {loginMethod !== 'google' && form.password && (
+                <div className="flex items-center justify-between gap-4 pt-1">
+                  <span className="font-bold text-slate-500 uppercase tracking-wider">Password</span>
+                  <span className="font-mono text-slate-200">{form.password}</span>
+                </div>
+              )}
             </div>
 
             <div className="space-y-3">
               <Button onClick={handleCopyCredentials} className="w-full bg-emerald-600 hover:bg-emerald-500 font-bold gap-2">
-                {copied ? <><Check className="h-4 w-4" />Copied!</> : <><Copy className="h-4 w-4" />Copy Login Credentials</>}
+                {copied ? <><Check className="h-4 w-4" />Copied!</> : <><Copy className="h-4 w-4" />{loginMethod === 'google' ? 'Copy Sign-In Instructions' : 'Copy Login Credentials'}</>}
               </Button>
               <div className="grid grid-cols-2 gap-2">
                 <Button
@@ -394,70 +421,120 @@ function CreateUserPage() {
             </div>
 
             <section className="rounded-2xl border border-slate-800 bg-[#0a0f1c] p-6 space-y-5">
-              <h2 className="text-xs font-bold text-amber-400 uppercase tracking-widest flex items-center gap-2">
-                <Lock className="h-3.5 w-3.5" /> Login Credentials
-              </h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-xs font-bold text-amber-400 uppercase tracking-widest flex items-center gap-2">
+                  <Shield className="h-3.5 w-3.5" /> Authentication Method
+                </h2>
+              </div>
+
+              {/* Login Method Tabs */}
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setLoginMethod('google')}
+                  className={`p-3.5 rounded-xl border text-left transition-all ${
+                    loginMethod === 'google'
+                      ? 'border-blue-500 bg-blue-500/10 ring-1 ring-blue-500/30'
+                      : 'border-slate-800 bg-slate-900/60 hover:border-slate-700'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none">
+                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
+                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
+                    </svg>
+                    <span className="text-xs font-bold text-white">Google Account</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400">OAuth login. No password needed.</p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setLoginMethod('password')}
+                  className={`p-3.5 rounded-xl border text-left transition-all ${
+                    loginMethod === 'password'
+                      ? 'border-amber-500 bg-amber-500/10 ring-1 ring-amber-500/30'
+                      : 'border-slate-800 bg-slate-900/60 hover:border-slate-700'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Lock className="h-4 w-4 text-amber-400" />
+                    <span className="text-xs font-bold text-white">Password Account</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400">Email &amp; temporary password.</p>
+                </button>
+              </div>
+
               <div>
                 <label className="flex items-center gap-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                  <Mail className="h-3 w-3" /> Email Address <span className="text-red-400">*</span>
+                  <Mail className="h-3 w-3" /> {loginMethod === 'google' ? 'Google / Gmail Address' : 'Email Address'} <span className="text-red-400">*</span>
                 </label>
                 <Input
                   type="email"
                   required
                   value={form.email}
                   onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
-                  placeholder="user@example.com"
+                  placeholder={loginMethod === 'google' ? 'user@gmail.com' : 'user@example.com'}
                   className="bg-slate-900 border-slate-700 h-11"
                   autoFocus
                 />
               </div>
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="flex items-center gap-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider">
-                    <Lock className="h-3 w-3" /> Temporary Password <span className="text-red-400">*</span>
-                  </label>
-                  <button
-                    type="button"
-                    onClick={handleAutoPassword}
-                    className="text-[11px] font-semibold text-amber-400 hover:text-amber-300 flex items-center gap-1 transition-colors"
-                  >
-                    <Sparkles className="h-3 w-3" /> Auto-Generate
-                  </button>
+
+              {loginMethod === 'google' ? (
+                <div className="p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-300 leading-relaxed">
+                  ✓ User will sign in via <strong>"Continue with Google"</strong>. No temporary password needed.
                 </div>
-                <div className="relative">
-                  <Input
-                    type={showPass ? 'text' : 'password'}
-                    required
-                    value={form.password}
-                    onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
-                    placeholder="Min 6 characters"
-                    className="bg-slate-900 border-slate-700 h-11 pr-11 font-mono"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPass(v => !v)}
-                    className="absolute right-3 top-3 text-slate-400 hover:text-white transition-colors"
-                  >
-                    {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-                {form.password && (
-                  <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                    {[
-                      ['Length ≥ 6', form.password.length >= 6],
-                      ['Has uppercase', /[A-Z]/.test(form.password)],
-                      ['Has number', /\d/.test(form.password)],
-                    ].map(([hint, ok]) => (
-                      <span key={hint as string} className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${ok ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-slate-800 text-slate-500'}`}>
-                        {ok ? '✓' : '○'} {hint}
-                      </span>
-                    ))}
+              ) : (
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="flex items-center gap-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider">
+                      <Lock className="h-3 w-3" /> Temporary Password <span className="text-red-400">*</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleAutoPassword}
+                      className="text-[11px] font-semibold text-amber-400 hover:text-amber-300 flex items-center gap-1 transition-colors"
+                    >
+                      <Sparkles className="h-3 w-3" /> Auto-Generate
+                    </button>
                   </div>
-                )}
-                <p className="text-xs text-slate-500 mt-2">
-                  The user must change this password after first login.
-                </p>
-              </div>
+                  <div className="relative">
+                    <Input
+                      type={showPass ? 'text' : 'password'}
+                      required
+                      value={form.password}
+                      onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
+                      placeholder="Min 6 characters"
+                      className="bg-slate-900 border-slate-700 h-11 pr-11 font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPass(v => !v)}
+                      className="absolute right-3 top-3 text-slate-400 hover:text-white transition-colors"
+                    >
+                      {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  {form.password && (
+                    <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                      {[
+                        ['Length ≥ 6', form.password.length >= 6],
+                        ['Has uppercase', /[A-Z]/.test(form.password)],
+                        ['Has number', /\d/.test(form.password)],
+                      ].map(([hint, ok]) => (
+                        <span key={hint as string} className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${ok ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-slate-800 text-slate-500'}`}>
+                          {ok ? '✓' : '○'} {hint}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-xs text-slate-500 mt-2">
+                    The user must change this password after first login.
+                  </p>
+                </div>
+              )}
             </section>
 
             <div className="flex gap-3">
@@ -471,11 +548,11 @@ function CreateUserPage() {
               </Button>
               <Button
                 type="submit"
-                disabled={loading || !form.email || form.password.length < 6}
+                disabled={loading || !form.email || (loginMethod === 'password' && form.password.length < 6)}
                 className="flex-1 h-12 bg-blue-600 hover:bg-blue-500 font-bold gap-2 text-base rounded-xl disabled:opacity-40"
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
-                {loading ? 'Creating Account…' : 'Create User Account'}
+                {loading ? 'Creating Account…' : loginMethod === 'google' ? 'Create User with Google Account' : 'Create User Account'}
               </Button>
             </div>
           </form>
