@@ -409,12 +409,12 @@ export function SwiftMoveLanding() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 selection:bg-orange-500 selection:text-white relative overflow-x-hidden font-sans pb-20 lg:pb-0">
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 selection:bg-orange-500 selection:text-white relative overflow-x-hidden font-sans pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0">
       
       {/* ── 1. ULTRA-SLEEK MOBILE-FIRST NAVBAR ───────────────────────────── */}
-      <header className="sticky top-2 sm:top-4 z-50 px-2 sm:px-6">
+      <header className="sticky top-2 sm:top-4 z-50 px-3 sm:px-6">
         <div className="max-w-7xl mx-auto">
-          <div className="bg-white/90 backdrop-blur-xl border border-slate-200/80 rounded-2xl sm:rounded-full px-3 sm:px-6 py-2 sm:py-3 shadow-xs flex items-center justify-between transition-all">
+          <div className="bg-white/90 backdrop-blur-xl border border-slate-200/80 rounded-2xl sm:rounded-full px-3 sm:px-6 py-2.5 sm:py-3 shadow-xs flex items-center justify-between transition-all">
             
             {/* Brand Logo & Jos Live Fleet Badge */}
             <div className="flex items-center gap-2 sm:gap-3">
@@ -635,60 +635,61 @@ export function SwiftMoveLanding() {
       </header>
 
       {/* ── 2. HERO: "ONE PLATFORM. MOVE PEOPLE. MOVE PACKAGES. MOVE BUSINESS." ── */}
-      <section className="relative pt-6 sm:pt-14 pb-8 sm:pb-20 overflow-hidden">
+      <section className="relative pt-5 sm:pt-14 pb-6 sm:pb-20 overflow-hidden">
         {/* Subtle geometric background glows */}
         <div className="absolute top-10 left-1/2 -translate-x-1/2 w-[1000px] h-[400px] bg-gradient-to-tr from-orange-200/30 via-blue-100/20 to-transparent blur-3xl pointer-events-none -z-10" />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           
-          {/* Hero Header Text — Bold, Uncrowded & High-Impact */}
-          <div className="text-center max-w-3xl mx-auto mb-8 sm:mb-12">
+          {/* Hero Header Text — iPhone 17 optimised */}
+          <div className="text-center max-w-3xl mx-auto mb-6 sm:mb-12">
             
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-orange-100/80 border border-orange-300 text-orange-900 text-xs font-black tracking-wide uppercase mb-4 shadow-2xs">
-              <Sparkles className="h-4 w-4 text-orange-600 shrink-0" />
-              <span>Smart On-Demand Mobility &amp; Logistics OS</span>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-100/80 border border-orange-300 text-orange-900 text-[10px] sm:text-xs font-black tracking-wide uppercase mb-3 sm:mb-4 shadow-2xs">
+              <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-orange-600 shrink-0" />
+              <span>Smart Mobility &amp; Logistics · Jos</span>
             </div>
 
-            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-slate-900 leading-[1.12] mb-4">
-              One Platform. <br />
+            <h1 className="text-[1.85rem] leading-[1.14] sm:text-5xl lg:text-6xl font-black tracking-tight text-slate-900 mb-3 sm:mb-4">
+              One Platform.
+              <br />
               <span className="bg-gradient-to-r from-orange-600 via-amber-500 to-blue-600 bg-clip-text text-transparent">
-                Move People. Move Packages. Move Business.
+                Rides · Parcels · Business.
               </span>
             </h1>
 
-            <p className="text-sm sm:text-lg text-slate-700 leading-relaxed font-semibold max-w-2xl mx-auto px-2">
-              Hail comfort sedan &amp; keke rides in minutes, schedule advance trips, dispatch parcels with live OTP proof, or scale enterprise logistics across Jos.
+            <p className="text-[13px] sm:text-lg text-slate-600 leading-relaxed font-semibold max-w-2xl mx-auto px-1">
+              Hail a sedan or keke in minutes, schedule trips in advance, send parcels with live OTP handover, or run enterprise logistics across Jos.
             </p>
 
-            {/* Streamlined Trust Line (Uncrowded, bold, clean) */}
-            <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 mt-4 pt-4 text-xs font-bold text-slate-600">
-              <span className="flex items-center gap-1.5"><ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" /> <span className="font-extrabold text-slate-900">100% Insured</span> Fleet</span>
-              <span className="text-slate-300 hidden sm:inline">•</span>
-              <span className="flex items-center gap-1.5"><Zap className="h-4 w-4 text-amber-500 fill-amber-500 shrink-0" /> <span className="font-extrabold text-slate-900">Instant &amp; Scheduled</span> Pickup</span>
-              <span className="text-slate-300 hidden sm:inline">•</span>
-              <span className="flex items-center gap-1.5 text-slate-900"><Star className="h-4 w-4 fill-amber-500 text-amber-500 shrink-0" /> <span className="font-extrabold">4.9/5 Rating</span></span>
+            {/* Trust strip — single line on mobile */}
+            <div className="flex items-center justify-center gap-3 sm:gap-6 mt-3 pt-3 sm:mt-4 sm:pt-4 text-[11px] sm:text-xs font-bold text-slate-600 overflow-x-auto no-scrollbar">
+              <span className="flex items-center gap-1 shrink-0"><ShieldCheck className="h-3.5 w-3.5 text-emerald-600 shrink-0" /> <span className="font-extrabold text-slate-900">Insured</span></span>
+              <span className="text-slate-300">•</span>
+              <span className="flex items-center gap-1 shrink-0"><Zap className="h-3.5 w-3.5 text-amber-500 fill-amber-500 shrink-0" /> <span className="font-extrabold text-slate-900">Instant &amp; Scheduled</span></span>
+              <span className="text-slate-300">•</span>
+              <span className="flex items-center gap-1 shrink-0 text-slate-900"><Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500 shrink-0" /> <span className="font-extrabold">4.9 / 5</span></span>
             </div>
 
           </div>
 
           {/* ── 3. FIGMA-CRAFTED SEGMENTED ACTION DECK ─────────────────── */}
           <div id="booking-deck" className="max-w-4xl mx-auto scroll-mt-20">
-            <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-[0_12px_40px_-10px_rgba(0,0,0,0.08)] p-4 sm:p-8 relative transition-all">
+            <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-[0_12px_40px_-10px_rgba(0,0,0,0.08)] p-3.5 sm:p-8 relative transition-all">
               
-              {/* Segmented Pillar Buttons — Bold & Readable */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2 p-1.5 bg-slate-100 rounded-xl sm:rounded-2xl mb-5 sm:mb-7">
+              {/* Segmented Pill Tabs — Horizontal scroll on mobile, 4-col grid on sm+ */}
+              <div className="flex sm:grid sm:grid-cols-4 gap-1.5 sm:gap-2 p-1.5 bg-slate-100 rounded-xl sm:rounded-2xl mb-4 sm:mb-7 overflow-x-auto no-scrollbar">
                 
                 {/* 1. RIDE */}
                 <button
                   type="button"
                   onClick={() => setActivePillar('ride')}
-                  className={`flex items-center justify-center gap-1.5 sm:gap-2 py-3 px-2 sm:px-3 rounded-lg sm:rounded-xl font-black text-xs sm:text-sm transition-all min-h-[46px] cursor-pointer ${
+                  className={`flex items-center justify-center gap-1.5 py-2.5 px-3.5 sm:px-3 rounded-lg sm:rounded-xl font-black text-[11px] sm:text-sm transition-all shrink-0 sm:shrink cursor-pointer whitespace-nowrap min-w-[90px] sm:min-w-0 ${
                     activePillar === 'ride'
                       ? 'bg-white text-slate-900 shadow-xs border border-slate-200'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  <Car className={`h-4 w-4 sm:h-5 sm:w-5 shrink-0 ${activePillar === 'ride' ? 'text-blue-600' : 'text-slate-400'}`} />
+                  <Car className={`h-3.5 w-3.5 sm:h-5 sm:w-5 shrink-0 ${activePillar === 'ride' ? 'text-blue-600' : 'text-slate-400'}`} />
                   <span>Hail &amp; Schedule</span>
                 </button>
 
@@ -696,13 +697,13 @@ export function SwiftMoveLanding() {
                 <button
                   type="button"
                   onClick={() => setActivePillar('send')}
-                  className={`flex items-center justify-center gap-1.5 sm:gap-2 py-3 px-2 sm:px-3 rounded-lg sm:rounded-xl font-black text-xs sm:text-sm transition-all min-h-[46px] cursor-pointer ${
+                  className={`flex items-center justify-center gap-1.5 py-2.5 px-3.5 sm:px-3 rounded-lg sm:rounded-xl font-black text-[11px] sm:text-sm transition-all shrink-0 sm:shrink cursor-pointer whitespace-nowrap min-w-[90px] sm:min-w-0 ${
                     activePillar === 'send'
                       ? 'bg-white text-slate-900 shadow-xs border border-slate-200'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  <Package className={`h-4 w-4 sm:h-5 sm:w-5 shrink-0 ${activePillar === 'send' ? 'text-orange-600' : 'text-slate-400'}`} />
+                  <Package className={`h-3.5 w-3.5 sm:h-5 sm:w-5 shrink-0 ${activePillar === 'send' ? 'text-orange-600' : 'text-slate-400'}`} />
                   <span>Send Parcel</span>
                 </button>
 
@@ -710,13 +711,13 @@ export function SwiftMoveLanding() {
                 <button
                   type="button"
                   onClick={() => setActivePillar('track')}
-                  className={`flex items-center justify-center gap-1.5 sm:gap-2 py-3 px-2 sm:px-3 rounded-lg sm:rounded-xl font-black text-xs sm:text-sm transition-all min-h-[46px] cursor-pointer ${
+                  className={`flex items-center justify-center gap-1.5 py-2.5 px-3.5 sm:px-3 rounded-lg sm:rounded-xl font-black text-[11px] sm:text-sm transition-all shrink-0 sm:shrink cursor-pointer whitespace-nowrap min-w-[90px] sm:min-w-0 ${
                     activePillar === 'track'
                       ? 'bg-white text-slate-900 shadow-xs border border-slate-200'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  <Radio className={`h-4 w-4 sm:h-5 sm:w-5 shrink-0 ${activePillar === 'track' ? 'text-purple-600' : 'text-slate-400'}`} />
+                  <Radio className={`h-3.5 w-3.5 sm:h-5 sm:w-5 shrink-0 ${activePillar === 'track' ? 'text-purple-600' : 'text-slate-400'}`} />
                   <span>Live Tracking</span>
                 </button>
 
@@ -724,13 +725,13 @@ export function SwiftMoveLanding() {
                 <button
                   type="button"
                   onClick={() => setActivePillar('move')}
-                  className={`flex items-center justify-center gap-1.5 sm:gap-2 py-3 px-2 sm:px-3 rounded-lg sm:rounded-xl font-black text-xs sm:text-sm transition-all min-h-[46px] cursor-pointer ${
+                  className={`flex items-center justify-center gap-1.5 py-2.5 px-3.5 sm:px-3 rounded-lg sm:rounded-xl font-black text-[11px] sm:text-sm transition-all shrink-0 sm:shrink cursor-pointer whitespace-nowrap min-w-[80px] sm:min-w-0 ${
                     activePillar === 'move'
                       ? 'bg-white text-slate-900 shadow-xs border border-slate-200'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  <Building2 className={`h-4 w-4 sm:h-5 sm:w-5 shrink-0 ${activePillar === 'move' ? 'text-emerald-600' : 'text-slate-400'}`} />
+                  <Building2 className={`h-3.5 w-3.5 sm:h-5 sm:w-5 shrink-0 ${activePillar === 'move' ? 'text-emerald-600' : 'text-slate-400'}`} />
                   <span>Business</span>
                 </button>
 
@@ -770,17 +771,18 @@ export function SwiftMoveLanding() {
 
                   {/* Scheduled Date & Time Pickers when schedule timing is active */}
                   {scheduleTiming === 'scheduled' && (
-                    <div className="p-3.5 sm:p-5 rounded-xl sm:rounded-2xl bg-blue-50/70 border border-blue-200/80 space-y-3 animate-in fade-in duration-200">
-                      <div className="flex items-center justify-between">
+                    <div className="p-3 sm:p-5 rounded-xl sm:rounded-2xl bg-blue-50/70 border border-blue-200/80 space-y-3 animate-in fade-in duration-200">
+                      {/* Header row — stacked on mobile to avoid overflow */}
+                      <div className="space-y-2 sm:space-y-0 sm:flex sm:items-center sm:justify-between">
                         <span className="text-xs font-black uppercase tracking-wider text-blue-900 flex items-center gap-1.5">
-                          <Calendar className="h-3.5 w-3.5 text-blue-600" />
-                          <span>Choose Pickup Date &amp; Time</span>
+                          <Calendar className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                          <span>Pickup Date &amp; Time</span>
                         </span>
                         <div className="flex items-center gap-1.5">
                           <button
                             type="button"
                             onClick={() => setScheduledDate(todayStr)}
-                            className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors cursor-pointer ${
+                            className={`flex-1 sm:flex-none px-3 py-1 rounded-lg text-xs font-bold border transition-colors cursor-pointer text-center ${
                               scheduledDate === todayStr ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
                             }`}
                           >
@@ -789,7 +791,7 @@ export function SwiftMoveLanding() {
                           <button
                             type="button"
                             onClick={() => setScheduledDate(tomorrowStr)}
-                            className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors cursor-pointer ${
+                            className={`flex-1 sm:flex-none px-3 py-1 rounded-lg text-xs font-bold border transition-colors cursor-pointer text-center ${
                               scheduledDate === tomorrowStr ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
                             }`}
                           >
@@ -798,43 +800,43 @@ export function SwiftMoveLanding() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="grid grid-cols-2 gap-2.5">
                         <div>
-                          <label className="block text-xs font-bold text-slate-800 mb-1">
-                            Pickup Date <span className="text-red-500">*</span>
+                          <label className="block text-[11px] font-bold text-slate-800 mb-1">
+                            Date <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="date"
                             min={todayStr}
                             value={scheduledDate}
                             onChange={(e) => setScheduledDate(e.target.value)}
-                            className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-base sm:text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30 min-h-[46px]"
+                            className="w-full px-2.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30 min-h-[44px]"
                             required
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-bold text-slate-800 mb-1">
-                            Pickup Time <span className="text-red-500">*</span>
+                          <label className="block text-[11px] font-bold text-slate-800 mb-1">
+                            Time <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="time"
                             value={scheduledTime}
                             onChange={(e) => setScheduledTime(e.target.value)}
-                            className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-base sm:text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30 min-h-[46px]"
+                            className="w-full px-2.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30 min-h-[44px]"
                             required
                           />
                         </div>
                       </div>
 
-                      <p className="text-xs text-blue-800 font-semibold flex items-center gap-1.5">
-                        <CheckCircle className="h-3.5 w-3.5 text-blue-600 shrink-0" />
-                        <span>A verified driver will be reserved and arrive precisely at your scheduled pickup time.</span>
+                      <p className="text-[11px] text-blue-800 font-semibold flex items-start gap-1.5">
+                        <CheckCircle className="h-3.5 w-3.5 text-blue-600 shrink-0 mt-0.5" />
+                        <span>A verified driver will be reserved and arrive at your scheduled pickup time.</span>
                       </p>
                     </div>
                   )}
 
                   {/* Location Inputs with Swap button */}
-                  <div className="relative space-y-2.5 sm:space-y-3">
+                  <div className="relative space-y-2 sm:space-y-3">
                     
                     {/* Pickup Address */}
                     <div className="relative">
@@ -846,8 +848,8 @@ export function SwiftMoveLanding() {
                         value={pickupQuery}
                         onChange={(e) => setPickupQuery(e.target.value)}
                         onFocus={() => setActiveInput('pickup')}
-                        placeholder="Pickup location in Jos (e.g. Jos Main Market, Rayfield, UNIJOS)"
-                        className="w-full pl-10 pr-10 py-3 sm:py-3.5 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl text-base sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 font-bold transition-all min-h-[48px]"
+                        placeholder="Pickup — e.g. Jos Main Market, Rayfield"
+                        className="w-full pl-10 pr-10 py-3 sm:py-3.5 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl text-[15px] sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 font-bold transition-all min-h-[48px]"
                       />
                       {pickupQuery && (
                         <button
@@ -902,8 +904,8 @@ export function SwiftMoveLanding() {
                         value={dropoffQuery}
                         onChange={(e) => setDropoffQuery(e.target.value)}
                         onFocus={() => setActiveInput('dropoff')}
-                        placeholder="Where are you going in Jos? (e.g. Bukuru, British America, Old Airport)"
-                        className="w-full pl-10 pr-10 py-3 sm:py-3.5 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl text-base sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 font-bold transition-all min-h-[48px]"
+                        placeholder="Destination — e.g. Bukuru, British America"
+                        className="w-full pl-10 pr-10 py-3 sm:py-3.5 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl text-[15px] sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 font-bold transition-all min-h-[48px]"
                       />
                       {dropoffQuery && (
                         <button
@@ -1091,9 +1093,9 @@ export function SwiftMoveLanding() {
                   </div>
 
                   {/* Recipient Details & Phone for OTP confirmation */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
                     <div>
-                      <label className="block text-xs sm:text-sm font-bold text-slate-800 mb-1.5">
+                      <label className="block text-[11px] sm:text-sm font-bold text-slate-800 mb-1.5">
                         Recipient Name
                       </label>
                       <input
@@ -1101,19 +1103,19 @@ export function SwiftMoveLanding() {
                         value={recipientName}
                         onChange={(e) => setRecipientName(e.target.value)}
                         placeholder="e.g. Sarah Pam"
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 font-bold min-h-[48px]"
+                        className="w-full px-3 sm:px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-[15px] sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 font-bold min-h-[48px]"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs sm:text-sm font-bold text-slate-800 mb-1.5">
-                        Recipient Phone (for 4-Digit OTP Handover) <span className="text-red-500">*</span>
+                      <label className="block text-[11px] sm:text-sm font-bold text-slate-800 mb-1.5">
+                        Phone (OTP) <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="tel"
                         value={recipientPhone}
                         onChange={(e) => setRecipientPhone(e.target.value)}
-                        placeholder="e.g. 0806 999 8888"
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 font-bold min-h-[48px]"
+                        placeholder="0806 999 8888"
+                        className="w-full px-3 sm:px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-[15px] sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 font-bold min-h-[48px]"
                       />
                     </div>
                   </div>
@@ -1244,40 +1246,42 @@ export function SwiftMoveLanding() {
                   </div>
 
                   {/* Search Tracking Form */}
-                  <form onSubmit={handleSearchTracking} className="space-y-3">
+                  <form onSubmit={handleSearchTracking} className="space-y-2.5">
                     <label className="block text-xs sm:text-sm font-black text-slate-900">
                       Enter Order Tracking Code
                     </label>
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <div className="relative flex-1">
-                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                    {/* Input + button on same row even on mobile */}
+                    <div className="flex gap-2">
+                      <div className="relative flex-1 min-w-0">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <input
                           type="text"
                           value={trackingCode}
                           onChange={(e) => setTrackingCode(e.target.value)}
-                          placeholder="e.g. SMR-948201 or SMD-128492"
-                          className="w-full pl-11 pr-4 py-3 sm:py-3.5 bg-slate-50 border border-slate-300 rounded-xl sm:rounded-2xl text-base sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-600 font-mono font-black min-h-[50px]"
+                          placeholder="SMR-948201 or SMD-128492"
+                          className="w-full pl-9 pr-3 py-3 bg-slate-50 border border-slate-300 rounded-xl text-[15px] sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-600 font-mono font-black min-h-[48px]"
                         />
                       </div>
                       <button
                         type="submit"
                         disabled={isSearchingTrack}
-                        className="w-full sm:w-auto px-7 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-black text-sm shadow-md transition-all flex items-center justify-center gap-2 min-h-[50px] disabled:opacity-50 active:scale-[0.98] cursor-pointer"
+                        className="shrink-0 px-4 sm:px-7 py-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-black text-sm shadow-md transition-all flex items-center justify-center gap-1.5 min-h-[48px] disabled:opacity-50 active:scale-[0.98] cursor-pointer"
                       >
                         {isSearchingTrack ? <Loader2 className="h-4 w-4 animate-spin" /> : <Radio className="h-4 w-4" />}
-                        <span>Track Order</span>
+                        <span className="hidden sm:inline">Track Order</span>
+                        <span className="sm:hidden">Track</span>
                       </button>
                     </div>
 
                     {/* Quick Demo Test Pill */}
-                    <div className="flex items-center gap-2 pt-0.5">
-                      <span className="text-xs text-slate-500 font-bold">Quick Test:</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] text-slate-500 font-bold shrink-0">Quick Test:</span>
                       <button
                         type="button"
                         onClick={() => handleSearchTracking(undefined, 'SMR-948201')}
-                        className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-purple-100 text-purple-700 text-xs font-black transition-colors cursor-pointer border border-slate-200"
+                        className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-purple-100 text-purple-700 text-[11px] font-black transition-colors cursor-pointer border border-slate-200 truncate"
                       >
-                        Try Demo Code: SMR-948201
+                        Demo: SMR-948201
                       </button>
                     </div>
                   </form>
@@ -1931,59 +1935,69 @@ export function SwiftMoveLanding() {
         </div>
       </footer>
 
-      {/* ── 9. MOBILE BOTTOM FLOATING ACTION DOCK (APP-LIKE EXPERIENCE) ── */}
-      <div className="lg:hidden fixed bottom-3 left-3 right-3 z-40 bg-white/95 backdrop-blur-xl border border-slate-200/90 shadow-2xl rounded-2xl p-1.5 flex items-center justify-around">
-        <button
-          type="button"
-          onClick={() => switchPillar('ride')}
-          className={`flex-1 flex flex-col items-center justify-center py-2 px-1 rounded-xl transition-all cursor-pointer ${
-            activePillar === 'ride' ? 'text-blue-600 font-black bg-blue-50/80' : 'text-slate-500 hover:text-slate-900'
-          }`}
-        >
-          <Car className="h-4 w-4 mb-0.5" />
-          <span className="text-[10px] leading-tight font-black">Ride</span>
-        </button>
+      {/* ── 9. MOBILE BOTTOM FLOATING ACTION DOCK — iPhone safe-area aware ── */}
+      <div
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-40"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        <div className="mx-3 mb-3 bg-white/96 backdrop-blur-xl border border-slate-200/90 shadow-2xl rounded-2xl px-1 pt-1.5 pb-1.5 flex items-center justify-around">
+          <button
+            type="button"
+            onClick={() => switchPillar('ride')}
+            className={`flex-1 flex flex-col items-center justify-center py-2 px-0.5 rounded-xl transition-all cursor-pointer ${
+              activePillar === 'ride' ? 'text-blue-600 bg-blue-50/80' : 'text-slate-500'
+            }`}
+          >
+            <Car className={`h-[18px] w-[18px] mb-0.5 ${activePillar === 'ride' ? 'text-blue-600' : 'text-slate-400'}`} />
+            <span className={`text-[10px] leading-tight font-black ${activePillar === 'ride' ? 'text-blue-600' : 'text-slate-500'}`}>Ride</span>
+          </button>
 
-        <button
-          type="button"
-          onClick={() => switchPillar('send')}
-          className={`flex-1 flex flex-col items-center justify-center py-2 px-1 rounded-xl transition-all cursor-pointer ${
-            activePillar === 'send' ? 'text-orange-600 font-black bg-orange-50/80' : 'text-slate-500 hover:text-slate-900'
-          }`}
-        >
-          <Package className="h-4 w-4 mb-0.5" />
-          <span className="text-[10px] leading-tight font-black">Send</span>
-        </button>
+          <button
+            type="button"
+            onClick={() => switchPillar('send')}
+            className={`flex-1 flex flex-col items-center justify-center py-2 px-0.5 rounded-xl transition-all cursor-pointer ${
+              activePillar === 'send' ? 'text-orange-600 bg-orange-50/80' : 'text-slate-500'
+            }`}
+          >
+            <Package className={`h-[18px] w-[18px] mb-0.5 ${activePillar === 'send' ? 'text-orange-600' : 'text-slate-400'}`} />
+            <span className={`text-[10px] leading-tight font-black ${activePillar === 'send' ? 'text-orange-600' : 'text-slate-500'}`}>Send</span>
+          </button>
 
-        <button
-          type="button"
-          onClick={() => switchPillar('track')}
-          className={`flex-1 flex flex-col items-center justify-center py-2 px-1 rounded-xl transition-all cursor-pointer ${
-            activePillar === 'track' ? 'text-purple-600 font-black bg-purple-50/80' : 'text-slate-500 hover:text-slate-900'
-          }`}
-        >
-          <Radio className="h-4 w-4 mb-0.5" />
-          <span className="text-[10px] leading-tight font-black">Tracking</span>
-        </button>
+          {/* Centre action — prominent Book Now pill */}
+          <button
+            type="button"
+            onClick={() => { switchPillar('ride'); }}
+            className="flex-none flex flex-col items-center justify-center mx-1"
+            aria-label="Book a ride"
+          >
+            <span className="h-11 w-11 rounded-full bg-gradient-to-br from-orange-500 to-amber-400 shadow-lg shadow-orange-500/30 flex items-center justify-center -mt-4">
+              <Zap className="h-5 w-5 text-white fill-white" />
+            </span>
+            <span className="text-[9px] leading-tight font-black text-orange-600 mt-0.5">Book</span>
+          </button>
 
-        <button
-          type="button"
-          onClick={() => switchPillar('move')}
-          className={`flex-1 flex flex-col items-center justify-center py-2 px-1 rounded-xl transition-all cursor-pointer ${
-            activePillar === 'move' ? 'text-emerald-600 font-black bg-emerald-50/80' : 'text-slate-500 hover:text-slate-900'
-          }`}
-        >
-          <Building2 className="h-4 w-4 mb-0.5" />
-          <span className="text-[10px] leading-tight font-black">Business</span>
-        </button>
+          <button
+            type="button"
+            onClick={() => switchPillar('track')}
+            className={`flex-1 flex flex-col items-center justify-center py-2 px-0.5 rounded-xl transition-all cursor-pointer ${
+              activePillar === 'track' ? 'text-purple-600 bg-purple-50/80' : 'text-slate-500'
+            }`}
+          >
+            <Radio className={`h-[18px] w-[18px] mb-0.5 ${activePillar === 'track' ? 'text-purple-600' : 'text-slate-400'}`} />
+            <span className={`text-[10px] leading-tight font-black ${activePillar === 'track' ? 'text-purple-600' : 'text-slate-500'}`}>Track</span>
+          </button>
 
-        <Link
-          to="/drive"
-          className="flex-1 flex flex-col items-center justify-center py-2 px-1 rounded-xl text-slate-500 hover:text-slate-900 transition-colors"
-        >
-          <Truck className="h-4 w-4 mb-0.5 text-slate-600" />
-          <span className="text-[10px] leading-tight font-black">Drive</span>
-        </Link>
+          <button
+            type="button"
+            onClick={() => switchPillar('move')}
+            className={`flex-1 flex flex-col items-center justify-center py-2 px-0.5 rounded-xl transition-all cursor-pointer ${
+              activePillar === 'move' ? 'text-emerald-600 bg-emerald-50/80' : 'text-slate-500'
+            }`}
+          >
+            <Building2 className={`h-[18px] w-[18px] mb-0.5 ${activePillar === 'move' ? 'text-emerald-600' : 'text-slate-400'}`} />
+            <span className={`text-[10px] leading-tight font-black ${activePillar === 'move' ? 'text-emerald-600' : 'text-slate-500'}`}>Biz</span>
+          </button>
+        </div>
       </div>
 
     </div>
