@@ -80,10 +80,18 @@ export async function createPaymentIntent(
   if (!key) {
     return { paymentId: payment.id as string, configured: false, authorizationUrl: null as string | null };
   }
+  // Determine the site origin for Paystack callback URL
+  // Falls back to production URL if SITE_URL env var is not set
   const origin =
-    process.env["SITE_URL"] ?? process.env["VITE_SITE_URL"] ?? "http://localhost:8080";
+    process.env["SITE_URL"] ??
+    process.env["VITE_SITE_URL"] ??
+    "https://barakah-dev-centre.web.app";
   const { data: authData } = await supabase.auth.getUser();
-  const email = authData?.user?.email ?? `${userId}@barakah.local`;
+  const rawEmail = authData?.user?.email;
+  // Paystack requires a valid email address — fall back to a real domain
+  const email = rawEmail && rawEmail.includes("@") && !rawEmail.endsWith(".local")
+    ? rawEmail
+    : `user-${userId.slice(0, 8)}@barakahdevcentre.com`;
   const sep = input.callbackPath.includes("?") ? "&" : "?";
   const authorizationUrl = await initializePaystack({
     email,

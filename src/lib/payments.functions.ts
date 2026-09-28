@@ -68,12 +68,15 @@ export const verifyPayment = createServerFn({ method: "POST" })
       return { status: "completed" };
     }
 
-    const key = process.env["PAYSTACK_SECRET_KEY"] || process.env["VITE_PAYSTACK_PUBLIC_KEY"];
+    // Always use the secret key for server-side Paystack calls
+    const key = process.env["PAYSTACK_SECRET_KEY"];
     if (!key) {
       return { status: payment.status, configured: false };
     }
 
-    const res = await fetch(`https://api.paystack.co/transaction/verify/${payment.id}`, {
+    // Paystack verify endpoint uses the gateway reference, not the DB UUID
+    const reference = payment.gateway_ref || payment.id;
+    const res = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, {
       headers: { Authorization: `Bearer ${key}` },
     });
     const json: any = await res.json().catch(() => null);
