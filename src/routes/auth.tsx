@@ -5,6 +5,8 @@ import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { Eye, EyeOff, Info, UserCheck, Truck } from "lucide-react";
 import { isSwiftmoveDomain } from "@/lib/domain-detection";
+import { detectPlatform } from "@/lib/platform-detection.server";
+
 
 const searchSchema = z.object({
   mode: z.enum(["login", "register", "forgot"]).catch("login"),
@@ -25,7 +27,18 @@ export const Route = createFileRoute("/auth")({
       const metaRole = user.user_metadata?.['role'];
       const allUserRoles = new Set([...userRoles, metaRole].filter(Boolean));
 
-      const isSwift = typeof window !== 'undefined' && isSwiftmoveDomain();
+      // Detect SwiftMove domain correctly for both SSR and client:
+      // - Server: use detectPlatform() which reads the Host HTTP header
+      // - Client: use window.location.hostname via isSwiftmoveDomain()
+      let isSwift = false;
+      if (typeof window !== 'undefined') {
+        isSwift = isSwiftmoveDomain();
+      } else {
+        try {
+          const { platform } = await detectPlatform();
+          isSwift = platform === 'swiftmove';
+        } catch (_) {}
+      }
 
       let target = search.redirect;
       if (!target || target === '/my-swift-move' || target === '/my-barakah' || target === '/' || target.includes('/auth')) {
