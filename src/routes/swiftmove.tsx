@@ -401,7 +401,7 @@ export function SwiftMoveLanding() {
                 Pricing
               </a>
               <Link
-                to="/_authenticated/drive"
+                to="/drive"
                 className="px-3.5 py-1.5 rounded-full hover:bg-slate-100 hover:text-orange-600 transition-colors"
               >
                 Drive &amp; Earn

@@ -75,6 +75,14 @@ const customerNav: RoleNav = {
     roleDot: "bg-blue-400",
     sections: [
         {
+            title: "Barakah Services",
+            items: [
+                { title: "My Dashboard", path: "/my-barakah", icon: Activity, description: "Customer overview & services" },
+                { title: "Travel & Tours", path: "/my-journey", icon: Globe2, description: "Umrah & Hajj bookings" },
+                { title: "Applications", path: "/apply", icon: FileText, description: "Track programme applications" },
+            ],
+        },
+        {
             title: "Logistics Services",
             items: [
                 { title: "Book a Dispatch", path: "/my-swift-move", icon: Package, description: "Send parcels & packages" },

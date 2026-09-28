@@ -50,18 +50,24 @@ export const Route = createFileRoute("/_authenticated/my-barakah")({
       if (driverRecord) {
         throw redirect({ to: '/drive' });
       }
+
+      // If accessed on swiftmove.ng, redirect to SwiftMove homepage
+      const { isSwiftmoveDomain } = await import("@/lib/domain-detection");
+      if (isSwiftmoveDomain()) {
+        throw redirect({ to: "/" });
+      }
     } catch (err: any) {
       if (isRedirect(err) || err?.isRedirect || err?.to || err?.statusCode) throw err;
     }
   },
   head: () => ({
     meta: [
-      { title: "SwiftMove — Customer Dashboard" },
-      { name: "description", content: "Your SwiftMove ride-hailing and courier dispatch dashboard." },
+      { title: "My Barakah — Customer Dashboard" },
+      { name: "description", content: "Your Barakah Development Centre customer portal." },
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: MySwiftMoveDashboard,
+  component: MyBarakahDashboard,
 });
 
 function fmt(iso: string) {
@@ -73,7 +79,7 @@ function fmt(iso: string) {
   });
 }
 
-function MySwiftMoveDashboard() {
+function MyBarakahDashboard() {
   const { user } = useAuth();
   const [name, setName] = useState("");
   const [userRole, setUserRole] = useState<string>("user");
@@ -121,7 +127,7 @@ function MySwiftMoveDashboard() {
             As-salamu alaykum{name ? `, ${name.split(" ")[0]}` : ""} 👋
           </h1>
           <p className="mt-1 text-muted-foreground text-sm">
-            Welcome to <span className="font-semibold text-emerald-600 dark:text-emerald-400">SwiftMove</span> — your intra-city ride-hailing and express courier delivery service.
+            Welcome to <span className="font-semibold text-emerald-600 dark:text-emerald-400">Barakah Development Centre</span> — your platform for community programmes, logistics, sacred travel, and education.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

@@ -1,11 +1,12 @@
 import { useEffect } from 'react';
-import { createFileRoute, Outlet, redirect, isRedirect, Link } from '@tanstack/react-router';
+import { createFileRoute, Outlet, redirect, isRedirect, Link, useLocation } from '@tanstack/react-router';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { AppSidebar } from '@/components/app-sidebar';
 import { MobileNav } from '@/components/mobile-nav';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { isChunkLoadError, autoRecoverChunkError } from '@/lib/chunk-error-handler';
+import { isSwiftmoveDomain, isSwiftmovePath } from '@/lib/domain-detection';
 
 export const Route = createFileRoute('/_authenticated')({
   ssr: false,
@@ -40,11 +41,12 @@ function AuthenticatedErrorFallback({ error, reset }: { error: Error; reset: () 
   }, [error]);
 
   const isChunk = isChunkLoadError(error);
+  const isSwift = isSwiftmoveDomain();
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-slate-950 text-slate-100 overflow-x-hidden">
-      <MobileNav />
-      <AppSidebar className="hidden md:flex shrink-0" />
+      {!isSwift && <MobileNav />}
+      {!isSwift && <AppSidebar className="hidden md:flex shrink-0" />}
       <main className="flex-1 min-w-0 p-6 flex items-center justify-center">
         <div className="max-w-md w-full text-center space-y-4 p-8 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-xl">
           <div className="inline-flex p-3 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
@@ -75,7 +77,7 @@ function AuthenticatedErrorFallback({ error, reset }: { error: Error; reset: () 
               {isChunk ? 'Refresh App' : 'Retry View'}
             </Button>
             <Link
-              to="/my-swift-move"
+              to={(isSwift ? '/' : '/my-barakah') as any}
               className="inline-flex items-center justify-center px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-colors"
             >
               Go to Dashboard
@@ -88,6 +90,24 @@ function AuthenticatedErrorFallback({ error, reset }: { error: Error; reset: () 
 }
 
 function AuthenticatedLayout() {
+  const location = useLocation();
+  const pathname = location.pathname;
+  const isSwiftDomain = isSwiftmoveDomain();
+  const isSwiftRoute =
+    isSwiftDomain ||
+    isSwiftmovePath(pathname) ||
+    pathname === '/history';
+
+  // For SwiftMove customer routes, use clean full-width shell (SwiftmoveHeader provides full navigation)
+  if (isSwiftRoute) {
+    return (
+      <div className="flex-1 min-w-0 w-full">
+        <Outlet />
+      </div>
+    );
+  }
+
+  // Barakah authenticated portal uses sticky desktop sidebar and mobile drawer
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-slate-950 text-slate-100 overflow-x-hidden">
       {/* Mobile Top Navbar & Drawer (< md) */}

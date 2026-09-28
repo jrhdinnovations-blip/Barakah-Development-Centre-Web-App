@@ -25,6 +25,8 @@ export const Route = createFileRoute("/auth")({
       const metaRole = user.user_metadata?.['role'];
       const allUserRoles = new Set([...userRoles, metaRole].filter(Boolean));
 
+      const isSwift = typeof window !== 'undefined' && isSwiftmoveDomain();
+
       let target = search.redirect;
       if (!target || target === '/my-swift-move' || target === '/my-barakah' || target === '/' || target.includes('/auth')) {
         if (allUserRoles.has('swift_dispatcher') || allUserRoles.has('dispatcher')) {
@@ -34,18 +36,21 @@ export const Route = createFileRoute("/auth")({
         } else if (allUserRoles.has('driver') || allUserRoles.has('dispatch_rider')) {
           target = '/drive';
         } else {
-          target = search.redirect || '/my-swift-move';
+          target = search.redirect || (isSwift ? '/' : '/my-barakah');
         }
       }
       throw redirect({ to: target as any });
     }
   },
-  head: () => ({
-    meta: [
-      { title: `Login or Register — SwiftMove` },
-      { name: "description", content: "Access your SwiftMove account." },
-    ],
-  }),
+  head: () => {
+    const isSwift = typeof window !== 'undefined' && isSwiftmoveDomain();
+    return {
+      meta: [
+        { title: isSwift ? `Login or Register — SwiftMove Logistics` : `Login or Register — Barakah Development Centre` },
+        { name: "description", content: isSwift ? "Access your SwiftMove account." : "Access your Barakah Development Centre account." },
+      ],
+    };
+  },
   component: AuthPage,
 });
 
@@ -95,7 +100,7 @@ function AuthPage() {
   }
 
   async function handleGoogle() {
-    const defaultAfterAuth = isSwiftmoveDomain() ? "/" : "/my-swift-move";
+    const defaultAfterAuth = isSwift ? "/" : "/my-barakah";
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
@@ -145,7 +150,7 @@ function AuthPage() {
       } else if (allUserRoles.has('driver') || allUserRoles.has('dispatch_rider')) {
         target = '/drive';
       } else {
-        target = redirectParam || '/my-swift-move';
+        target = redirectParam || (isSwift ? '/' : '/my-barakah');
       }
     }
     navigate({ to: target as any });
@@ -159,8 +164,8 @@ function AuthPage() {
       return;
     }
     setBusy(true);
-    // On swiftmove.ng new users land on the SwiftMove home page, not the Barakah dashboard
-    const defaultAfterSignup = isSwiftmoveDomain() ? "/" : "/my-swift-move";
+    // On swiftmove.ng new users land on the SwiftMove home page/booking deck, not the Barakah dashboard
+    const defaultAfterSignup = isSwift ? "/" : "/my-barakah";
     const { data: signUpData, error } = await supabase.auth.signUp({
       email: parsed.data.email,
       password: parsed.data.password,
@@ -172,6 +177,7 @@ function AuthPage() {
           location: parsed.data.location,
           role: "registered_user",
           consent_given: true,
+          platform: isSwift ? "swiftmove" : "barakah",
         },
       },
     });
@@ -212,20 +218,22 @@ function AuthPage() {
           {isSwift ? (
             <Truck className="h-8 w-8" />
           ) : (
-            <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-            </svg>
+            <img src="/barakah-centre-logo.png" alt="Barakah Development Centre" className="h-10 w-10 rounded-full object-cover" />
           )}
         </div>
         <h1 className="text-3xl font-extrabold text-white tracking-tight">
-          {mode === "register" ? "Create Customer Account" : mode === "forgot" ? "Reset password" : "Welcome back"}
+          {mode === "register"
+            ? (isSwift ? "Create SwiftMove Account" : "Create Barakah Account")
+            : mode === "forgot"
+              ? "Reset password"
+              : "Welcome back"}
         </h1>
         <p className="mt-2 text-sm text-slate-400">
           {mode === "register"
-            ? (isSwift ? "Sign up to send parcels, request rides, and track orders on SwiftMove." : "Sign up to book rides, schedule dispatches, and access Barakah services.")
+            ? (isSwift ? "Sign up to send parcels, request rides, and track orders on SwiftMove." : "Sign up to access Barakah Development Centre programmes and services.")
             : mode === "forgot"
               ? "We'll email you a secure reset link."
-              : (isSwift ? "Sign in to access your SwiftMove deliveries and rides." : "Access the Barakah & SwiftMove platform.")}
+              : (isSwift ? "Sign in to access your SwiftMove deliveries and rides." : "Sign in to access your Barakah Development Centre account.")}
         </p>
       </div>
 
@@ -331,7 +339,11 @@ function AuthPage() {
               <label className="flex items-start gap-2.5 text-xs text-slate-400 mt-2 select-none">
                 <input type="checkbox" className={`mt-1 ${isSwift ? "accent-orange-500" : "accent-blue-600"}`} checked={form.consent}
                   onChange={(e) => setForm({ ...form, consent: e.target.checked })} />
-                <span>I consent to Barakah and SwiftMove storing my details to provide services.</span>
+                <span>
+                  {isSwift
+                    ? "I agree to the Terms of Service and Privacy Policy of SwiftMove Logistics."
+                    : "I agree to the Terms of Service and Privacy Policy of Barakah Development Centre."}
+                </span>
               </label>
             )}
             <button
@@ -342,7 +354,7 @@ function AuthPage() {
               {busy
                 ? "Please wait..."
                 : mode === "register"
-                  ? "Create Customer Account"
+                  ? (isSwift ? "Create SwiftMove Account" : "Create Barakah Account")
                   : mode === "forgot"
                     ? "Send reset link"
                     : "Sign In"}
@@ -353,7 +365,7 @@ function AuthPage() {
             <div className="mt-5 rounded-xl border border-slate-800 bg-slate-900/40 p-3.5 text-xs text-slate-400 flex items-start gap-2.5">
               <Info className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
               <p className="leading-relaxed">
-                <strong className="text-slate-300">Looking to join as a driver or dispatch rider?</strong> Drivers and dispatch riders are onboarded exclusively by administrators via the admin dashboard. Please contact dispatch support to register your vehicle.
+                <strong className="text-slate-300">Looking to join as a driver or dispatch rider?</strong> {isSwift ? "Drivers and dispatch riders are onboarded by SwiftMove administrators. Please contact dispatch support to register your vehicle." : "Drivers and dispatch riders are onboarded via the administration dashboard."}
               </p>
             </div>
           )}

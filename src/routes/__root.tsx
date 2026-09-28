@@ -280,7 +280,8 @@ function RootShell({ children }: { children: ReactNode }) {
   try {
     var h = (window.location.hostname || '').toLowerCase();
     var p = (window.location.pathname || '').toLowerCase();
-    var isS = h.indexOf('swiftmove') !== -1 || p.indexOf('/swift') === 0 || p.indexOf('/drive') === 0 || p.indexOf('/dispatcher') === 0 || p.indexOf('/vehicle') === 0 || p.indexOf('/my-swift') === 0;
+    var isBarakah = h.indexOf('barakah') !== -1;
+    var isS = !isBarakah && (h.indexOf('swiftmove') !== -1 || p.indexOf('/swift') === 0 || p.indexOf('/drive') === 0 || p.indexOf('/dispatcher') === 0 || p.indexOf('/vehicle') === 0 || p.indexOf('/my-swift') === 0);
     if (isS) {
       document.title = "SwiftMove Logistics — Fast, Reliable Deliveries & Ride Hailing";
       var icons = document.querySelectorAll("link[rel*='icon'], link[rel='apple-touch-icon']");
@@ -356,13 +357,16 @@ function RootComponent() {
 
   const isSwiftDomain = isSwiftmoveDomain();
 
-  // Broadened to catch all variations: /my-swift-move, /swiftmove-move/new, and /my-vehicle-hires
-  const isSwiftmove =
-    isSwiftDomain ||
-    pathname.includes("swift") ||
-    pathname.includes("vehicle") ||
-    pathname.includes("drive") ||
-    pathname.includes("dispatcher");
+  const isSwiftRoute =
+    pathname.startsWith("/swift") ||
+    pathname.startsWith("/drive") ||
+    pathname.startsWith("/vehicle") ||
+    pathname.startsWith("/dispatcher") ||
+    pathname.startsWith("/my-swift") ||
+    pathname.startsWith("/my-vehicle") ||
+    (isSwiftDomain && pathname === "/history");
+
+  const isSwiftmove = isSwiftDomain || isSwiftRoute;
 
   const isLanding = pathname === "/swiftmove" || (pathname === "/" && isSwiftDomain);
 

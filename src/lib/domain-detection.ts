@@ -16,32 +16,27 @@ export function isSwiftmoveDomain(): boolean {
     return true;
   }
 
-  // 1. Environment variable override (build-time & runtime)
-  const envMode = (
-    import.meta.env.VITE_APP_MODE ||
-    import.meta.env.VITE_SWIFTMOVE_ONLY ||
-    ""
-  ).toLowerCase();
-  if (envMode === "swiftmove" || envMode === "true" || envMode === "standalone") {
-    return true;
-  }
-
-  // 2. Explicit custom domains configured in env (e.g. "swiftmove.ng,swiftmovelogistics.com,swiftmove.app")
-  const customDomains = (
-    import.meta.env.VITE_SWIFTMOVE_CUSTOM_DOMAINS ||
-    import.meta.env.VITE_SWIFTMOVE_DOMAIN ||
-    ""
-  )
-    .toLowerCase()
-    .split(",")
-    .map((d: string) => d.trim())
-    .filter(Boolean);
-
-  // 3. Client-side hostname & query detection
+  // 1. Client-side hostname & query detection (highest priority for multi-domain routing)
   if (typeof window !== "undefined") {
     const host = window.location.hostname.toLowerCase();
 
-    // Check custom domains list
+    // If explicit barakah domain, always return false
+    if (host.includes("barakah")) {
+      return false;
+    }
+
+    // Explicit custom domains list
+    const customDomains = (
+      import.meta.env.VITE_SWIFTMOVE_CUSTOM_DOMAINS ||
+      import.meta.env.VITE_SWIFTMOVE_DOMAIN ||
+      "swiftmove.ng"
+    )
+      .toLowerCase()
+      .split(",")
+      .map((d: string) => d.trim())
+      .filter(Boolean);
+
+    // Check custom domains list (e.g. swiftmove.ng)
     if (customDomains.some((d: string) => host === d || host.endsWith(`.${d}`))) {
       return true;
     }
@@ -75,5 +70,33 @@ export function isSwiftmoveDomain(): boolean {
     }
   }
 
+  // 2. Environment variable override (only active if set and not on a barakah domain)
+  const envMode = (
+    import.meta.env.VITE_APP_MODE ||
+    import.meta.env.VITE_SWIFTMOVE_ONLY ||
+    ""
+  ).toLowerCase();
+  if (envMode === "swiftmove" || envMode === "true" || envMode === "standalone") {
+    return true;
+  }
+
+  return false;
+}
+
+export function isSwiftmovePath(pathname: string): boolean {
+  const p = (pathname || "").toLowerCase();
+  return (
+    p.startsWith("/swift") ||
+    p.startsWith("/drive") ||
+    p.startsWith("/vehicle") ||
+    p.startsWith("/dispatcher") ||
+    p.startsWith("/my-swift") ||
+    p.startsWith("/my-vehicle")
+  );
+}
+
+export function isSwiftmoveContext(pathname?: string): boolean {
+  if (isSwiftmoveDomain()) return true;
+  if (pathname) return isSwiftmovePath(pathname);
   return false;
 }

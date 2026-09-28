@@ -36,6 +36,14 @@ const customerNav = {
     roleDot: 'bg-blue-400',
     sections: [
         {
+            title: 'Barakah Services',
+            items: [
+                { title: 'My Dashboard', path: '/my-barakah', icon: Activity },
+                { title: 'Travel & Tours', path: '/my-journey', icon: Globe2 },
+                { title: 'Applications', path: '/apply', icon: FileText },
+            ],
+        },
+        {
             title: 'Logistics Services',
             items: [
                 { title: 'Book a Dispatch', path: '/my-swift-move', icon: Package },
