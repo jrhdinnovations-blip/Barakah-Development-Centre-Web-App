@@ -83,67 +83,10 @@ function AddRiderPage() {
           }
         });
       } catch (serverErr: any) {
-        console.warn('Server function returned error, using direct registration:', serverErr);
-        const { createClient } = await import('@supabase/supabase-js');
-        const { sanitizeSupabaseUrl, sanitizeSupabaseKey } = await import('@/integrations/supabase/client');
-        const supabaseUrl = sanitizeSupabaseUrl(import.meta.env['VITE_SUPABASE_URL']);
-        const supabaseKey = sanitizeSupabaseKey(import.meta.env['VITE_SUPABASE_PUBLISHABLE_KEY']);
-        const isolatedClient = createClient(supabaseUrl, supabaseKey, {
-          auth: {
-            persistSession: false,
-            autoRefreshToken: false,
-            detectSessionInUrl: false,
-          },
-        });
-
-        const formattedPlate = form.plate_number.toUpperCase().trim();
-
-        const { data: signUpData, error: signUpError } = await isolatedClient.auth.signUp({
-          email: form.email.trim().toLowerCase(),
-          password: form.password,
-          options: {
-            data: {
-              full_name: form.full_name,
-              phone: form.phone,
-              role: 'driver',
-              rider_category: form.category,
-              vehicle_type: form.vehicle_type,
-              vehicle_make: form.vehicle_make,
-              plate_number: formattedPlate,
-              vehicle_color: form.vehicle_color,
-              consent_given: true,
-            },
-          },
-        });
-
-        if (signUpError) throw signUpError;
-        if (!signUpData.user) throw new Error('Could not create personnel account.');
-
-        const newId = signUpData.user.id;
-
-        // Force-confirm the email via a server function so the driver can log in immediately
-        // (signUp leaves accounts unconfirmed; drivers don't click verification emails)
-        try {
-          await confirmUserEmailAdmin({ data: { targetUserId: newId } });
-        } catch (confirmErr) {
-          console.warn('Could not auto-confirm driver email on client fallback:', confirmErr);
-        }
-        try {
-          await supabase.from('profiles').upsert({
-            user_id: newId,
-            full_name: form.full_name,
-            phone: form.phone,
-          } as any, { onConflict: 'user_id' });
-        } catch {}
-
-        try {
-          const vehicleSummary = `${form.vehicle_color ? form.vehicle_color + ' ' : ''}${form.vehicle_make || form.vehicle_type}${formattedPlate ? ' (' + formattedPlate + ')' : ''}`;
-          await supabase.from('active_drivers').upsert({
-            driver_id: newId,
-            vehicle_type: vehicleSummary,
-            status: 'available',
-          } as any, { onConflict: 'driver_id' });
-        } catch {}
+        console.error('Failed to create personnel:', serverErr);
+        toast.error(serverErr?.message || 'Failed to onboard personnel.');
+        setLoading(false);
+        return;
       }
       
       toast.success(

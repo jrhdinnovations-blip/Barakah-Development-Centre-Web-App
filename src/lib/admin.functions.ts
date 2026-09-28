@@ -229,12 +229,46 @@ export const createUserAdmin = createServerFn({ method: "POST" })
         createUserPayload.password = data.password;
       }
 
+      let authUser: any = null;
       const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser(createUserPayload);
 
-      if (authError) throw new Error(authError.message);
-      if (!authData.user) throw new Error("Failed to create user");
+      if (authError) {
+        const isAlreadyRegistered =
+          authError.message?.toLowerCase().includes("already registered") ||
+          authError.message?.toLowerCase().includes("already been registered") ||
+          (authError as any).status === 422;
 
-      newUserId = authData.user.id;
+        if (isAlreadyRegistered) {
+          const { data: listData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+          const existing = listData?.users?.find(
+            (u) => u.email?.toLowerCase() === data.email.toLowerCase()
+          );
+          if (existing) {
+            authUser = existing;
+            const updatePayload: any = {
+              email_confirm: true,
+              user_metadata: {
+                ...(existing.user_metadata || {}),
+                ...createUserPayload.user_metadata,
+              },
+            };
+            if (data.login_method !== "google" && data.password) {
+              updatePayload.password = data.password;
+            }
+            await supabaseAdmin.auth.admin.updateUserById(existing.id, updatePayload);
+          } else {
+            throw new Error(authError.message);
+          }
+        } else {
+          throw new Error(authError.message);
+        }
+      } else {
+        authUser = authData.user;
+      }
+
+      if (!authUser) throw new Error("Failed to create user");
+
+      newUserId = authUser.id;
 
       // Insert into user_roles
       await supabaseAdmin
@@ -279,81 +313,7 @@ export const createUserAdmin = createServerFn({ method: "POST" })
         metadata: { target_user: newUserId, role: data.role, email: data.email },
       }).then(() => {});
     } else {
-      // Create user using isolated client without persisting session
-      const { sanitizeSupabaseUrl, sanitizeSupabaseKey } = await import("@/integrations/supabase/client");
-      const url = sanitizeSupabaseUrl(process.env["SUPABASE_URL"] || process.env["VITE_SUPABASE_URL"]);
-      const key = sanitizeSupabaseKey(process.env["SUPABASE_PUBLISHABLE_KEY"] || process.env["VITE_SUPABASE_PUBLISHABLE_KEY"]);
-
-      const isolatedClient = createClient(url, key, {
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false,
-          detectSessionInUrl: false,
-        },
-      });
-
-      const fallbackPass = data.password || `GoogleAuth_${Math.random().toString(36).slice(2)}!A1`;
-      const { data: signUpData, error: signUpError } = await isolatedClient.auth.signUp({
-        email: data.email,
-        password: fallbackPass,
-        options: {
-          data: {
-            full_name: data.full_name,
-            phone: data.phone,
-            role: data.role,
-            rider_category: category,
-            vehicle_type: vType,
-            vehicle_make: vMake,
-            plate_number: vPlate,
-            vehicle_color: vColor,
-            consent_given: true,
-          },
-        },
-      });
-
-      if (signUpError) throw new Error(signUpError.message);
-      if (!signUpData.user) throw new Error("Failed to create user");
-
-      newUserId = signUpData.user.id;
-
-      // Force-confirm the email so the driver can log in immediately
-      // (signUp creates an unconfirmed account; drivers don't click confirmation emails)
-      try {
-        await supabaseAdmin.auth.admin.updateUserById(newUserId, {
-          email_confirm: true,
-        });
-      } catch (confirmErr) {
-        console.warn("Could not auto-confirm driver email:", confirmErr);
-      }
-
-      // Ensure profile and driver records exist via authenticated client
-      try {
-        await supabase.from("profiles").upsert({
-          user_id: newUserId,
-          full_name: data.full_name,
-          phone: data.phone,
-        } as any, { onConflict: "user_id" });
-      } catch {}
-
-      if (data.role === "driver") {
-        try {
-          await supabase.from("drivers").upsert({
-            user_id: newUserId,
-            full_name: data.full_name,
-            phone: data.phone || "",
-            email: data.email,
-            status: "active" as any,
-          } as any, { onConflict: "user_id" });
-        } catch {}
-
-        // Insert into active_drivers so rider shows as "active" immediately
-        try {
-          await supabase.from("active_drivers").upsert({
-            driver_id: newUserId,
-            status: "available",
-          } as any, { onConflict: "driver_id" });
-        } catch {}
-      }
+      throw new Error("Supabase service role configuration is required to create users.");
     }
 
     return { ok: true, userId: newUserId };
@@ -416,13 +376,47 @@ export const createStaffAdmin = createServerFn({ method: "POST" })
         createStaffPayload.password = data.password;
       }
 
+      let authUser: any = null;
       const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser(createStaffPayload);
 
-      if (authError) throw new Error(authError.message);
-      if (!authData.user) throw new Error("Failed to create staff account");
+      if (authError) {
+        const isAlreadyRegistered =
+          authError.message?.toLowerCase().includes("already registered") ||
+          authError.message?.toLowerCase().includes("already been registered") ||
+          (authError as any).status === 422;
 
-      newUserId = authData.user.id;
-      authEmail = authData.user.email ?? data.email;
+        if (isAlreadyRegistered) {
+          const { data: listData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+          const existing = listData?.users?.find(
+            (u) => u.email?.toLowerCase() === data.email.toLowerCase()
+          );
+          if (existing) {
+            authUser = existing;
+            const updatePayload: any = {
+              email_confirm: true,
+              user_metadata: {
+                ...(existing.user_metadata || {}),
+                ...createStaffPayload.user_metadata,
+              },
+            };
+            if (data.login_method !== "google" && data.password) {
+              updatePayload.password = data.password;
+            }
+            await supabaseAdmin.auth.admin.updateUserById(existing.id, updatePayload);
+          } else {
+            throw new Error(authError.message);
+          }
+        } else {
+          throw new Error(authError.message);
+        }
+      } else {
+        authUser = authData.user;
+      }
+
+      if (!authUser) throw new Error("Failed to create staff account");
+
+      newUserId = authUser.id;
+      authEmail = authUser.email ?? data.email;
 
       await supabaseAdmin
         .from("profiles")
@@ -435,59 +429,7 @@ export const createStaffAdmin = createServerFn({ method: "POST" })
       } catch {}
 
     } else {
-      // Fallback: use signUp (no service role key)
-      const { sanitizeSupabaseUrl, sanitizeSupabaseKey } = await import("@/integrations/supabase/client");
-      const url = sanitizeSupabaseUrl(process.env["SUPABASE_URL"] || process.env["VITE_SUPABASE_URL"]);
-      const key = sanitizeSupabaseKey(process.env["SUPABASE_PUBLISHABLE_KEY"] || process.env["VITE_SUPABASE_PUBLISHABLE_KEY"]);
-
-      const isolatedClient = createClient(url, key, {
-        auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-      });
-
-      const fallbackPass = data.password || `GoogleAuth_${Math.random().toString(36).slice(2)}!A1`;
-      const { data: signUpData, error: signUpError } = await isolatedClient.auth.signUp({
-        email: data.email,
-        password: fallbackPass,
-        options: {
-          data: {
-            full_name: data.full_name,
-            phone: data.phone || null,
-            recovery_email: data.recovery_email || null,
-            role: data.role,
-            department: data.department || null,
-            designation: data.designation || null,
-            branch: data.branch || null,
-            employee_id: data.employee_id || null,
-            consent_given: true,
-          },
-        },
-      });
-
-      if (signUpError) throw new Error(signUpError.message);
-      if (!signUpData.user) throw new Error("Failed to create staff account");
-
-      newUserId = signUpData.user.id;
-      authEmail = signUpData.user.email ?? data.email;
-
-      try {
-        await supabaseAdmin.auth.admin.updateUserById(newUserId, {
-          email_confirm: true,
-        });
-      } catch (confirmErr) {
-        console.warn("Could not auto-confirm staff email:", confirmErr);
-      }
-
-      try {
-        await supabase
-          .from("profiles")
-          .upsert({ user_id: newUserId, full_name: data.full_name, phone: data.phone || null } as any, { onConflict: "user_id" });
-      } catch {}
-
-      try {
-        await supabase
-          .from("user_roles")
-          .upsert({ user_id: newUserId, role: data.role as any, status: "active" } as any, { onConflict: "user_id,role" });
-      } catch {}
+      throw new Error("Supabase service role configuration is required to create staff members.");
     }
 
     // Audit log
