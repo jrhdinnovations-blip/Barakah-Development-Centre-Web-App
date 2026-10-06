@@ -794,68 +794,45 @@ export function SwiftMoveLanding() {
         </div>
       )}
 
-      {/* ── 2. HERO: FIGMA HIGH-IMPACT DARK HERO ───────────────────────── */}
-      <section id="hero" className="relative min-h-[92vh] pt-28 pb-16 overflow-hidden flex flex-col justify-center">
+      {/* ── 2. HERO + BOOKING DECK: Two-column — headline left, booking right ── */}
+      <section id="hero" className="relative pt-24 pb-10 overflow-hidden">
         {/* Glow Spheres & Dot Pattern from Figma */}
         <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-[#0033AD]/15 rounded-full blur-[120px] pointer-events-none" />
         <div className="absolute bottom-10 right-10 w-[400px] h-[400px] bg-[#FF5500]/10 rounded-full blur-[100px] pointer-events-none" />
         <div className="absolute inset-0 bg-[radial-gradient(#FF5500_1px,transparent_1px)] [background-size:16px_16px] opacity-20 pointer-events-none" />
 
         <div className="relative z-10 px-4 sm:px-8 md:px-16 max-w-7xl mx-auto w-full">
-          
-          {/* Hero Header Typography */}
-          <div className="text-center max-w-3xl mx-auto mb-8 sm:mb-12">
-            
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#FF5500]/15 border border-[#FF5500]/30 text-[#FF5500] text-[11px] font-black uppercase tracking-widest mb-4">
-              <span className="h-2 w-2 rounded-full bg-[#FF5500] animate-ping" />
-              <span>Jos &amp; Plateau State</span>
+
+          {/* Two-column grid: headline left, booking deck right */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start">
+
+            {/* ── LEFT: Brand headline */}
+            <div className="pt-4 lg:pt-8">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#FF5500]/15 border border-[#FF5500]/30 text-[#FF5500] text-[11px] font-black uppercase tracking-widest mb-5">
+                <span className="h-2 w-2 rounded-full bg-[#FF5500] animate-ping" />
+                <span>Jos &amp; Plateau State</span>
+              </div>
+
+              <h1 className="font-[Barlow_Condensed,sans-serif] text-5xl sm:text-6xl lg:text-7xl font-black uppercase tracking-tight leading-[0.9] text-[#E8ECF2] mb-4">
+                Your Trusted <br />
+                <span className="text-[#FF5500]">Transport &amp; Logistics</span><br />
+                Partner in Jos
+              </h1>
+
+              <p className="text-sm sm:text-base text-[#A3ADB8] leading-relaxed font-medium max-w-md mb-8">
+                On-demand rides, parcel delivery, and agri haulage — all in one platform.
+              </p>
+
+              {/* Trust badges */}
+              <div className="flex flex-wrap gap-3">
+                <span className="px-3 py-1.5 rounded-full bg-[#181D2B] border border-white/10 text-[11px] font-bold text-[#8895A5]">⚡ 2-min match</span>
+                <span className="px-3 py-1.5 rounded-full bg-[#181D2B] border border-white/10 text-[11px] font-bold text-[#8895A5]">📍 Live GPS</span>
+                <span className="px-3 py-1.5 rounded-full bg-[#181D2B] border border-white/10 text-[11px] font-bold text-[#8895A5]">✅ 5,000+ trips</span>
+              </div>
             </div>
 
-            <h1 className="font-[Barlow_Condensed,sans-serif] text-5xl sm:text-7xl lg:text-[84px] font-black uppercase tracking-tight leading-[0.92] text-[#E8ECF2] mb-4">
-              Your Trusted <br />
-              <span className="text-[#FF5500]">Transport &amp; Logistics</span> <br />
-              Partner in Jos
-            </h1>
-
-            <p className="text-sm sm:text-lg text-[#A3ADB8] leading-relaxed font-medium max-w-xl mx-auto px-1 mb-6">
-              On-demand rides, parcel delivery, and agri haulage — all in one platform.
-            </p>
-
-            {/* Quick action buttons */}
-            <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 mb-6">
-              <button
-                type="button"
-                onClick={() => {
-                  switchPillar('send');
-                  document.getElementById('booking-deck')?.scrollIntoView({ behavior: 'smooth' });
-                }}
-                className="px-6 sm:px-8 py-3.5 sm:py-4 bg-[#FF5500] hover:bg-[#e04800] text-white font-black text-xs sm:text-sm uppercase tracking-wider rounded-xl shadow-xl shadow-[#FF5500]/25 transition-all hover:scale-105 active:scale-95 cursor-pointer"
-              >
-                Send Package Now
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  switchPillar('ride');
-                  document.getElementById('booking-deck')?.scrollIntoView({ behavior: 'smooth' });
-                }}
-                className="px-6 sm:px-8 py-3.5 sm:py-4 bg-[#181D2B] border border-[#0033AD]/50 hover:border-white text-white font-black text-xs sm:text-sm uppercase tracking-wider rounded-xl shadow-lg transition-all hover:scale-105 active:scale-95 cursor-pointer"
-              >
-                Book City Ride
-              </button>
-            </div>
-
-            {/* Trust Badges */}
-            <div className="flex flex-wrap justify-center gap-3 pt-3 border-t border-white/10">
-              <span className="px-3 py-1.5 rounded-full bg-[#181D2B] border border-white/10 text-[11px] font-bold text-[#8895A5]">⚡ 2-min match</span>
-              <span className="px-3 py-1.5 rounded-full bg-[#181D2B] border border-white/10 text-[11px] font-bold text-[#8895A5]">📍 Live GPS</span>
-              <span className="px-3 py-1.5 rounded-full bg-[#181D2B] border border-white/10 text-[11px] font-bold text-[#8895A5]">✅ 5,000+ trips</span>
-            </div>
-
-          </div>
-
-          {/* ── 3. FIGMA DISPATCH & BOOKING DECK ───────────────────────── */}
-          <div id="booking-deck" className="max-w-4xl mx-auto scroll-mt-24">
+            {/* ── RIGHT: Booking application — visible on first load ── */}
+          <div id="booking-deck" className="w-full scroll-mt-24">
             <div className="bg-[#181D2B] rounded-2xl sm:rounded-3xl border border-[#0033AD]/60 shadow-2xl p-4 sm:p-8 relative transition-all">
               
               {/* Segmented 4-Pillar Tabs */}
@@ -1645,8 +1622,10 @@ export function SwiftMoveLanding() {
             </div>
           </div>
 
-        </div>
+          </div>{/* end grid */}
+        </div>{/* end max-w-7xl */}
       </section>
+
 
       {/* ── 3. FIGMA FLEET SHOWCASE (#fleet) ────────────────────────────── */}
       <section id="fleet" className="py-24 px-6 md:px-16 bg-[#0A0D14] border-t border-white/5">
