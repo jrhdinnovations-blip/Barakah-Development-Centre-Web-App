@@ -1,14 +1,43 @@
-import { createFileRoute, useRouter } from '@tanstack/react-router';
+import { createFileRoute, redirect, useRouter } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
 import { Construction, ArrowLeft, Lightbulb, Workflow, Sparkles } from 'lucide-react';
+import { isSwiftmoveDomain, isSwiftmovePath } from '@/lib/domain-detection';
 
 export const Route = createFileRoute('/_authenticated/$')({
+  beforeLoad: ({ location }) => {
+    const path = location.pathname.toLowerCase();
+    // SwiftMove or general app routes should NEVER hit under-construction
+    if (
+      isSwiftmoveDomain() ||
+      path === '/swiftmove' ||
+      path === '/swift-move' ||
+      path === '/app' ||
+      path.startsWith('/app/') ||
+      isSwiftmovePath(path)
+    ) {
+      throw redirect({ to: isSwiftmoveDomain() ? '/' : '/swiftmove' });
+    }
+  },
   component: UnderConstructionPage,
 });
 
 function UnderConstructionPage() {
   const router = useRouter();
   const path = router.state.location.pathname;
+
+  // Immediate runtime redirect if somehow reached on SwiftMove
+  if (
+    isSwiftmoveDomain() ||
+    isSwiftmovePath(path) ||
+    path === '/app' ||
+    path === '/swiftmove' ||
+    path === '/swift-move'
+  ) {
+    if (typeof window !== 'undefined') {
+      window.location.replace(isSwiftmoveDomain() ? '/' : '/swiftmove');
+    }
+    return null;
+  }
 
   // Derive a human-readable module name from the path
   const moduleName = path

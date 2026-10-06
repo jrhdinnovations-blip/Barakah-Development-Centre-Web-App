@@ -44,12 +44,21 @@ export async function initNativeMobile(): Promise<void> {
   }
 
   try {
-    // 2. Hide Splash Screen gracefully
-    setTimeout(async () => {
-      await SplashScreen.hide({ fadeOutDuration: 300 });
-    }, 1200);
+    // 2. Hide Splash Screen immediately — no delay
+    await SplashScreen.hide({ fadeOutDuration: 200 });
   } catch (err) {
     console.warn('[Native] SplashScreen init skipped:', err);
+  }
+
+  try {
+    // 3. Clean up any lingering app alias or catch-all path on mobile boot
+    const pathname = window.location.pathname;
+    if (pathname === '/app' || pathname === '/swiftmove/app' || pathname === '/_authenticated/$') {
+      window.location.replace('/');
+      return; // stop further setup until the page reloads
+    }
+  } catch (err) {
+    console.warn('[Native] Startup redirect skipped:', err);
   }
 
   try {
