@@ -55,57 +55,6 @@ const QUICK_LANDMARKS = [
 
 
 // Figma Showcase Datasets
-const FIGMA_FLEET = [
-  {
-    id: 'bike',
-    icon: '🏍️',
-    label: 'Swift Bike',
-    desc: 'Fastest way to send parcels across Jos.',
-    basePrice: 500,
-    perKm: 150,
-    capacity: 'Up to 20kg (Envelopes, electronics, food crates)',
-    estTime: '15-25 mins',
-    color: 'border-[#0033AD]/40 hover:border-[#0033AD]',
-    badge: 'Express Delivery',
-  },
-  {
-    id: 'keke',
-    icon: '🛺',
-    label: 'City Keke',
-    desc: 'Affordable rides & parcel hops within the city.',
-    basePrice: 300,
-    perKm: 100,
-    capacity: '3 Passengers or 60kg cargo',
-    estTime: '20-35 mins',
-    color: 'border-amber-500/40 hover:border-amber-500',
-    badge: 'Popular Ride',
-  },
-  {
-    id: 'car',
-    icon: '🚗',
-    label: 'Executive Car',
-    desc: 'Air-conditioned comfort for passengers & sensitive goods.',
-    basePrice: 1200,
-    perKm: 300,
-    capacity: '4 Passengers or 150kg cargo',
-    estTime: '15-30 mins',
-    color: 'border-[#0033AD]/40 hover:border-[#FF5500]',
-    badge: 'Comfort Plus',
-  },
-  {
-    id: 'agri',
-    icon: '🚜',
-    label: 'Agri Haulage',
-    desc: 'Bulk farm-to-market haulage across Plateau State.',
-    basePrice: 5000,
-    perKm: 800,
-    capacity: 'Up to 5 Tons (Tomatoes, potatoes, grains)',
-    estTime: 'Scheduled / Express',
-    color: 'border-emerald-500/40 hover:border-emerald-500',
-    badge: 'Plateau Agri',
-  },
-];
-
 const FIGMA_SERVICES = [
   {
     id: 'package',
@@ -136,76 +85,6 @@ const FIGMA_SERVICES = [
     text: 'text-[#E8ECF2]',
     badge: 'Agri Network',
     pillar: 'move' as const,
-  },
-];
-
-const FIGMA_STEPS = [
-  {
-    num: '01',
-    title: 'Place Your Order',
-    desc: 'Choose your pickup, drop-off, and vehicle type.',
-  },
-  {
-    num: '02',
-    title: 'Get Matched',
-    desc: 'A verified agent is dispatched to you in under 2 mins.',
-  },
-  {
-    num: '03',
-    title: 'Live GPS Tracking',
-    desc: 'Follow your order live on the map in real time.',
-  },
-  {
-    num: '04',
-    title: 'Delivered & Done',
-    desc: 'Get SMS confirmation and rate your driver.',
-  },
-];
-
-const FIGMA_FEATURES = [
-  {
-    icon: '📍',
-    label: 'Live GPS Tracking',
-    desc: 'Real-time location monitoring for every parcel & ride',
-  },
-  {
-    icon: '⚡',
-    label: 'Fast Dispatch',
-    desc: 'Matched to a verified local agent in 2 mins.',
-  },
-  {
-    icon: '🛡️',
-    label: '100% Safe & Insured',
-    desc: 'Full protection on every cargo and package.',
-  },
-  {
-    icon: '📅',
-    label: 'Scheduled Booking',
-    desc: 'Schedule pickups up to 7 days in advance.',
-  },
-];
-
-const FIGMA_TESTIMONIALS = [
-  {
-    name: 'Aisha Bello',
-    role: 'Market Trader, Jos Main Market',
-    quote: 'I send my fresh goods to customers across Plateau State every morning. SwiftMove riders are fast, polite and reliable!',
-    rating: 5,
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop&crop=faces',
-  },
-  {
-    name: 'Emmanuel Dung',
-    role: 'Produce Farmer, Shendam',
-    quote: 'Finally a reliable haulage service that brings our tomato harvest directly to Jos buyers safely and on time.',
-    rating: 5,
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=faces',
-  },
-  {
-    name: 'Fatima Yakubu',
-    role: 'Fashion Vendor, Rayfield Jos',
-    quote: 'The live GPS tracking link gives my clients total confidence. Best transport partner in Jos!',
-    rating: 5,
-    avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&h=150&fit=crop&crop=faces',
   },
 ];
 
@@ -631,18 +510,6 @@ export function SwiftMoveLanding() {
           >
             Live Radar
           </button>
-          <a
-            href="#fleet"
-            className="px-3.5 py-1.5 rounded-full hover:bg-white/5 hover:text-white transition-colors"
-          >
-            Fleet
-          </a>
-          <a
-            href="#pricing"
-            className="px-3.5 py-1.5 rounded-full hover:bg-white/5 hover:text-white transition-colors"
-          >
-            Pricing
-          </a>
           <Link
             to="/_authenticated/drive"
             className="px-3.5 py-1.5 rounded-full hover:bg-white/5 hover:text-[#FF5500] transition-colors"
@@ -1627,84 +1494,6 @@ export function SwiftMoveLanding() {
       </section>
 
 
-      {/* ── 3. FIGMA FLEET SHOWCASE (#fleet) ────────────────────────────── */}
-      <section id="fleet" className="py-24 px-6 md:px-16 bg-[#0A0D14] border-t border-white/5">
-        <div className="max-w-6xl mx-auto">
-          <div className="mb-10 text-center">
-              <span className="text-[#FF5500] text-xs font-black tracking-[0.25em] uppercase block mb-2">Our Fleet</span>
-              <h2 className="font-[Barlow_Condensed,sans-serif] text-4xl sm:text-5xl font-black uppercase tracking-tight text-white">
-                Choose Your Vehicle
-              </h2>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {FIGMA_FLEET.map((f) => (
-              <div
-                key={f.id}
-                className={`bg-[#181D2B] rounded-2xl p-6 border ${f.color} flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 group`}
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-4xl p-3 bg-[#0A0D14] rounded-xl border border-white/5">
-                      {f.icon}
-                    </span>
-                    <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded bg-[#FF5500]/15 text-[#FF5500] border border-[#FF5500]/30">
-                      {f.badge}
-                    </span>
-                  </div>
-                  <h3 className="font-[Barlow_Condensed,sans-serif] text-2xl font-black text-white uppercase mb-2">
-                    {f.label}
-                  </h3>
-                  <p className="text-xs text-[#A3ADB8] leading-relaxed mb-6 font-medium">
-                    {f.desc}
-                  </p>
-                </div>
-
-                <div className="pt-4 border-t border-white/10 space-y-2 text-xs text-[#B8C2CC]">
-                  <div className="flex justify-between">
-                    <span className="text-[#8895A5]">Base Fare:</span>
-                    <span className="font-bold text-white">₦{f.basePrice.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-[#8895A5]">Per Km Rate:</span>
-                    <span className="font-bold text-white">₦{f.perKm.toLocaleString()}/km</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-[#8895A5]">Est. Timing:</span>
-                    <span className="font-bold text-emerald-400">{f.estTime}</span>
-                  </div>
-                  <div className="pt-3">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (f.id === 'bike') {
-                          switchPillar('send');
-                          setCourierType('bike');
-                        } else if (f.id === 'keke') {
-                          switchPillar('ride');
-                          setSelectedTierId('keke');
-                        } else if (f.id === 'car') {
-                          switchPillar('ride');
-                          setSelectedTierId('sedan');
-                        } else {
-                          switchPillar('move');
-                          setBusinessFleetType('daily_dispatch');
-                        }
-                        document.getElementById('booking-deck')?.scrollIntoView({ behavior: 'smooth' });
-                      }}
-                      className="w-full py-2.5 rounded-xl bg-[#0A0D14] hover:bg-[#FF5500] hover:text-white border border-white/10 text-white text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      <span>Book This Fleet</span>
-                      <ArrowRight className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* ── 4. FIGMA WHAT DO YOU NEED TRANSPORTED (#services) ────────── */}
       <section id="services" className="py-24 px-6 md:px-16 bg-[#121620]">
         <div className="max-w-6xl mx-auto">
@@ -1751,40 +1540,6 @@ export function SwiftMoveLanding() {
         </div>
       </section>
 
-      {/* ── 5. FIGMA HOW IT WORKS (#how-it-works) ────────────────────── */}
-      <section id="how-it-works" className="py-24 px-6 md:px-16 bg-[#0A0D14]">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <span className="text-[#FF5500] text-xs font-black tracking-[0.25em] uppercase block mb-2">Simple Process</span>
-            <h2 className="font-[Barlow_Condensed,sans-serif] text-4xl sm:text-5xl font-black uppercase tracking-tight text-white">
-              How It Works
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {FIGMA_STEPS.map((step) => (
-              <div
-                key={step.num}
-                className="bg-[#181D2B] border border-white/10 p-6 rounded-2xl relative overflow-hidden group hover:border-[#FF5500]/50 transition-all"
-              >
-                <span className="font-[Barlow_Condensed,sans-serif] text-5xl font-black text-white/5 group-hover:text-[#FF5500]/20 transition-colors absolute top-4 right-4">
-                  {step.num}
-                </span>
-                <div className="w-10 h-10 rounded-xl bg-[#0A0D14] border border-[#FF5500]/30 text-[#FF5500] font-[Barlow_Condensed,sans-serif] font-black text-lg flex items-center justify-center mb-4">
-                  {step.num}
-                </div>
-                <h3 className="font-[Barlow_Condensed,sans-serif] text-xl font-black text-white uppercase mb-2">
-                  {step.title}
-                </h3>
-                <p className="text-xs text-[#A3ADB8] leading-relaxed font-medium">
-                  {step.desc}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* ── 6. FIGMA AGRI HAULAGE SPOTLIGHT BANNER ─────────────────────── */}
       <section className="relative overflow-hidden min-h-[500px] flex items-center py-20 border-y border-white/10">
         <img
@@ -1816,138 +1571,6 @@ export function SwiftMoveLanding() {
             >
               Book Agri Haulage Today
             </button>
-          </div>
-        </div>
-      </section>
-
-      {/* ── 7. FIGMA WHY CHOOSE US / FEATURES ──────────────────────────── */}
-      <section className="py-24 px-6 md:px-16 bg-[#121620]">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <span className="text-[#FF5500] text-xs font-black tracking-[0.25em] uppercase block mb-2">Why SwiftMove</span>
-            <h2 className="font-[Barlow_Condensed,sans-serif] text-4xl sm:text-5xl font-black uppercase tracking-tight text-white">
-              Built to Perform
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {FIGMA_FEATURES.map((feat, i) => (
-              <div
-                key={i}
-                className="bg-[#181D2B] border border-white/10 p-6 rounded-2xl flex flex-col items-center text-center group hover:border-[#FF5500]/40 transition-all"
-              >
-                <span className="text-4xl mb-4 p-3 bg-[#0A0D14] rounded-xl border border-white/5">
-                  {feat.icon}
-                </span>
-                <h3 className="font-[Barlow_Condensed,sans-serif] text-xl font-black text-white uppercase mb-2">
-                  {feat.label}
-                </h3>
-                <p className="text-xs text-[#A3ADB8] leading-relaxed font-medium">
-                  {feat.desc}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── 8. FIGMA VERIFIED CUSTOMER REVIEWS ─────────────────────────── */}
-      <section className="py-24 px-6 md:px-16 bg-[#0A0D14]">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <span className="text-[#FF5500] text-xs font-black tracking-[0.25em] uppercase block mb-2">Verified Reviews</span>
-            <h2 className="font-[Barlow_Condensed,sans-serif] text-4xl sm:text-5xl font-black uppercase tracking-tight text-white">
-              Trusted by Jos
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {FIGMA_TESTIMONIALS.map((t, idx) => (
-              <div
-                key={idx}
-                className="bg-[#181D2B] border border-white/10 p-6 rounded-2xl flex flex-col justify-between"
-              >
-                <div>
-                  <div className="flex gap-1 text-[#FFB800] mb-4">
-                    {'★'.repeat(t.rating)}
-                  </div>
-                  <p className="text-xs sm:text-sm text-[#E8ECF2] leading-relaxed mb-6 font-medium italic">
-                    "{t.quote}"
-                  </p>
-                </div>
-                <div className="pt-4 border-t border-white/10 flex items-center gap-4">
-                  <img
-                    src={t.avatar}
-                    alt={t.name}
-                    className="w-10 h-10 rounded-full object-cover border border-[#FF5500]"
-                  />
-                  <div>
-                    <div className="font-bold text-white text-sm">{t.name}</div>
-                    <div className="text-xs text-[#8895A5]">{t.role}</div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-
-
-      {/* ── 10. DRIVER RECRUITMENT BANNER ──────────────────────────────── */}
-      <section className="py-20 px-6 md:px-16 bg-gradient-to-br from-[#0A0D14] via-[#0033AD]/25 to-[#0A0D14] text-white border-y border-white/10 relative overflow-hidden">
-        <div className="max-w-6xl mx-auto relative z-10">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
-            <div className="space-y-6">
-              <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#FF5500]/20 text-[#FF5500] text-xs font-black uppercase tracking-wider border border-[#FF5500]/30">
-                Earn With Your Vehicle
-              </span>
-              <h2 className="font-[Barlow_Condensed,sans-serif] text-4xl sm:text-6xl font-black uppercase tracking-tight leading-tight text-white">
-                Drive or Dispatch in Jos. <br />
-                <span className="text-[#FF5500]">Keep Up to 85% of Fares.</span>
-              </h2>
-              <p className="text-sm text-[#A3ADB8] leading-relaxed max-w-md font-medium">
-                Flexible hours, daily payouts, and full driver support — across Jos.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 pt-2">
-                <Link
-                  to="/_authenticated/drive"
-                  className="px-8 py-4 rounded-xl bg-[#FF5500] hover:bg-[#e04800] text-white text-xs font-black uppercase tracking-wider shadow-xl shadow-[#FF5500]/25 transition-all flex items-center justify-center gap-2 active:scale-95"
-                >
-                  <span>Sign Up as a Driver / Rider</span>
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-                <Link
-                  to="/_authenticated/dispatcher"
-                  className="px-8 py-4 rounded-xl bg-[#181D2B] hover:bg-white/10 text-white text-xs font-black uppercase tracking-wider border border-white/10 transition-all flex items-center justify-center gap-2"
-                >
-                  <span>Dispatcher Console</span>
-                </Link>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-6 rounded-2xl bg-[#181D2B] border border-white/10">
-                <span className="text-4xl font-black text-[#FF5500] font-[Barlow_Condensed,sans-serif] block mb-1">85%</span>
-                <h4 className="text-sm font-black text-white mb-1">Driver Retention</h4>
-                <p className="text-xs text-[#8895A5] font-medium">Lowest commission in Jos</p>
-              </div>
-              <div className="p-6 rounded-2xl bg-[#181D2B] border border-white/10">
-                <span className="text-4xl font-black text-emerald-400 font-[Barlow_Condensed,sans-serif] block mb-1">Daily</span>
-                <h4 className="text-sm font-black text-white mb-1">Instant Payouts</h4>
-                <p className="text-xs text-[#8895A5] font-medium">Direct bank deposits daily</p>
-              </div>
-              <div className="p-6 rounded-2xl bg-[#181D2B] border border-white/10">
-                <span className="text-4xl font-black text-[#FFB800] font-[Barlow_Condensed,sans-serif] block mb-1">24/7</span>
-                <h4 className="text-sm font-black text-white mb-1">Field Support</h4>
-                <p className="text-xs text-[#8895A5] font-medium">Roadside emergency support</p>
-              </div>
-              <div className="p-6 rounded-2xl bg-[#181D2B] border border-white/10">
-                <span className="text-4xl font-black text-purple-400 font-[Barlow_Condensed,sans-serif] block mb-1">Free</span>
-                <h4 className="text-sm font-black text-white mb-1">Smart Rider App</h4>
-                <p className="text-xs text-[#8895A5] font-medium">Offline-ready GPS telemetry</p>
-              </div>
-            </div>
           </div>
         </div>
       </section>
@@ -2035,10 +1658,10 @@ export function SwiftMoveLanding() {
                 Fleet
               </h4>
               <ul className="space-y-2 text-xs">
-                <li><a href="#fleet" className="hover:text-[#FF5500] transition-colors">Swift Bike Express</a></li>
-                <li><a href="#fleet" className="hover:text-[#FF5500] transition-colors">City Keke Tricycles</a></li>
-                <li><a href="#fleet" className="hover:text-[#FF5500] transition-colors">Executive Cars</a></li>
-                <li><a href="#fleet" className="hover:text-[#FF5500] transition-colors">Heavy Cargo Trucks</a></li>
+                <li><button type="button" onClick={() => { switchPillar('send'); setCourierType('bike'); document.getElementById('booking-deck')?.scrollIntoView({ behavior: 'smooth' }); }} className="hover:text-[#FF5500] transition-colors cursor-pointer text-left">Swift Bike Express</button></li>
+                <li><button type="button" onClick={() => { switchPillar('ride'); setSelectedTierId('keke'); document.getElementById('booking-deck')?.scrollIntoView({ behavior: 'smooth' }); }} className="hover:text-[#FF5500] transition-colors cursor-pointer text-left">City Keke Tricycles</button></li>
+                <li><button type="button" onClick={() => { switchPillar('ride'); setSelectedTierId('sedan'); document.getElementById('booking-deck')?.scrollIntoView({ behavior: 'smooth' }); }} className="hover:text-[#FF5500] transition-colors cursor-pointer text-left">Executive Cars</button></li>
+                <li><button type="button" onClick={() => { switchPillar('move'); setBusinessFleetType('daily_dispatch'); document.getElementById('booking-deck')?.scrollIntoView({ behavior: 'smooth' }); }} className="hover:text-[#FF5500] transition-colors cursor-pointer text-left">Heavy Cargo Trucks</button></li>
               </ul>
             </div>
 
