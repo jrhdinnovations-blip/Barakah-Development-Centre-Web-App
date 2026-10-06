@@ -60,7 +60,7 @@ const FIGMA_FLEET = [
     id: 'bike',
     icon: '🏍️',
     label: 'Swift Bike',
-    desc: 'Fast last-mile parcel delivery across Jos traffic & narrow streets',
+    desc: 'Fastest way to send parcels across Jos.',
     basePrice: 500,
     perKm: 150,
     capacity: 'Up to 20kg (Envelopes, electronics, food crates)',
@@ -72,7 +72,7 @@ const FIGMA_FLEET = [
     id: 'keke',
     icon: '🛺',
     label: 'City Keke',
-    desc: 'Affordable tricycle passenger trips & medium parcel runs',
+    desc: 'Affordable rides & parcel hops within the city.',
     basePrice: 300,
     perKm: 100,
     capacity: '3 Passengers or 60kg cargo',
@@ -84,7 +84,7 @@ const FIGMA_FLEET = [
     id: 'car',
     icon: '🚗',
     label: 'Executive Car',
-    desc: 'Comfortable air-conditioned rides and delicate item delivery',
+    desc: 'Air-conditioned comfort for passengers & sensitive goods.',
     basePrice: 1200,
     perKm: 300,
     capacity: '4 Passengers or 150kg cargo',
@@ -96,7 +96,7 @@ const FIGMA_FLEET = [
     id: 'agri',
     icon: '🚜',
     label: 'Agri Haulage',
-    desc: 'Bulk farm-to-market produce transport across Plateau State',
+    desc: 'Bulk farm-to-market haulage across Plateau State.',
     basePrice: 5000,
     perKm: 800,
     capacity: 'Up to 5 Tons (Tomatoes, potatoes, grains)',
@@ -110,7 +110,7 @@ const FIGMA_SERVICES = [
   {
     id: 'package',
     title: 'Package Delivery',
-    desc: 'Door-to-door delivery across Jos and beyond — anything from documents to fresh produce crates.',
+    desc: 'Door-to-door delivery, anywhere in Jos.',
     cta: 'Send Parcel Now',
     bg: 'bg-gradient-to-br from-[#FF5500] to-[#d44400]',
     text: 'text-white',
@@ -120,7 +120,7 @@ const FIGMA_SERVICES = [
   {
     id: 'ride',
     title: 'Book Passenger Ride',
-    desc: 'Safe, verified, GPS-tracked rides within Jos & Bukuru at any time of day or night.',
+    desc: 'GPS-tracked rides across Jos, 24/7.',
     cta: 'Book Ride',
     bg: 'bg-[#181D2B] border border-[#0033AD]/60 hover:border-[#FF5500]/80',
     text: 'text-[#E8ECF2]',
@@ -130,7 +130,7 @@ const FIGMA_SERVICES = [
   {
     id: 'agri-service',
     title: 'Farm-to-Market Transport',
-    desc: 'Direct harvest transport connecting Shendam, Mangu, and Pankshin farmers to Jos hubs.',
+    desc: 'Farm-to-market transport across Plateau State.',
     cta: 'Book Haulage',
     bg: 'bg-[#181D2B] border border-[#FFB800]/40 hover:border-[#FFB800]',
     text: 'text-[#E8ECF2]',
@@ -143,22 +143,22 @@ const FIGMA_STEPS = [
   {
     num: '01',
     title: 'Place Your Order',
-    desc: 'Specify pickup & drop-off locations in Jos with your vehicle preference.',
+    desc: 'Choose your pickup, drop-off, and vehicle type.',
   },
   {
     num: '02',
     title: 'Get Matched',
-    desc: 'A verified SwiftMove agent in branded uniform is dispatched in under 2 mins.',
+    desc: 'A verified agent is dispatched to you in under 2 mins.',
   },
   {
     num: '03',
     title: 'Live GPS Tracking',
-    desc: 'Watch your delivery agent or passenger ride move in real time on our map.',
+    desc: 'Follow your order live on the map in real time.',
   },
   {
     num: '04',
     title: 'Delivered & Done',
-    desc: 'Receive instant SMS confirmation, verify item safety, and rate your driver.',
+    desc: 'Get SMS confirmation and rate your driver.',
   },
 ];
 
@@ -171,17 +171,17 @@ const FIGMA_FEATURES = [
   {
     icon: '⚡',
     label: 'Fast Dispatch',
-    desc: 'Verified local agents matched in under 120 seconds',
+    desc: 'Matched to a verified local agent in 2 mins.',
   },
   {
     icon: '🛡️',
     label: '100% Safe & Insured',
-    desc: 'Comprehensive protection for your cargo & packages',
+    desc: 'Full protection on every cargo and package.',
   },
   {
     icon: '📅',
     label: 'Scheduled Booking',
-    desc: 'Plan farm haulage or parcel drops up to 7 days in advance',
+    desc: 'Schedule pickups up to 7 days in advance.',
   },
 ];
 
@@ -808,7 +808,7 @@ export function SwiftMoveLanding() {
             
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#FF5500]/15 border border-[#FF5500]/30 text-[#FF5500] text-[11px] font-black uppercase tracking-widest mb-4">
               <span className="h-2 w-2 rounded-full bg-[#FF5500] animate-ping" />
-              <span>FAST • SAFE • RELIABLE • PLATEAU STATE</span>
+              <span>Jos &amp; Plateau State</span>
             </div>
 
             <h1 className="font-[Barlow_Condensed,sans-serif] text-5xl sm:text-7xl lg:text-[84px] font-black uppercase tracking-tight leading-[0.92] text-[#E8ECF2] mb-4">
@@ -817,8 +817,8 @@ export function SwiftMoveLanding() {
               Partner in Jos
             </h1>
 
-            <p className="text-sm sm:text-lg text-[#A3ADB8] leading-relaxed font-medium max-w-2xl mx-auto px-1 mb-6">
-              We move what matters — from your packages to your people, safely and on time. Serving Jos, Bukuru, and Plateau State markets with verified GPS dispatch.
+            <p className="text-sm sm:text-lg text-[#A3ADB8] leading-relaxed font-medium max-w-xl mx-auto px-1 mb-6">
+              On-demand rides, parcel delivery, and agri haulage — all in one platform.
             </p>
 
             {/* Quick action buttons */}
@@ -845,20 +845,11 @@ export function SwiftMoveLanding() {
               </button>
             </div>
 
-            {/* 3 Metric Pills */}
-            <div className="grid grid-cols-3 gap-2 sm:gap-6 max-w-lg mx-auto pt-3 border-t border-white/10">
-              <div className="p-2 sm:p-3 rounded-xl bg-[#181D2B]/80 border border-white/5 text-center">
-                <span className="font-[Barlow_Condensed,sans-serif] text-xl sm:text-3xl font-black text-white block">2 MINS</span>
-                <span className="text-[10px] sm:text-xs text-[#8895A5] font-semibold">Avg Rider Match</span>
-              </div>
-              <div className="p-2 sm:p-3 rounded-xl bg-[#181D2B]/80 border border-white/5 text-center">
-                <span className="font-[Barlow_Condensed,sans-serif] text-xl sm:text-3xl font-black text-emerald-400 block">100%</span>
-                <span className="text-[10px] sm:text-xs text-[#8895A5] font-semibold">GPS Monitored</span>
-              </div>
-              <div className="p-2 sm:p-3 rounded-xl bg-[#181D2B]/80 border border-white/5 text-center">
-                <span className="font-[Barlow_Condensed,sans-serif] text-xl sm:text-3xl font-black text-[#FFB800] block">5,000+</span>
-                <span className="text-[10px] sm:text-xs text-[#8895A5] font-semibold">Trips Completed</span>
-              </div>
+            {/* Trust Badges */}
+            <div className="flex flex-wrap justify-center gap-3 pt-3 border-t border-white/10">
+              <span className="px-3 py-1.5 rounded-full bg-[#181D2B] border border-white/10 text-[11px] font-bold text-[#8895A5]">⚡ 2-min match</span>
+              <span className="px-3 py-1.5 rounded-full bg-[#181D2B] border border-white/10 text-[11px] font-bold text-[#8895A5]">📍 Live GPS</span>
+              <span className="px-3 py-1.5 rounded-full bg-[#181D2B] border border-white/10 text-[11px] font-bold text-[#8895A5]">✅ 5,000+ trips</span>
             </div>
 
           </div>
@@ -1233,9 +1224,7 @@ export function SwiftMoveLanding() {
                         </>
                       )}
                     </button>
-                    <p className="text-center text-xs text-[#8895A5] mt-2 font-semibold">
-                      {scheduleTiming === 'scheduled' ? 'No cancellation fee • Pay driver in cash or transfer upon trip completion' : 'No upfront card required • Pay driver in cash or transfer after trip'}
-                    </p>
+
                   </div>
 
                 </div>
@@ -1398,9 +1387,7 @@ export function SwiftMoveLanding() {
                         </>
                       )}
                     </button>
-                    <p className="text-center text-xs text-[#8895A5] mt-2 font-semibold">
-                      Protected by 4-digit OTP at delivery point • 100% item safety guarantee
-                    </p>
+
                   </div>
 
                 </div>
@@ -1649,9 +1636,7 @@ export function SwiftMoveLanding() {
                       <span>Book Haulage / Corporate Account</span>
                       <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />
                     </button>
-                    <p className="text-center text-xs text-[#8895A5] mt-2 font-semibold">
-                      Includes 14-day invoicing credit terms upon KYC verification
-                    </p>
+
                   </div>
 
                 </div>
@@ -1666,18 +1651,11 @@ export function SwiftMoveLanding() {
       {/* ── 3. FIGMA FLEET SHOWCASE (#fleet) ────────────────────────────── */}
       <section id="fleet" className="py-24 px-6 md:px-16 bg-[#0A0D14] border-t border-white/5">
         <div className="max-w-6xl mx-auto">
-          <div className="mb-14 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
-            <div>
-              <span className="text-[#FF5500] text-xs font-black tracking-[0.25em] uppercase block mb-2">
-                Multimodal City &amp; Rural Fleet
-              </span>
-              <h2 className="font-[Barlow_Condensed,sans-serif] text-4xl sm:text-6xl font-black uppercase tracking-tight text-white">
-                Our Transport Fleet
+          <div className="mb-10 text-center">
+              <span className="text-[#FF5500] text-xs font-black tracking-[0.25em] uppercase block mb-2">Our Fleet</span>
+              <h2 className="font-[Barlow_Condensed,sans-serif] text-4xl sm:text-5xl font-black uppercase tracking-tight text-white">
+                Choose Your Vehicle
               </h2>
-            </div>
-            <p className="text-[#A3ADB8] text-sm max-w-sm font-medium">
-              Branded motorcycles, executive cars, city keke tricycles, and agricultural cargo haulage.
-            </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -1751,16 +1729,11 @@ export function SwiftMoveLanding() {
       {/* ── 4. FIGMA WHAT DO YOU NEED TRANSPORTED (#services) ────────── */}
       <section id="services" className="py-24 px-6 md:px-16 bg-[#121620]">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <span className="text-[#FF5500] text-xs font-black tracking-[0.25em] uppercase block mb-2">
-              Built For Plateau State
-            </span>
-            <h2 className="font-[Barlow_Condensed,sans-serif] text-4xl sm:text-6xl font-black uppercase tracking-tight text-white">
-              What Do You Need Transported?
+          <div className="text-center mb-12">
+            <span className="text-[#FF5500] text-xs font-black tracking-[0.25em] uppercase block mb-2">Services</span>
+            <h2 className="font-[Barlow_Condensed,sans-serif] text-4xl sm:text-5xl font-black uppercase tracking-tight text-white">
+              What Can We Move For You?
             </h2>
-            <p className="text-[#A3ADB8] text-sm max-w-lg mx-auto mt-3 font-medium">
-              From fresh farm harvest to city passengers and urgent courier documents across Jos.
-            </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -1802,12 +1775,10 @@ export function SwiftMoveLanding() {
       {/* ── 5. FIGMA HOW IT WORKS (#how-it-works) ────────────────────── */}
       <section id="how-it-works" className="py-24 px-6 md:px-16 bg-[#0A0D14]">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <span className="text-[#FF5500] text-xs font-black tracking-[0.25em] uppercase block mb-2">
-              Simple Process
-            </span>
-            <h2 className="font-[Barlow_Condensed,sans-serif] text-4xl sm:text-6xl font-black uppercase tracking-tight text-white">
-              How SwiftMove Works in 4 Steps
+          <div className="text-center mb-12">
+            <span className="text-[#FF5500] text-xs font-black tracking-[0.25em] uppercase block mb-2">Simple Process</span>
+            <h2 className="font-[Barlow_Condensed,sans-serif] text-4xl sm:text-5xl font-black uppercase tracking-tight text-white">
+              How It Works
             </h2>
           </div>
 
@@ -1852,8 +1823,8 @@ export function SwiftMoveLanding() {
             <h2 className="font-[Barlow_Condensed,sans-serif] text-4xl sm:text-6xl font-black uppercase tracking-tight text-white leading-tight mb-4">
               Plateau Agricultural Haulage
             </h2>
-            <p className="text-sm sm:text-base text-[#E8ECF2] leading-relaxed mb-8 font-medium">
-              Connecting farmers in Shendam, Mangu, Bokkos, and Pankshin directly to consumers, restaurants, and commodity markets in Jos with bulk-rate logistics.
+            <p className="text-sm text-[#E8ECF2] leading-relaxed mb-8 font-medium">
+              Farm-to-market bulk logistics across Plateau State, at competitive rates.
             </p>
             <button
               type="button"
@@ -1873,12 +1844,10 @@ export function SwiftMoveLanding() {
       {/* ── 7. FIGMA WHY CHOOSE US / FEATURES ──────────────────────────── */}
       <section className="py-24 px-6 md:px-16 bg-[#121620]">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <span className="text-[#FF5500] text-xs font-black tracking-[0.25em] uppercase block mb-2">
-              Why Choose Us
-            </span>
-            <h2 className="font-[Barlow_Condensed,sans-serif] text-4xl sm:text-6xl font-black uppercase tracking-tight text-white">
-              The SwiftMove Advantage
+          <div className="text-center mb-12">
+            <span className="text-[#FF5500] text-xs font-black tracking-[0.25em] uppercase block mb-2">Why SwiftMove</span>
+            <h2 className="font-[Barlow_Condensed,sans-serif] text-4xl sm:text-5xl font-black uppercase tracking-tight text-white">
+              Built to Perform
             </h2>
           </div>
 
@@ -1906,12 +1875,10 @@ export function SwiftMoveLanding() {
       {/* ── 8. FIGMA VERIFIED CUSTOMER REVIEWS ─────────────────────────── */}
       <section className="py-24 px-6 md:px-16 bg-[#0A0D14]">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <span className="text-[#FF5500] text-xs font-black tracking-[0.25em] uppercase block mb-2">
-              Verified Reviews
-            </span>
-            <h2 className="font-[Barlow_Condensed,sans-serif] text-4xl sm:text-6xl font-black uppercase tracking-tight text-white">
-              What Our Customers Say
+          <div className="text-center mb-12">
+            <span className="text-[#FF5500] text-xs font-black tracking-[0.25em] uppercase block mb-2">Verified Reviews</span>
+            <h2 className="font-[Barlow_Condensed,sans-serif] text-4xl sm:text-5xl font-black uppercase tracking-tight text-white">
+              Trusted by Jos
             </h2>
           </div>
 
@@ -1946,99 +1913,7 @@ export function SwiftMoveLanding() {
         </div>
       </section>
 
-      {/* ── 9. TRANSPARENT PRICING MATRIX (#pricing) ───────────────────── */}
-      <section id="pricing" className="py-24 px-6 md:px-16 bg-[#0A0D14] border-t border-white/5">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <span className="text-[#FF5500] text-xs font-black tracking-[0.25em] uppercase block mb-2">
-              Honest &amp; Upfront
-            </span>
-            <h2 className="font-[Barlow_Condensed,sans-serif] text-4xl sm:text-6xl font-black uppercase tracking-tight text-white">
-              Simple, Predictable Fares
-            </h2>
-            <p className="text-xs sm:text-base font-medium text-[#A3ADB8] mt-2">
-              Every fare is calculated fairly by actual GPS distance. What you see is what you pay.
-            </p>
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {/* Keke */}
-            <div className="p-6 rounded-2xl bg-[#181D2B] border border-[#0033AD]/40 flex flex-col justify-between">
-              <div>
-                <div className="h-11 w-11 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold mb-4">
-                  <Bike className="h-6 w-6" />
-                </div>
-                <h4 className="font-[Barlow_Condensed,sans-serif] font-black text-white text-xl uppercase">SwiftMove Keke</h4>
-                <p className="text-xs text-[#8895A5] mb-4 font-semibold">Nimble 3-wheeler tricycle</p>
-                <div className="font-[Barlow_Condensed,sans-serif] text-4xl font-black text-white mb-1">
-                  ₦500 <span className="text-xs font-bold text-[#8895A5]">base</span>
-                </div>
-                <p className="text-xs sm:text-sm font-black text-amber-400">+ ₦110 / km</p>
-              </div>
-              <div className="pt-4 mt-4 border-t border-white/10 text-xs text-[#8895A5]">
-                Ideal for short hops, market runs &amp; beating peak traffic.
-              </div>
-            </div>
-
-            {/* Sedan */}
-            <div className="p-6 rounded-2xl bg-[#181D2B] border-2 border-[#FF5500] shadow-xl shadow-[#FF5500]/20 relative flex flex-col justify-between">
-              <span className="absolute -top-3 right-4 bg-[#FF5500] text-white text-[10px] font-black uppercase tracking-wider px-3 py-0.5 rounded-full shadow-xs">
-                Most Popular
-              </span>
-              <div>
-                <div className="h-11 w-11 rounded-xl bg-[#FF5500]/20 text-[#FF5500] flex items-center justify-center font-bold mb-4">
-                  <Car className="h-6 w-6" />
-                </div>
-                <h4 className="font-[Barlow_Condensed,sans-serif] font-black text-white text-xl uppercase">SwiftMove Sedan</h4>
-                <p className="text-xs text-[#8895A5] mb-4 font-semibold">Air-conditioned 4-seater</p>
-                <div className="font-[Barlow_Condensed,sans-serif] text-4xl font-black text-white mb-1">
-                  ₦1,200 <span className="text-xs font-bold text-[#8895A5]">base</span>
-                </div>
-                <p className="text-xs sm:text-sm font-black text-[#FF5500]">+ ₦220 / km</p>
-              </div>
-              <div className="pt-4 mt-4 border-t border-white/10 text-xs text-[#8895A5]">
-                Spacious, reliable sedans for office, family &amp; airport trips.
-              </div>
-            </div>
-
-            {/* Motorbike Parcel */}
-            <div className="p-6 rounded-2xl bg-[#181D2B] border border-[#0033AD]/40 flex flex-col justify-between">
-              <div>
-                <div className="h-11 w-11 rounded-xl bg-[#0033AD]/30 text-white flex items-center justify-center font-bold mb-4">
-                  <Package className="h-6 w-6 text-[#FF5500]" />
-                </div>
-                <h4 className="font-[Barlow_Condensed,sans-serif] font-black text-white text-xl uppercase">Bike Dispatch</h4>
-                <p className="text-xs text-[#8895A5] mb-4 font-semibold">Fast point-to-point courier</p>
-                <div className="font-[Barlow_Condensed,sans-serif] text-4xl font-black text-white mb-1">
-                  ₦800 <span className="text-xs font-bold text-[#8895A5]">base</span>
-                </div>
-                <p className="text-xs sm:text-sm font-black text-emerald-400">+ ₦150 / km (min ₦1,500)</p>
-              </div>
-              <div className="pt-4 mt-4 border-t border-white/10 text-xs text-[#8895A5]">
-                Same-day door-to-door delivery with live OTP verification.
-              </div>
-            </div>
-
-            {/* Cargo Van */}
-            <div className="p-6 rounded-2xl bg-[#181D2B] border border-[#0033AD]/40 flex flex-col justify-between">
-              <div>
-                <div className="h-11 w-11 rounded-xl bg-[#FFB800]/20 text-[#FFB800] flex items-center justify-center font-bold mb-4">
-                  <Truck className="h-6 w-6" />
-                </div>
-                <h4 className="font-[Barlow_Condensed,sans-serif] font-black text-white text-xl uppercase">Cargo / Freight</h4>
-                <p className="text-xs text-[#8895A5] mb-4 font-semibold">Large cargo &amp; farm produce</p>
-                <div className="font-[Barlow_Condensed,sans-serif] text-4xl font-black text-white mb-1">
-                  ₦5,000 <span className="text-xs font-bold text-[#8895A5]">base</span>
-                </div>
-                <p className="text-xs sm:text-sm font-black text-[#FFB800]">+ ₦350 / km</p>
-              </div>
-              <div className="pt-4 mt-4 border-t border-white/10 text-xs text-[#8895A5]">
-                High payload vans for household shifting &amp; bulk supply.
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* ── 10. DRIVER RECRUITMENT BANNER ──────────────────────────────── */}
       <section className="py-20 px-6 md:px-16 bg-gradient-to-br from-[#0A0D14] via-[#0033AD]/25 to-[#0A0D14] text-white border-y border-white/10 relative overflow-hidden">
@@ -2052,8 +1927,8 @@ export function SwiftMoveLanding() {
                 Drive or Dispatch in Jos. <br />
                 <span className="text-[#FF5500]">Keep Up to 85% of Fares.</span>
               </h2>
-              <p className="text-sm text-[#A3ADB8] leading-relaxed max-w-xl font-medium">
-                Whether you own a car, a keke, or a motorcycle, partner with SwiftMove. Enjoy guaranteed daily payouts, flexible hours, and institutional driver support across Jos.
+              <p className="text-sm text-[#A3ADB8] leading-relaxed max-w-md font-medium">
+                Flexible hours, daily payouts, and full driver support — across Jos.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 pt-2">
                 <Link
@@ -2113,8 +1988,8 @@ export function SwiftMoveLanding() {
           <h2 className="font-[Barlow_Condensed,sans-serif] text-5xl sm:text-7xl font-black uppercase tracking-tight text-white mb-6">
             Ready to Experience Seamless Logistics?
           </h2>
-          <p className="text-white/90 text-sm sm:text-lg mb-10 max-w-xl mx-auto font-medium">
-            Join thousands of traders, commuters, and farmers in Jos moving smarter every single day with SwiftMove.
+          <p className="text-white/90 text-sm sm:text-base mb-10 max-w-sm mx-auto font-medium">
+            Thousands of Jos traders, commuters, and farmers already trust SwiftMove.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <button
