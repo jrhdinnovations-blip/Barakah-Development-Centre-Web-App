@@ -32,10 +32,10 @@ export const Route = createFileRoute("/auth")({
       let target = search.redirect;
       // On swiftmove.ng, never redirect to /my-barakah
       if (isSwift && (!target || target === '/my-barakah' || target === '/')) {
-        target = '/my-swift-move';
+        target = '/app';
       }
 
-      if (!target || target === '/my-swift-move' || target === '/my-barakah' || target === '/' || target.includes('/auth')) {
+      if (!target || target === '/my-swift-move' || target === '/app' || target === '/my-barakah' || target === '/' || target.includes('/auth')) {
         if (allUserRoles.has('swift_dispatcher') || allUserRoles.has('dispatcher')) {
           target = '/dispatcher';
         } else if (allUserRoles.has('administrator') || allUserRoles.has('admin') || allUserRoles.has('swift_manager')) {
@@ -43,7 +43,7 @@ export const Route = createFileRoute("/auth")({
         } else if (allUserRoles.has('driver') || allUserRoles.has('dispatch_rider')) {
           target = '/drive';
         } else {
-          target = isSwift ? '/my-swift-move' : (search.redirect || '/my-barakah');
+          target = isSwift ? '/app' : (search.redirect || '/my-barakah');
         }
       }
       throw redirect({ to: target as any });
@@ -96,6 +96,7 @@ function AuthPage() {
     isSwiftmoveDomain() ||
     Boolean(
       redirectParam?.includes("swift") ||
+      redirectParam?.includes("app") ||
       redirectParam?.includes("vehicle") ||
       redirectParam?.includes("history") ||
       redirectParam?.includes("drive") ||
@@ -107,11 +108,11 @@ function AuthPage() {
   }
 
   async function handleGoogle() {
-    const defaultAfterAuth = isSwift ? "/my-swift-move" : "/my-barakah";
+    const defaultAfterAuth = isSwift ? "/app" : "/my-barakah";
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}${isSwift ? "/my-swift-move" : (redirectParam || defaultAfterAuth)}`,
+        redirectTo: `${window.location.origin}${isSwift ? "/app" : (redirectParam || defaultAfterAuth)}`,
       },
     });
     if (error) toast.error(error.message);
@@ -150,9 +151,9 @@ function AuthPage() {
     // Determine redirect path
     let target = redirectParam;
     if (isSwift && (!target || target === '/my-barakah' || target === '/')) {
-      target = '/my-swift-move';
+      target = '/app';
     }
-    if (!target || target === '/my-swift-move' || target === '/my-barakah' || target === '/' || target.includes('/auth')) {
+    if (!target || target === '/my-swift-move' || target === '/app' || target === '/my-barakah' || target === '/' || target.includes('/auth')) {
       if (allUserRoles.has('swift_dispatcher') || allUserRoles.has('dispatcher')) {
         target = '/dispatcher';
       } else if (allUserRoles.has('administrator') || allUserRoles.has('admin') || allUserRoles.has('swift_manager')) {
@@ -160,7 +161,7 @@ function AuthPage() {
       } else if (allUserRoles.has('driver') || allUserRoles.has('dispatch_rider')) {
         target = '/drive';
       } else {
-        target = isSwift ? '/my-swift-move' : (redirectParam || '/my-barakah');
+        target = isSwift ? '/app' : (redirectParam || '/my-barakah');
       }
     }
     navigate({ to: target as any });
@@ -175,8 +176,8 @@ function AuthPage() {
     }
     setBusy(true);
     // On swiftmove.ng new users land on the SwiftMove booking/dashboard, not the Barakah dashboard
-    const defaultAfterSignup = isSwift ? "/my-swift-move" : "/my-barakah";
-    const redirectUrl = `${window.location.origin}${isSwift ? "/my-swift-move" : (redirectParam || defaultAfterSignup)}`;
+    const defaultAfterSignup = isSwift ? "/app" : "/my-barakah";
+    const redirectUrl = `${window.location.origin}${isSwift ? "/app" : (redirectParam || defaultAfterSignup)}`;
     const { data: signUpData, error } = await supabase.auth.signUp({
       email: parsed.data.email,
       password: parsed.data.password,
@@ -199,7 +200,7 @@ function AuthPage() {
     setBusy(false);
     if (signUpData?.session) {
       toast.success("Account created successfully!");
-      navigate({ to: (isSwift ? "/my-swift-move" : (redirectParam || defaultAfterSignup)) as any });
+      navigate({ to: (isSwift ? "/app" : (redirectParam || defaultAfterSignup)) as any });
       return;
     }
     setRegistered(true);
