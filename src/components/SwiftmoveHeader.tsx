@@ -1,5 +1,5 @@
 import { Link, useNavigate } from '@tanstack/react-router';
-import { ArrowLeft, LogOut, Radio, Shield, Truck, Package, Car, Clock } from 'lucide-react';
+import { LogOut, Radio, Shield, Truck, Package, Car, Clock, LayoutDashboard } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { isSwiftmoveDomain } from '@/lib/domain-detection';
 import { SwiftmoveLogo } from '@/components/SwiftmoveLogo';
@@ -42,6 +42,14 @@ export function SwiftmoveHeader() {
 
           {/* Desktop nav — hidden on mobile */}
           <nav className="hidden sm:flex items-center gap-3 sm:gap-5">
+            <Link
+              to="/app"
+              className="text-sm font-semibold text-[#FF5500] hover:text-[#e04800] transition-colors whitespace-nowrap flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#FF5500]/10 hover:bg-[#FF5500]/20 border border-[#FF5500]/30"
+              activeProps={{ className: "text-[#FF5500] font-bold" }}
+            >
+              <LayoutDashboard className="h-4 w-4" />
+              App
+            </Link>
             <Link
               to="/my-swift-move"
               className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors whitespace-nowrap"
@@ -153,6 +161,15 @@ export function SwiftmoveHeader() {
       {/* Mobile Bottom Tab Bar */}
       <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-xl border-t border-slate-200 shadow-[0_-2px_16px_rgba(0,0,0,0.08)] px-1 pb-safe">
         <div className="flex items-center justify-around">
+          <Link
+            to="/app"
+            className="flex flex-col items-center gap-0.5 py-2.5 px-3 rounded-xl transition-colors text-[#FF5500] [&.active]:text-[#FF5500]"
+            activeProps={{ className: 'active text-[#FF5500]' }}
+          >
+            <LayoutDashboard className="h-5 w-5" />
+            <span className="text-[10px] font-bold leading-tight">App</span>
+          </Link>
+
           <Link
             to="/my-swift-move"
             className="flex flex-col items-center gap-0.5 py-2.5 px-3 rounded-xl transition-colors text-slate-500 [&.active]:text-orange-600"
