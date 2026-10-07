@@ -53,8 +53,8 @@ export async function initNativeMobile(): Promise<void> {
   try {
     // 3. Clean up any lingering app alias or catch-all path on mobile boot
     const pathname = window.location.pathname;
-    if (pathname === '/app' || pathname === '/swiftmove/app' || pathname === '/_authenticated/$') {
-      window.location.replace('/');
+    if (pathname === '/swiftmove/app' || pathname === '/_authenticated/$') {
+      window.location.replace('/app');
       return; // stop further setup until the page reloads
     }
   } catch (err) {
@@ -66,8 +66,8 @@ export async function initNativeMobile(): Promise<void> {
     CapApp.addListener('backButton', ({ canGoBack }) => {
       const pathname = window.location.pathname;
 
-      // If user is on the main landing or root page, minimize/exit
-      if (pathname === '/' || pathname === '/swiftmove' || pathname === '') {
+      // If user is on the main app, landing, or root page, minimize/exit
+      if (pathname === '/' || pathname === '/app' || pathname === '/swiftmove' || pathname === '') {
         CapApp.exitApp();
       } else if (canGoBack && window.history.length > 1) {
         window.history.back();

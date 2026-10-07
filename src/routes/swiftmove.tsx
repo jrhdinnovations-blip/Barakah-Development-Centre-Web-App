@@ -11,7 +11,7 @@ import {
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
-import { SwiftmoveLogo } from '@/components/SwiftmoveLogo';
+
 import { encodeDispatchMetadata, encodeRideMetadata, parseOrderMetadata } from '@/lib/swift-order';
 import { customerCreateDispatchOrder, customerCreateRideRequest } from '@/lib/dispatcher.functions';
 import { calculateDeliveryPrice } from '@/lib/swift-pricing';
@@ -451,9 +451,13 @@ export function SwiftMoveLanding() {
         {/* Brand Logo & Jos Live Fleet Badge */}
         <div className="flex items-center gap-3">
           <Link to="/swiftmove" className="flex items-center gap-3 group">
-            <div className="relative flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-[#FF5500] via-[#0033AD] to-[#001D73] p-0.5 shadow-md shadow-[#FF5500]/20">
-              <div className="w-full h-full bg-[#0A0D14] rounded-[7px] flex items-center justify-center overflow-hidden">
-                <SwiftmoveLogo className="h-6 w-auto" />
+            <div className="relative flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-[#FF5500] via-[#0033AD] to-[#001D73] p-0.5 shadow-md shadow-[#FF5500]/20 shrink-0">
+              <div className="w-full h-full bg-[#0A0D14] rounded-[7px] flex items-center justify-center overflow-hidden p-1">
+                <img
+                  src="/swiftmove-logo-banner.png"
+                  alt="SwiftMove Express Network"
+                  className="w-full h-full object-contain"
+                />
               </div>
             </div>
             <div className="flex flex-col">
@@ -1619,79 +1623,201 @@ export function SwiftMoveLanding() {
       </section>
 
       {/* ── 12. FIGMA DARK FOOTER ───────────────────────────────────────── */}
-      <footer className="bg-[#06080E] border-t border-white/10 px-6 md:px-16 py-16 text-[#8895A5]">
+      <footer className="bg-[#06080E] border-t border-white/10 px-6 sm:px-10 md:px-16 pt-16 pb-36 lg:pb-16 text-[#8895A5]">
         <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-12">
+          {/* Main Footer Columns */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-12 mb-12">
+            
+            {/* Column 1: Brand & Mission */}
             <div className="space-y-4">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#FF5500] to-[#0033AD] p-0.5 flex items-center justify-center">
-                  <div className="w-full h-full bg-[#0A0D14] rounded-[6px] flex items-center justify-center">
-                    <SwiftmoveLogo className="h-5 w-auto" />
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FF5500] to-[#0033AD] p-0.5 flex items-center justify-center shrink-0 shadow-md shadow-[#FF5500]/20">
+                  <div className="w-full h-full bg-[#0A0D14] rounded-[10px] flex items-center justify-center p-1.5 overflow-hidden">
+                    <img
+                      src="/swiftmove-logo-banner.png"
+                      alt="SwiftMove Express"
+                      className="w-full h-full object-contain"
+                    />
                   </div>
                 </div>
-                <span className="font-[Barlow_Condensed,sans-serif] font-black text-xl text-white tracking-wider">
-                  SWIFT<span className="text-[#FF5500]">MOVE</span>
-                </span>
+                <div className="flex flex-col">
+                  <span className="font-[Barlow_Condensed,sans-serif] font-black text-2xl text-white tracking-wider leading-none">
+                    SWIFT<span className="text-[#FF5500]">MOVE</span>
+                  </span>
+                  <span className="text-[10px] font-bold tracking-[0.2em] text-[#8895A5] uppercase mt-1">
+                    EXPRESS NETWORK
+                  </span>
+                </div>
               </div>
-              <p className="text-xs leading-relaxed">
+
+              <p className="text-xs text-[#8895A5] leading-relaxed max-w-sm">
                 Empowering urban mobility and agricultural supply chains across Plateau State, Nigeria.
               </p>
-              <div className="text-xs text-[#FFB800] font-mono font-bold">
-                24/7 Dispatch Hotline: {SWIFTMOVE_BRAND.supportPhone}
+
+              <div className="pt-2">
+                <div className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-xs">
+                  <span className="h-2 w-2 rounded-full bg-[#FF5500] animate-pulse shrink-0" />
+                  <span className="text-[#E8ECF2] font-mono text-[11px] sm:text-xs">
+                    Hotline: <a href={`tel:${SWIFTMOVE_BRAND.supportPhone}`} className="text-[#FFB800] hover:underline font-bold">{SWIFTMOVE_BRAND.supportPhone}</a>
+                  </span>
+                </div>
               </div>
             </div>
 
+            {/* Column 2: Services */}
             <div>
-              <h4 className="font-[Barlow_Condensed,sans-serif] font-bold text-white text-sm uppercase tracking-wider mb-4">
+              <h4 className="font-[Barlow_Condensed,sans-serif] font-bold text-white text-sm uppercase tracking-wider mb-4 pb-1 border-b border-white/10 inline-block">
                 Services
               </h4>
-              <ul className="space-y-2 text-xs">
-                <li><button type="button" onClick={() => switchPillar('send')} className="hover:text-[#FF5500] transition-colors">Parcel Delivery</button></li>
-                <li><button type="button" onClick={() => switchPillar('ride')} className="hover:text-[#FF5500] transition-colors">City Rides</button></li>
-                <li><button type="button" onClick={() => switchPillar('move')} className="hover:text-[#FF5500] transition-colors">Farm Produce Haulage</button></li>
-                <li><button type="button" onClick={() => switchPillar('track')} className="hover:text-[#FF5500] transition-colors">Live Radar Tracking</button></li>
+              <ul className="space-y-2.5 text-xs">
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      switchPillar('send');
+                      document.getElementById('booking-deck')?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className="block text-left text-[#8895A5] hover:text-[#FF5500] transition-colors py-0.5 cursor-pointer"
+                  >
+                    Parcel &amp; Package Delivery
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      switchPillar('ride');
+                      document.getElementById('booking-deck')?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className="block text-left text-[#8895A5] hover:text-[#FF5500] transition-colors py-0.5 cursor-pointer"
+                  >
+                    Passenger City Rides
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      switchPillar('move');
+                      document.getElementById('booking-deck')?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className="block text-left text-[#8895A5] hover:text-[#FF5500] transition-colors py-0.5 cursor-pointer"
+                  >
+                    Farm Produce Haulage
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      switchPillar('track');
+                      document.getElementById('booking-deck')?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className="block text-left text-[#8895A5] hover:text-[#FF5500] transition-colors py-0.5 cursor-pointer"
+                  >
+                    Live Radar Tracking
+                  </button>
+                </li>
               </ul>
             </div>
 
+            {/* Column 3: Fleet */}
             <div>
-              <h4 className="font-[Barlow_Condensed,sans-serif] font-bold text-white text-sm uppercase tracking-wider mb-4">
+              <h4 className="font-[Barlow_Condensed,sans-serif] font-bold text-white text-sm uppercase tracking-wider mb-4 pb-1 border-b border-white/10 inline-block">
                 Fleet
               </h4>
-              <ul className="space-y-2 text-xs">
-                <li><button type="button" onClick={() => { switchPillar('send'); setCourierType('bike'); document.getElementById('booking-deck')?.scrollIntoView({ behavior: 'smooth' }); }} className="hover:text-[#FF5500] transition-colors cursor-pointer text-left">Swift Bike Express</button></li>
-                <li><button type="button" onClick={() => { switchPillar('ride'); setSelectedTierId('keke'); document.getElementById('booking-deck')?.scrollIntoView({ behavior: 'smooth' }); }} className="hover:text-[#FF5500] transition-colors cursor-pointer text-left">City Keke Tricycles</button></li>
-                <li><button type="button" onClick={() => { switchPillar('ride'); setSelectedTierId('sedan'); document.getElementById('booking-deck')?.scrollIntoView({ behavior: 'smooth' }); }} className="hover:text-[#FF5500] transition-colors cursor-pointer text-left">Executive Cars</button></li>
-                <li><button type="button" onClick={() => { switchPillar('move'); setBusinessFleetType('daily_dispatch'); document.getElementById('booking-deck')?.scrollIntoView({ behavior: 'smooth' }); }} className="hover:text-[#FF5500] transition-colors cursor-pointer text-left">Heavy Cargo Trucks</button></li>
+              <ul className="space-y-2.5 text-xs">
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      switchPillar('send');
+                      setCourierType('bike');
+                      document.getElementById('booking-deck')?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className="block text-left text-[#8895A5] hover:text-[#FF5500] transition-colors py-0.5 cursor-pointer"
+                  >
+                    Swift Bike Express
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      switchPillar('ride');
+                      setSelectedTierId('keke');
+                      document.getElementById('booking-deck')?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className="block text-left text-[#8895A5] hover:text-[#FF5500] transition-colors py-0.5 cursor-pointer"
+                  >
+                    City Keke Tricycles
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      switchPillar('ride');
+                      setSelectedTierId('sedan');
+                      document.getElementById('booking-deck')?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className="block text-left text-[#8895A5] hover:text-[#FF5500] transition-colors py-0.5 cursor-pointer"
+                  >
+                    Executive Cars &amp; Cabs
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      switchPillar('move');
+                      setBusinessFleetType('daily_dispatch');
+                      document.getElementById('booking-deck')?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className="block text-left text-[#8895A5] hover:text-[#FF5500] transition-colors py-0.5 cursor-pointer"
+                  >
+                    Heavy Cargo Haulage Trucks
+                  </button>
+                </li>
               </ul>
             </div>
 
+            {/* Column 4: Headquarters & Live Status */}
             <div>
-              <h4 className="font-[Barlow_Condensed,sans-serif] font-bold text-white text-sm uppercase tracking-wider mb-4">
+              <h4 className="font-[Barlow_Condensed,sans-serif] font-bold text-white text-sm uppercase tracking-wider mb-4 pb-1 border-b border-white/10 inline-block">
                 Headquarters
               </h4>
-              <p className="text-xs leading-relaxed mb-2">
+              <p className="text-xs text-[#8895A5] leading-relaxed mb-2">
                 Jos Operations Centre, Plateau State, Nigeria
               </p>
-              <p className="text-xs text-[#8895A5]">
-                {SWIFTMOVE_BRAND.supportEmail}
+              <p className="text-xs text-[#8895A5] break-words">
+                <a href={`mailto:${SWIFTMOVE_BRAND.supportEmail}`} className="hover:text-white transition-colors">
+                  {SWIFTMOVE_BRAND.supportEmail}
+                </a>
               </p>
               <div className="mt-4 pt-3 border-t border-white/10">
                 <span className="text-[11px] text-emerald-400 font-bold flex items-center gap-1.5">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
                   Dispatch Radar Live
                 </span>
+                <p className="text-[11px] text-[#8895A5] mt-1">
+                  Active drivers &amp; couriers ready across Jos metro
+                </p>
               </div>
             </div>
           </div>
 
-          <div className="pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4 text-xs">
-            <div>
-              &copy; {new Date().getFullYear()} {SWIFTMOVE_BRAND.legalName}. All rights reserved.
-            </div>
-            <div className="flex gap-6">
-              <span className="hover:text-white transition-colors cursor-pointer">Privacy Policy</span>
-              <span className="hover:text-white transition-colors cursor-pointer">Terms of Service</span>
-              <Link to="/_authenticated/drive" className="hover:text-[#FF5500] transition-colors">Driver Registration</Link>
+          {/* Bottom Copyright & Legal Links */}
+          <div className="pt-8 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-center sm:text-left">
+            <p className="leading-relaxed">
+              &copy; {new Date().getFullYear()} <span className="text-white font-medium">{SWIFTMOVE_BRAND.legalName}</span>. All rights reserved.
+            </p>
+            <div className="flex flex-wrap items-center justify-center sm:justify-end gap-x-6 gap-y-2">
+              <span className="hover:text-white transition-colors cursor-pointer py-1">Privacy Policy</span>
+              <span className="hover:text-white transition-colors cursor-pointer py-1">Terms of Service</span>
+              <Link to="/_authenticated/drive" className="text-[#FF5500] hover:text-[#ff7733] font-semibold transition-colors py-1">
+                Driver Registration &rarr;
+              </Link>
             </div>
           </div>
         </div>

@@ -6,7 +6,7 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   server: {
     // In production, the native shell bridges directly to the live deployment for instant OTA updates
-    url: 'https://swiftmove.ng',
+    url: 'https://swiftmove.ng/app',
     cleartext: false,
     androidScheme: 'https',
   },

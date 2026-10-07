@@ -358,6 +358,7 @@ function RootComponent() {
   const isSwiftDomain = isSwiftmoveDomain();
 
   const isSwiftRoute =
+    pathname.startsWith("/app") ||
     pathname.startsWith("/swift") ||
     pathname.startsWith("/drive") ||
     pathname.startsWith("/vehicle") ||
@@ -377,8 +378,8 @@ function RootComponent() {
       pathname === "/my-journey" ||
       (typeof window !== "undefined" && window.location.hostname.includes("travel")));
 
-  // Driver console, Dispatcher, and Admin dashboard get a completely standalone layout — no ecosystem chrome at all
-  const isStandaloneApp = pathname.startsWith("/drive") || pathname.startsWith("/admin") || pathname.startsWith("/staff") || pathname.startsWith("/dispatcher");
+  // Dedicated booking app, Driver console, Dispatcher, and Admin dashboard get a completely standalone layout — no ecosystem chrome at all
+  const isStandaloneApp = pathname.startsWith("/app") || pathname.startsWith("/drive") || pathname.startsWith("/admin") || pathname.startsWith("/staff") || pathname.startsWith("/dispatcher");
 
   // Register PWA Service Worker on startup, initialize native mobile bridge, and suppress Google Maps auth alerts
   useEffect(() => {
@@ -393,9 +394,9 @@ function RootComponent() {
     }
   }, []);
 
-  // Apply light Swiftmove theme when active
+  // Apply light Swiftmove theme when active (except on dedicated dark app)
   useEffect(() => {
-    if (isSwiftmove) {
+    if (isSwiftmove && !pathname.startsWith("/app")) {
       document.documentElement.classList.add("swiftmove-theme");
       document.body.style.backgroundColor = "#f8fafc";
       document.body.style.color = "#0f172a";
@@ -404,13 +405,13 @@ function RootComponent() {
       document.body.style.backgroundColor = "";
       document.body.style.color = "";
     }
-  }, [isSwiftmove]);
+  }, [isSwiftmove, pathname]);
 
   return (
     <QueryClientProvider client={queryClient}>
       {isStandaloneApp ? (
-        /* ── Standalone Layout (Driver / Admin): pure full-screen shell, zero ecosystem chrome ── */
-        <div className="flex min-h-screen flex-col bg-slate-50 text-slate-800">
+        /* ── Standalone Layout (Dedicated App / Driver / Admin): pure full-screen shell, zero ecosystem chrome ── */
+        <div className={`flex min-h-screen flex-col ${pathname.startsWith("/app") ? "bg-[#0A0D14] text-white" : "bg-slate-50 text-slate-800"}`}>
           <Outlet />
         </div>
       ) : (

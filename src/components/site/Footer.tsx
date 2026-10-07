@@ -122,7 +122,7 @@ export function SiteFooter() {
             </li>
             <li className="flex items-start gap-2">
               <Mail className="mt-0.5 h-4 w-4 shrink-0" />
-              <a href={`mailto:${ORG.email}`} className="hover:opacity-100">
+              <a href={`mailto:${ORG.email}`} className="hover:opacity-100 break-all sm:break-words">
                 {ORG.email}
               </a>
             </li>

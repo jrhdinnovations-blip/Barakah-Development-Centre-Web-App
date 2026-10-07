@@ -61,9 +61,9 @@ export default {
     // Expose request host globally during SSR so synchronous checks can determine platform
     (globalThis as any).__SSR_REQUEST_HOST__ = host;
 
-    // 1. When hitting /app or /swift-move, immediately route to the live SwiftMove application
-    if (url.pathname === "/app" || url.pathname === "/swift-move") {
-      const targetUrl = new URL(isSwiftDomain ? "/" : "/swiftmove", request.url);
+    // 1. When hitting /swift-move, route to the dedicated SwiftMove application
+    if (url.pathname === "/swift-move") {
+      const targetUrl = new URL(isSwiftDomain ? "/app" : "/swiftmove", request.url);
       targetUrl.search = url.search;
       return Response.redirect(targetUrl.toString(), 302);
     }
@@ -76,6 +76,7 @@ export default {
       const contentType = normalized.headers.get("content-type") ?? "";
       const isSwiftRoute =
         isSwiftDomain ||
+        url.pathname.startsWith("/app") ||
         url.pathname.startsWith("/swift") ||
         url.pathname.startsWith("/drive") ||
         url.pathname.startsWith("/dispatcher") ||
