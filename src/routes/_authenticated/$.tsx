@@ -7,15 +7,18 @@ export const Route = createFileRoute('/_authenticated/$')({
   beforeLoad: ({ location }) => {
     const path = location.pathname.toLowerCase();
     // SwiftMove or general app routes should NEVER hit under-construction
+    // NOTE: /app has its own dedicated route — do not list it here
     if (
-      isSwiftmoveDomain() ||
       path === '/swiftmove' ||
       path === '/swift-move' ||
-      path === '/app' ||
       path.startsWith('/app/') ||
       isSwiftmovePath(path)
     ) {
-      throw redirect({ to: isSwiftmoveDomain() ? '/' : '/swiftmove' });
+      throw redirect({ to: isSwiftmoveDomain() ? '/app' : '/swiftmove' });
+    }
+    // On swiftmove domain, unknown catch-all routes go to the booking app
+    if (isSwiftmoveDomain()) {
+      throw redirect({ to: '/app' });
     }
   },
   component: UnderConstructionPage,
@@ -29,12 +32,11 @@ function UnderConstructionPage() {
   if (
     isSwiftmoveDomain() ||
     isSwiftmovePath(path) ||
-    path === '/app' ||
     path === '/swiftmove' ||
     path === '/swift-move'
   ) {
     if (typeof window !== 'undefined') {
-      window.location.replace(isSwiftmoveDomain() ? '/' : '/swiftmove');
+      window.location.replace(isSwiftmoveDomain() ? '/app' : '/swiftmove');
     }
     return null;
   }
