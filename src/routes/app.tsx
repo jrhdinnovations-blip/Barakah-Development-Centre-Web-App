@@ -49,13 +49,15 @@ import { encodeRideMetadata, encodeDispatchMetadata, parseOrderMetadata } from '
 import { calculateDeliveryPrice } from '@/lib/swift-pricing';
 
 export const Route = createFileRoute('/app')({
-  // Role-routing guard: after Google OAuth redirects here, send staff to
-  // their correct dashboards. Customers and guests stay on /app.
+  // Role-routing guard: after Google OAuth redirects back to /app,
+  // send EVERY signed-in user to their correct destination.
+  // Staff → their console. Customers → /my-swift-move (unified customer dashboard).
+  // Guests (not signed in) → render /app as a sign-in landing page.
   beforeLoad: async () => {
     try {
       const { supabase: sb } = await import('@/integrations/supabase/client');
       const { data: { user } } = await sb.auth.getUser();
-      if (!user) return; // Not signed in — render /app normally
+      if (!user) return; // Not signed in — render /app as guest landing
 
       const SUPER_ADMIN_EMAILS = ['barakahdevcentre@gmail.com', 'barakahdevelopmentcentre@gmail.com'];
       if (SUPER_ADMIN_EMAILS.includes(user.email?.toLowerCase() || '')) {
@@ -70,15 +72,17 @@ export const Route = createFileRoute('/app')({
       const metaRole = user.user_metadata?.['role'];
       const allRoles = new Set([...userRoles, metaRole].filter(Boolean));
 
-      // Redirect staff to their dashboards; customers stay on /app
+      // Route every signed-in user to their proper destination
       if (allRoles.has('administrator') || allRoles.has('admin') || allRoles.has('swift_manager')) {
         throw redirect({ to: '/admin/swift-move' as any });
       } else if (allRoles.has('swift_dispatcher') || allRoles.has('dispatcher')) {
         throw redirect({ to: '/dispatcher' as any });
       } else if (allRoles.has('driver') || allRoles.has('dispatch_rider')) {
         throw redirect({ to: '/drive' as any });
+      } else {
+        // Customer / registered_user → unified customer dashboard
+        throw redirect({ to: '/my-swift-move' as any });
       }
-      // Registered customers — render /app normally
     } catch (err: any) {
       // Re-throw TanStack Router redirects; swallow other errors so /app still renders
       if (err?.isRedirect || err?.to || err?.statusCode) throw err;
@@ -190,8 +194,8 @@ function SwiftMoveAppPage() {
   const user = auth?.user || auth?.session?.user;
 
   // ── OAuth return handler: when Google sign-in redirects back to /app ───
-  // Checks the user's role and sends staff to the right dashboard.
-  // Customers stay on /app (the booking UI).
+  // Checks the user's role and sends ALL users to the correct dashboard.
+  // Staff → their specific console. Customers → /my-swift-move.
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event !== 'SIGNED_IN' || !session?.user) return;
@@ -208,19 +212,20 @@ function SwiftMoveAppPage() {
           ...((roleData || []).map((r: any) => r.role)),
           u.user_metadata?.['role'],
         ].filter(Boolean));
+        subscription.unsubscribe();
         if (roles.has('administrator') || roles.has('admin') || roles.has('swift_manager')) {
-          subscription.unsubscribe();
           navigate({ to: '/admin/swift-move' as any });
         } else if (roles.has('swift_dispatcher') || roles.has('dispatcher')) {
-          subscription.unsubscribe();
           navigate({ to: '/dispatcher' as any });
         } else if (roles.has('driver') || roles.has('dispatch_rider')) {
-          subscription.unsubscribe();
           navigate({ to: '/drive' as any });
+        } else {
+          // Customer / registered_user → unified customer dashboard
+          navigate({ to: '/my-swift-move' as any });
         }
-        // registered_user / customer → stay on /app, no redirect needed
       } catch {
-        // On any error, stay on /app silently
+        // On any error, redirect to customer dashboard
+        navigate({ to: '/my-swift-move' as any });
       }
     });
     return () => subscription.unsubscribe();
