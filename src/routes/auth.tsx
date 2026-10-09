@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,20 +37,21 @@ export const Route = createFileRoute("/auth")({
       const allUserRoles = new Set([...userRoles, metaRole].filter(Boolean));
 
       let target = search.redirect;
-      // On swiftmove.ng, never redirect to /my-barakah
+      // On swiftmove.ng, default customer dashboard is /my-swift-move
       if (isSwift && (!target || target === '/my-barakah' || target === '/')) {
-        target = '/app';
+        target = '/my-swift-move';
       }
 
       if (!target || target === '/my-swift-move' || target === '/app' || target === '/my-barakah' || target === '/' || target.includes('/auth')) {
-        if (allUserRoles.has('swift_dispatcher') || allUserRoles.has('dispatcher')) {
-          target = '/dispatcher';
-        } else if (allUserRoles.has('administrator') || allUserRoles.has('admin') || allUserRoles.has('swift_manager')) {
+        // Administrator ALWAYS takes precedence over dispatcher
+        if (allUserRoles.has('administrator') || allUserRoles.has('admin') || allUserRoles.has('swift_manager')) {
           target = isSwift ? '/admin/swift-move' : '/admin';
+        } else if (allUserRoles.has('swift_dispatcher') || allUserRoles.has('dispatcher')) {
+          target = '/dispatcher';
         } else if (allUserRoles.has('driver') || allUserRoles.has('dispatch_rider')) {
           target = '/drive';
         } else {
-          target = isSwift ? '/app' : (search.redirect || '/my-barakah');
+          target = isSwift ? (search.redirect || '/my-swift-move') : (search.redirect || '/my-barakah');
         }
       }
       throw redirect({ to: target as any });
@@ -118,12 +119,13 @@ function AuthPage() {
   async function handleGoogle() {
     setGoogleBusy(true);
     try {
-      const defaultAfterAuth = isSwift ? "/app" : "/my-barakah";
-      const rawTarget = isSwift ? "/app" : (redirectParam || defaultAfterAuth);
+      // Always redirect back to /auth after OAuth so the beforeLoad role-routing
+      // logic can inspect the user's roles and send them to the correct dashboard.
       const origin = typeof window !== "undefined" ? window.location.origin : (isSwift ? "https://swiftmove.ng" : "https://barakahdevcentre.com");
-      const redirectUrl = rawTarget.startsWith("http")
-        ? rawTarget
-        : `${origin}${rawTarget.startsWith("/") ? rawTarget : `/${rawTarget}`}`;
+      // Preserve any explicit redirect param so beforeLoad can honour it
+      const redirectUrl = redirectParam
+        ? `${origin}/auth?redirect=${encodeURIComponent(redirectParam)}`
+        : `${origin}/auth`;
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
@@ -188,20 +190,20 @@ function AuthPage() {
       const metaRole = user.user_metadata?.['role'];
       const allUserRoles = new Set([...userRoles, metaRole].filter(Boolean));
 
-      // Determine redirect path
+      // Determine redirect path — administrator always takes precedence over dispatcher
       let target = redirectParam;
       if (isSwift && (!target || target === '/my-barakah' || target === '/')) {
-        target = '/app';
+        target = '/my-swift-move';
       }
       if (!target || target === '/my-swift-move' || target === '/app' || target === '/my-barakah' || target === '/' || target.includes('/auth')) {
-        if (allUserRoles.has('swift_dispatcher') || allUserRoles.has('dispatcher')) {
-          target = '/dispatcher';
-        } else if (allUserRoles.has('administrator') || allUserRoles.has('admin') || allUserRoles.has('swift_manager')) {
+        if (allUserRoles.has('administrator') || allUserRoles.has('admin') || allUserRoles.has('swift_manager')) {
           target = isSwift ? '/admin/swift-move' : '/admin';
+        } else if (allUserRoles.has('swift_dispatcher') || allUserRoles.has('dispatcher')) {
+          target = '/dispatcher';
         } else if (allUserRoles.has('driver') || allUserRoles.has('dispatch_rider')) {
           target = '/drive';
         } else {
-          target = isSwift ? '/app' : (redirectParam || '/my-barakah');
+          target = isSwift ? '/my-swift-move' : (redirectParam || '/my-barakah');
         }
       }
       toast.success("Welcome back!");

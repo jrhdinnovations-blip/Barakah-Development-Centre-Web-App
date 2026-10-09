@@ -668,7 +668,7 @@ function SwiftMoveAppPage() {
           {user ? (
             <div className="flex items-center gap-2">
               <Link
-                to="/_authenticated/my-swift-move"
+                to="/my-swift-move"
                 className="px-3 py-1.5 rounded-xl bg-[#181D2B] border border-white/10 hover:border-[#FF5500]/60 text-white text-xs font-bold transition-all flex items-center gap-1.5"
               >
                 <User className="h-3.5 w-3.5 text-[#FF5500]" />
@@ -678,7 +678,7 @@ function SwiftMoveAppPage() {
           ) : (
             <Link
               to="/auth"
-              search={{ redirect: '/app', mode: 'login' }}
+              search={{ redirect: '/my-swift-move', mode: 'login' }}
               className="px-3.5 py-1.5 rounded-xl bg-[#FF5500] hover:bg-[#e04800] text-white text-xs font-black shadow-md shadow-[#FF5500]/25 transition-all flex items-center gap-1"
             >
               <span>Sign In</span>
