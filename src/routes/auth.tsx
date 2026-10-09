@@ -119,21 +119,31 @@ function AuthPage() {
     setGoogleBusy(true);
     try {
       const defaultAfterAuth = isSwift ? "/app" : "/my-barakah";
-      const { error } = await supabase.auth.signInWithOAuth({
+      const rawTarget = isSwift ? "/app" : (redirectParam || defaultAfterAuth);
+      const origin = typeof window !== "undefined" ? window.location.origin : (isSwift ? "https://swiftmove.ng" : "https://barakahdevcentre.com");
+      const redirectUrl = rawTarget.startsWith("http")
+        ? rawTarget
+        : `${origin}${rawTarget.startsWith("/") ? rawTarget : `/${rawTarget}`}`;
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}${isSwift ? "/app" : (redirectParam || defaultAfterAuth)}`,
+          redirectTo: redirectUrl,
         },
       });
       if (error) {
         setGoogleBusy(false);
         toast.error(
-          error.message.includes('provider') || error.message.includes('not enabled')
+          error.message.includes("provider") || error.message.includes("not enabled")
             ? "Google sign-in is not enabled. Please use email and password."
             : error.message
         );
+        return;
       }
-      // If no error, browser will redirect — no need to reset googleBusy
+      // Guarantee browser navigation if not already dispatched
+      if (data?.url && typeof window !== "undefined") {
+        window.location.assign(data.url);
+      }
     } catch (err: any) {
       setGoogleBusy(false);
       toast.error(err?.message || "Google sign-in failed. Please try again.");
