@@ -18,6 +18,15 @@ export const Route = createFileRoute("/auth")({
   beforeLoad: async ({ search }) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
+      const SUPER_ADMIN_EMAILS = ['barakahdevcentre@gmail.com', 'barakahdevelopmentcentre@gmail.com'];
+      const email = user.email?.toLowerCase() || '';
+      const isSwift = isSwiftmoveDomain();
+
+      // Super admin emails always go straight to /admin
+      if (SUPER_ADMIN_EMAILS.includes(email)) {
+        throw redirect({ to: (isSwift ? '/admin/swift-move' : '/admin') as any });
+      }
+
       // Redirect logged-in users to their correct dashboard
       const { data: roleData } = await supabase
         .from('user_roles')
@@ -26,8 +35,6 @@ export const Route = createFileRoute("/auth")({
       const userRoles = (roleData || []).map((r: any) => r.role);
       const metaRole = user.user_metadata?.['role'];
       const allUserRoles = new Set([...userRoles, metaRole].filter(Boolean));
-
-      const isSwift = isSwiftmoveDomain();
 
       let target = search.redirect;
       // On swiftmove.ng, never redirect to /my-barakah
@@ -137,6 +144,18 @@ function AuthPage() {
     
     // Fetch user roles
     const user = data.user;
+    const SUPER_ADMIN_EMAILS = ['barakahdevcentre@gmail.com', 'barakahdevelopmentcentre@gmail.com'];
+    const userEmail = user.email?.toLowerCase() || '';
+
+    setBusy(false);
+    toast.success("Welcome back!");
+
+    // Super admin emails always go straight to /admin
+    if (SUPER_ADMIN_EMAILS.includes(userEmail)) {
+      navigate({ to: (isSwift ? '/admin/swift-move' : '/admin') as any });
+      return;
+    }
+
     const { data: roleData } = await supabase
       .from('user_roles')
       .select('role')
@@ -144,9 +163,6 @@ function AuthPage() {
     const userRoles = (roleData || []).map((r: any) => r.role);
     const metaRole = user.user_metadata?.['role'];
     const allUserRoles = new Set([...userRoles, metaRole].filter(Boolean));
-    
-    setBusy(false);
-    toast.success("Welcome back!");
     
     // Determine redirect path
     let target = redirectParam;
