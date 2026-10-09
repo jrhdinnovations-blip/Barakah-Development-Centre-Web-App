@@ -189,8 +189,47 @@ function SwiftMoveAppPage() {
   const auth = useAuth() as any;
   const user = auth?.user || auth?.session?.user;
 
+  // ── OAuth return handler: when Google sign-in redirects back to /app ───
+  // Checks the user's role and sends staff to the right dashboard.
+  // Customers stay on /app (the booking UI).
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event !== 'SIGNED_IN' || !session?.user) return;
+      const u = session.user;
+      const SUPER_ADMIN_EMAILS = ['barakahdevcentre@gmail.com', 'barakahdevelopmentcentre@gmail.com'];
+      if (SUPER_ADMIN_EMAILS.includes(u.email?.toLowerCase() || '')) {
+        subscription.unsubscribe();
+        navigate({ to: '/admin/swift-move' as any });
+        return;
+      }
+      try {
+        const { data: roleData } = await supabase.from('user_roles').select('role').eq('user_id', u.id);
+        const roles = new Set([
+          ...((roleData || []).map((r: any) => r.role)),
+          u.user_metadata?.['role'],
+        ].filter(Boolean));
+        if (roles.has('administrator') || roles.has('admin') || roles.has('swift_manager')) {
+          subscription.unsubscribe();
+          navigate({ to: '/admin/swift-move' as any });
+        } else if (roles.has('swift_dispatcher') || roles.has('dispatcher')) {
+          subscription.unsubscribe();
+          navigate({ to: '/dispatcher' as any });
+        } else if (roles.has('driver') || roles.has('dispatch_rider')) {
+          subscription.unsubscribe();
+          navigate({ to: '/drive' as any });
+        }
+        // registered_user / customer → stay on /app, no redirect needed
+      } catch {
+        // On any error, stay on /app silently
+      }
+    });
+    return () => subscription.unsubscribe();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Active service pillar
   const [activePillar, setActivePillar] = useState<AppPillar>('ride');
+
 
   // Locations state
   const [pickup, setPickup] = useState<LocationCoord | null>({

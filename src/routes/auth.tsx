@@ -116,34 +116,81 @@ function AuthPage() {
     navigate({ search: (prev: any) => ({ ...prev, mode: m }) });
   }
 
+  // ── Role-based navigation helper (shared by email login + Google OAuth return) ──
+  async function navigateByRole(user: any) {
+    const SUPER_ADMIN_EMAILS = ['barakahdevcentre@gmail.com', 'barakahdevelopmentcentre@gmail.com'];
+    const email = user.email?.toLowerCase() || '';
+    if (SUPER_ADMIN_EMAILS.includes(email)) {
+      navigate({ to: (isSwift ? '/admin/swift-move' : '/admin') as any });
+      return;
+    }
+    const { data: roleData } = await supabase.from('user_roles').select('role').eq('user_id', user.id);
+    const userRoles = (roleData || []).map((r: any) => r.role);
+    const metaRole = user.user_metadata?.['role'];
+    const allRoles = new Set([...userRoles, metaRole].filter(Boolean));
+
+    let target = redirectParam;
+    if (isSwift && (!target || target === '/my-barakah' || target === '/')) target = '/my-swift-move';
+    if (!target || target === '/my-swift-move' || target === '/app' || target === '/my-barakah' || target === '/' || target.includes('/auth')) {
+      if (allRoles.has('administrator') || allRoles.has('admin') || allRoles.has('swift_manager')) {
+        target = isSwift ? '/admin/swift-move' : '/admin';
+      } else if (allRoles.has('swift_dispatcher') || allRoles.has('dispatcher')) {
+        target = '/dispatcher';
+      } else if (allRoles.has('driver') || allRoles.has('dispatch_rider')) {
+        target = '/drive';
+      } else {
+        target = isSwift ? '/my-swift-move' : (redirectParam || '/my-barakah');
+      }
+    }
+    navigate({ to: target as any });
+  }
+
+  // ── Catch OAuth return: if user lands back on /auth already signed in ───
+  // (happens when Supabase uses the site URL fallback instead of /app)
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session?.user && googleBusy) {
+        subscription.unsubscribe();
+        setGoogleBusy(false);
+        toast.success("Signed in successfully!");
+        await navigateByRole(session.user);
+      }
+    });
+    return () => subscription.unsubscribe();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [googleBusy]);
+
+  // ── Google OAuth ─────────────────────────────────────────────────────────
   async function handleGoogle() {
     setGoogleBusy(true);
     try {
-      // Redirect back to /app after OAuth — this URL is already in Supabase's
-      // allowlist (proven: dispatchers could always sign in this way).
-      // /app's beforeLoad will inspect the user's roles and send staff to the
-      // correct dashboard; customers stay on /app to book rides/deliveries.
-      const origin = typeof window !== "undefined" ? window.location.origin : (isSwift ? "https://swiftmove.ng" : "https://barakahdevcentre.com");
-      const redirectUrl = `${origin}/app`;
+      const origin = typeof window !== "undefined"
+        ? window.location.origin
+        : (isSwift ? "https://swiftmove.ng" : "https://barakahdevcentre.com");
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: redirectUrl,
+          // /app is allowlisted in Supabase (dispatchers proved this works).
+          // If Supabase falls back to the site URL, the onAuthStateChange
+          // listener above will catch the return and route the user correctly.
+          redirectTo: `${origin}/app`,
         },
       });
+
       if (error) {
         setGoogleBusy(false);
         toast.error(
           error.message.includes("provider") || error.message.includes("not enabled")
-            ? "Google sign-in is not enabled. Please use email and password."
-            : error.message
+            ? "Google sign-in is not enabled on this platform. Use email & password instead."
+            : `Google sign-in error: ${error.message}`
         );
         return;
       }
-      // Guarantee browser navigation if not already dispatched
+
+      // Navigate explicitly in case the Supabase SDK doesn't auto-redirect
       if (data?.url && typeof window !== "undefined") {
-        window.location.assign(data.url);
+        window.location.href = data.url;
       }
     } catch (err: any) {
       setGoogleBusy(false);
