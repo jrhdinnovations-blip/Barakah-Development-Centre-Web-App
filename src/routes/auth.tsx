@@ -133,54 +133,59 @@ function AuthPage() {
       return;
     }
     setBusy(true);
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: parsed.data.email,
-      password: parsed.data.password,
-    });
-    if (error) {
-      setBusy(false);
-      return void toast.error(error.message || "Invalid email or password.");
-    }
-    
-    // Fetch user roles
-    const user = data.user;
-    const SUPER_ADMIN_EMAILS = ['barakahdevcentre@gmail.com', 'barakahdevelopmentcentre@gmail.com'];
-    const userEmail = user.email?.toLowerCase() || '';
-
-    setBusy(false);
-    toast.success("Welcome back!");
-
-    // Super admin emails always go straight to /admin
-    if (SUPER_ADMIN_EMAILS.includes(userEmail)) {
-      navigate({ to: (isSwift ? '/admin/swift-move' : '/admin') as any });
-      return;
-    }
-
-    const { data: roleData } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', user.id);
-    const userRoles = (roleData || []).map((r: any) => r.role);
-    const metaRole = user.user_metadata?.['role'];
-    const allUserRoles = new Set([...userRoles, metaRole].filter(Boolean));
-    
-    // Determine redirect path
-    let target = redirectParam;
-    if (isSwift && (!target || target === '/my-barakah' || target === '/')) {
-      target = '/app';
-    }
-    if (!target || target === '/my-swift-move' || target === '/app' || target === '/my-barakah' || target === '/' || target.includes('/auth')) {
-      if (allUserRoles.has('swift_dispatcher') || allUserRoles.has('dispatcher')) {
-        target = '/dispatcher';
-      } else if (allUserRoles.has('administrator') || allUserRoles.has('admin') || allUserRoles.has('swift_manager')) {
-        target = isSwift ? '/admin/swift-move' : '/admin';
-      } else if (allUserRoles.has('driver') || allUserRoles.has('dispatch_rider')) {
-        target = '/drive';
-      } else {
-        target = isSwift ? '/app' : (redirectParam || '/my-barakah');
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: parsed.data.email,
+        password: parsed.data.password,
+      });
+      if (error) {
+        setBusy(false);
+        return void toast.error(error.message || "Invalid email or password.");
       }
+
+      const user = data.user;
+      const SUPER_ADMIN_EMAILS = ['barakahdevcentre@gmail.com', 'barakahdevelopmentcentre@gmail.com'];
+      const userEmail = user.email?.toLowerCase() || '';
+
+      // Super admin emails always go straight to /admin
+      if (SUPER_ADMIN_EMAILS.includes(userEmail)) {
+        toast.success("Welcome back!");
+        setBusy(false);
+        navigate({ to: (isSwift ? '/admin/swift-move' : '/admin') as any });
+        return;
+      }
+
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id);
+      const userRoles = (roleData || []).map((r: any) => r.role);
+      const metaRole = user.user_metadata?.['role'];
+      const allUserRoles = new Set([...userRoles, metaRole].filter(Boolean));
+
+      // Determine redirect path
+      let target = redirectParam;
+      if (isSwift && (!target || target === '/my-barakah' || target === '/')) {
+        target = '/app';
+      }
+      if (!target || target === '/my-swift-move' || target === '/app' || target === '/my-barakah' || target === '/' || target.includes('/auth')) {
+        if (allUserRoles.has('swift_dispatcher') || allUserRoles.has('dispatcher')) {
+          target = '/dispatcher';
+        } else if (allUserRoles.has('administrator') || allUserRoles.has('admin') || allUserRoles.has('swift_manager')) {
+          target = isSwift ? '/admin/swift-move' : '/admin';
+        } else if (allUserRoles.has('driver') || allUserRoles.has('dispatch_rider')) {
+          target = '/drive';
+        } else {
+          target = isSwift ? '/app' : (redirectParam || '/my-barakah');
+        }
+      }
+      toast.success("Welcome back!");
+      setBusy(false);
+      navigate({ to: target as any });
+    } catch (err: any) {
+      setBusy(false);
+      toast.error(err?.message || "Something went wrong. Please try again.");
     }
-    navigate({ to: target as any });
   }
 
   async function handleRegister(e: React.FormEvent) {
@@ -377,7 +382,7 @@ function AuthPage() {
             <button
               type="submit"
               disabled={busy}
-              className={`mt-6 w-full rounded-xl px-4 py-3 text-sm font-bold text-white transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow-lg ${isSwift ? "bg-gradient-to-r from-orange-500 to-amber-500 hover:shadow-orange-500/40 hover:scale-[1.01]" : "bg-blue-600 hover:bg-blue-500 shadow-blue-600/20"}`}
+              className={`mt-6 w-full rounded-xl px-4 py-3 text-sm font-bold text-white cursor-pointer transition-all duration-200 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100 shadow-lg ${isSwift ? "bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 hover:shadow-orange-500/40 hover:scale-[1.02]" : "bg-blue-600 hover:bg-blue-500 hover:scale-[1.02] hover:shadow-blue-500/30 shadow-blue-600/20"}`}
             >
               {busy
                 ? "Please wait..."
