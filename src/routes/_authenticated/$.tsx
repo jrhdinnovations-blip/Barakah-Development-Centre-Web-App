@@ -6,7 +6,18 @@ import { isSwiftmoveDomain, isSwiftmovePath } from '@/lib/domain-detection';
 export const Route = createFileRoute('/_authenticated/$')({
   beforeLoad: ({ location }) => {
     const path = location.pathname.toLowerCase();
-    // SwiftMove or general app routes should NEVER hit under-construction
+
+    // Staff/operations routes always have dedicated files — never intercept them
+    if (
+      path.startsWith('/admin') ||
+      path.startsWith('/dispatcher') ||
+      path.startsWith('/drive') ||
+      path === '/drive'
+    ) {
+      return; // let the dedicated route handle it
+    }
+
+    // SwiftMove marketing/alias paths should never hit under-construction
     // NOTE: /app has its own dedicated route — do not list it here
     if (
       path === '/swiftmove' ||
