@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { createFileRoute, redirect, Link } from '@tanstack/react-router';
+import { createFileRoute, redirect, Link, useNavigate } from '@tanstack/react-router';
 import { toast } from 'sonner';
 import {
   Package, Users, Truck, TrendingUp, RefreshCw, Search,
@@ -7,7 +7,7 @@ import {
   BarChart3, Activity, ShieldCheck, Banknote, Eye,
   AlertTriangle, ChevronRight, ArrowUpRight, Filter,
   MapPin, LogOut, Grid, CalendarDays, ListOrdered, Car, Map, Percent, CreditCard, Wallet, Headset,
-  Bike, Sparkles, Radio
+  Bike, Sparkles, Radio, Menu, Zap, FileText
 } from 'lucide-react';
 import { parseOrderMetadata } from '@/lib/swift-order';
 import { adminForceStatus, adminFetchAllOrders } from '@/lib/dispatcher.functions';
@@ -60,12 +60,30 @@ const STATUS_ICONS: Record<string, any> = {
   in_transit: Truck, delivered: CheckCircle2, cancelled: XCircle,
 };
 
+const SIDEBAR_MODULES = [
+  { id: 'dashboard', name: 'Dashboard',       icon: BarChart3,     color: 'text-orange-400',  bg: 'bg-orange-500/10',  border: 'border-orange-500/20'  },
+  { id: 'map',       name: 'Live Radar',       icon: MapPin,        color: 'text-blue-400',    bg: 'bg-blue-500/10',    border: 'border-blue-500/20'    },
+  { id: 'orders',    name: 'Orders',           icon: Bike,          color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
+  { id: 'customers', name: 'Customers',        icon: Users,         color: 'text-indigo-400',  bg: 'bg-indigo-500/10',  border: 'border-indigo-500/20'  },
+  { id: 'fleet',     name: 'Fleet / Drivers',  icon: Car,           color: 'text-cyan-400',    bg: 'bg-cyan-500/10',    border: 'border-cyan-500/20'    },
+  { id: 'approvals', name: 'Approvals',        icon: ShieldCheck,   color: 'text-orange-400',  bg: 'bg-orange-500/10',  border: 'border-orange-500/20'  },
+  { id: 'pricing',   name: 'Pricing Engine',   icon: Banknote,      color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
+  { id: 'zones',     name: 'Operating Zones',  icon: Map,           color: 'text-cyan-400',    bg: 'bg-cyan-500/10',    border: 'border-cyan-500/20'    },
+  { id: 'commissions',name:'Commissions',      icon: Percent,       color: 'text-purple-400',  bg: 'bg-purple-500/10',  border: 'border-purple-500/20'  },
+  { id: 'payments',  name: 'Payments',         icon: CreditCard,    color: 'text-amber-400',   bg: 'bg-amber-500/10',   border: 'border-amber-500/20'   },
+  { id: 'earnings',  name: 'Earnings',         icon: TrendingUp,    color: 'text-green-400',   bg: 'bg-green-500/10',   border: 'border-green-500/20'   },
+  { id: 'dispatchers',name:'Dispatch Staff',   icon: Headset,       color: 'text-pink-400',    bg: 'bg-pink-500/10',    border: 'border-pink-500/20'    },
+  { id: 'reports',   name: 'Reports',          icon: FileText,      color: 'text-teal-400',    bg: 'bg-teal-500/10',    border: 'border-teal-500/20'    },
+  { id: 'complaints',name: 'Support Tickets',  icon: AlertTriangle, color: 'text-red-400',     bg: 'bg-red-500/10',     border: 'border-red-500/20'     },
+] as const;
+
 function AdminDashboard() {
   const [deliveries, setDeliveries] = useState<any[]>([]);
   const [vehicleBookings, setVehicleBookings] = useState<any[]>([]);
   const [drivers, setDrivers] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'map' | 'orders' | 'customers' | 'fleet' | 'approvals' | 'pricing' | 'zones' | 'commissions' | 'payments' | 'earnings' | 'dispatchers' | 'reports' | 'complaints'>('dashboard');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -485,49 +503,151 @@ function AdminDashboard() {
     );
   }
 
+  const navigate = useNavigate();
+
   return (
-    <div className="flex flex-col h-full bg-[#070b14] text-slate-200 font-sans selection:bg-orange-500/30">
-      {/* ═══ MAIN CONTENT ═══ */}
-      <main className="flex-1 flex flex-col h-full overflow-hidden relative">
+    <div className="flex h-full bg-[#070b14] text-slate-200 font-sans selection:bg-orange-500/30 overflow-hidden">
+
+      {/* ══════════════════════════════════════
+           LEFT SIDEBAR — always visible on lg+
+          ══════════════════════════════════════ */}
+      <aside
+        className={`
+          flex-shrink-0 flex flex-col h-full bg-[#080c17] border-r border-slate-800/80
+          transition-all duration-300 ease-in-out z-30
+          ${sidebarOpen ? 'w-56' : 'w-16'}
+        `}
+      >
+        {/* Sidebar Logo + Collapse Toggle */}
+        <div className="h-16 flex items-center justify-between px-3 border-b border-slate-800/80 shrink-0">
+          {sidebarOpen && (
+            <div className="flex items-center gap-2 overflow-hidden">
+              <div className="h-8 w-8 rounded-lg bg-orange-500 flex items-center justify-center shrink-0">
+                <Zap className="h-4 w-4 text-white" />
+              </div>
+              <span className="text-sm font-black text-white tracking-wide whitespace-nowrap">SwiftMove</span>
+              <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider whitespace-nowrap">Admin</span>
+            </div>
+          )}
+          {!sidebarOpen && (
+            <div className="h-8 w-8 rounded-lg bg-orange-500 flex items-center justify-center mx-auto">
+              <Zap className="h-4 w-4 text-white" />
+            </div>
+          )}
+          {sidebarOpen && (
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors shrink-0"
+            >
+              <ChevronRight className="h-4 w-4 rotate-180" />
+            </button>
+          )}
+        </div>
+
+        {/* Dispatcher Console — top CTA */}
+        <div className="px-2 pt-3 pb-2 shrink-0">
+          <button
+            onClick={() => navigate({ to: '/dispatcher' as any })}
+            className={`
+              w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl
+              bg-orange-500/15 border border-orange-500/30 text-orange-400
+              hover:bg-orange-500/25 transition-all group
+              ${sidebarOpen ? 'justify-start' : 'justify-center'}
+            `}
+            title="Dispatcher Console (Live Ops)"
+          >
+            <Radio className="h-4 w-4 animate-pulse shrink-0" />
+            {sidebarOpen && (
+              <span className="text-xs font-bold whitespace-nowrap">Dispatcher Console</span>
+            )}
+          </button>
+        </div>
+
+        <div className="px-2 mb-1">
+          <div className="border-t border-slate-800" />
+        </div>
+
+        {/* Module Nav Links */}
+        <nav className="flex-1 overflow-y-auto py-1 px-2 space-y-0.5 custom-scrollbar">
+          {SIDEBAR_MODULES.map(mod => {
+            const Icon = mod.icon;
+            const isActive = activeTab === mod.id;
+            return (
+              <button
+                key={mod.id}
+                onClick={() => setActiveTab(mod.id as any)}
+                title={mod.name}
+                className={`
+                  w-full flex items-center gap-3 px-2.5 py-2 rounded-xl transition-all
+                  ${isActive
+                    ? `${mod.bg} border ${mod.border} ${mod.color}`
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/70 border border-transparent'}
+                  ${sidebarOpen ? 'justify-start' : 'justify-center'}
+                `}
+              >
+                <Icon className={`h-4 w-4 shrink-0 ${isActive ? mod.color : ''}`} />
+                {sidebarOpen && (
+                  <span className="text-xs font-semibold whitespace-nowrap">{mod.name}</span>
+                )}
+                {sidebarOpen && isActive && (
+                  <span className={`ml-auto h-1.5 w-1.5 rounded-full ${mod.color.replace('text-', 'bg-')}`} />
+                )}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Bottom: collapse button when collapsed, realtime feed */}
+        <div className="px-2 pb-3 pt-2 border-t border-slate-800/80 shrink-0 space-y-2">
+          {sidebarOpen ? (
+            <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-2.5 py-2">
+              <span className={`h-2 w-2 rounded-full shrink-0 ${isRealtimeActive ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+              <span className="text-[10px] font-bold text-emerald-400 tracking-wide whitespace-nowrap">
+                {isRealtimeActive ? 'LIVE' : 'CONNECTING...'}
+              </span>
+            </div>
+          ) : (
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="w-full flex items-center justify-center p-2 rounded-xl hover:bg-slate-800 text-slate-500 hover:text-white transition-colors"
+              title="Expand sidebar"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      </aside>
+
+      {/* ══════════════════════════════════════
+           MAIN CONTENT AREA
+          ══════════════════════════════════════ */}
+      <main className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative">
         {/* Header */}
-        <header className="h-16 bg-[#0a0f1c]/90 backdrop-blur-xl border-b border-slate-800/60 flex items-center justify-between px-6 shrink-0 z-20">
-          <div className="flex items-center gap-4">
-            {/* Mobile menu toggle could go here */}
-            <h2 className="text-lg font-bold text-white capitalize flex items-center gap-2">
-              <span className="text-orange-500 lg:hidden">☰</span>
-              {activeTab !== 'dashboard' && (
-                <button onClick={() => setActiveTab('dashboard')} className="p-1 -ml-2 rounded-lg hover:bg-slate-800 transition-colors text-slate-400 hover:text-white flex items-center">
-                  <ChevronRight className="h-5 w-5 rotate-180" />
-                </button>
-              )}
-              {activeTab.replace('-', ' ')}
+        <header className="h-16 bg-[#0a0f1c]/90 backdrop-blur-xl border-b border-slate-800/60 flex items-center justify-between px-4 sm:px-6 shrink-0 z-20">
+          <div className="flex items-center gap-3">
+            {/* Mobile: hamburger to open sidebar */}
+            <button
+              onClick={() => setSidebarOpen(v => !v)}
+              className="p-2 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+              title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            <h2 className="text-base font-bold text-white capitalize">
+              {SIDEBAR_MODULES.find(m => m.id === activeTab)?.name || activeTab}
             </h2>
           </div>
 
-          <div className="flex items-center gap-3">
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-9 bg-orange-500/10 border-orange-500/30 text-orange-400 hover:bg-orange-500/20 text-xs font-bold"
-              asChild
-            >
-              <Link to="/dispatcher" className="flex items-center">
-                <Radio className="h-3.5 w-3.5 mr-1.5 animate-pulse text-orange-400 shrink-0" />
-                <span className="hidden sm:inline">Dispatcher Console (Live Ops) →</span>
-                <span className="sm:hidden">Console</span>
-              </Link>
-            </Button>
-
-            <div className="hidden sm:flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-3 py-1.5">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="hidden md:flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-3 py-1.5">
               <span className={`h-2 w-2 rounded-full ${isRealtimeActive ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
               <span className="text-[11px] font-bold text-emerald-400 tracking-wider">
-                {isRealtimeActive ? 'LIVE REALTIME FEED' : 'CONNECTING...'}
+                {isRealtimeActive ? 'LIVE REALTIME' : 'CONNECTING...'}
               </span>
               <span className="text-[10px] text-slate-500 ml-1">
                 {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
               </span>
             </div>
-
             <button
               onClick={handleRefresh}
               className="h-9 w-9 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
@@ -730,37 +850,18 @@ function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Command Center Modules Grid */}
+              {/* Quick Access Tiles (condensed row at bottom of dashboard) */}
               <div className="mt-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h3 className="text-lg font-bold text-white">Command Center Modules</h3>
-                    <p className="text-sm text-slate-400">Access all interactive features and settings</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                  {[
-                    { id: 'map', name: 'Live Radar', icon: MapPin, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-                    { id: 'customers', name: 'Customer DB', icon: Users, color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
-                    { id: 'approvals', name: 'Rider Approvals', icon: ShieldCheck, color: 'text-orange-400', bg: 'bg-orange-500/10' },
-                    { id: 'pricing', name: 'Pricing Engine', icon: Banknote, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-                    { id: 'zones', name: 'Operating Zones', icon: Map, color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
-                    { id: 'commissions', name: 'Commissions', icon: Percent, color: 'text-purple-400', bg: 'bg-purple-500/10' },
-                    { id: 'dispatchers', name: 'Dispatch Staff', icon: Headset, color: 'text-pink-400', bg: 'bg-pink-500/10' },
-                    { id: 'complaints', name: 'Support Tickets', icon: AlertTriangle, color: 'text-red-400', bg: 'bg-red-500/10' },
-                    { id: 'payments', name: 'Payment Gateway', icon: CreditCard, color: 'text-amber-400', bg: 'bg-amber-500/10' },
-                    { id: 'reports', name: 'Analytics Data', icon: BarChart3, color: 'text-teal-400', bg: 'bg-teal-500/10' },
-                  ].map((mod) => (
-                    <button 
-                      key={mod.id} 
+                <p className="text-sm text-slate-500 mb-3">Quick access — or use the sidebar to navigate</p>
+                <div className="flex flex-wrap gap-2">
+                  {SIDEBAR_MODULES.filter(m => m.id !== 'dashboard').map((mod) => (
+                    <button
+                      key={mod.id}
                       onClick={() => setActiveTab(mod.id as any)}
-                      className="group flex flex-col items-center justify-center p-6 rounded-2xl border border-slate-800 bg-[#0a0f1c] hover:border-slate-600 hover:bg-slate-800/50 transition-all gap-3 cursor-pointer relative overflow-hidden"
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border ${mod.bg} ${mod.border} ${mod.color} text-xs font-semibold hover:opacity-80 transition-opacity`}
                     >
-                      <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                      <div className={`h-14 w-14 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 group-hover:-translate-y-1 ${mod.bg}`}>
-                        <mod.icon className={`h-7 w-7 ${mod.color}`} />
-                      </div>
-                      <span className="text-sm font-bold text-slate-300 group-hover:text-white">{mod.name}</span>
+                      <mod.icon className="h-3.5 w-3.5" />
+                      {mod.name}
                     </button>
                   ))}
                 </div>
