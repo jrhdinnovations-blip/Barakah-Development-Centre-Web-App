@@ -26,6 +26,8 @@ export const Route = createFileRoute('/_authenticated/admin/swift-move')({
       const { data, error } = await supabase.auth.getUser();
       const user = data?.user;
       if (error || !user) throw redirect({ to: '/auth', search: { mode: 'login' } });
+      const SUPER_ADMIN_EMAILS = ['barakahdevcentre@gmail.com', 'barakahdevelopmentcentre@gmail.com'];
+      if (SUPER_ADMIN_EMAILS.includes(user.email?.toLowerCase() || '')) return;
       const { data: roleData } = await supabase
         .from('user_roles')
         .select('role')

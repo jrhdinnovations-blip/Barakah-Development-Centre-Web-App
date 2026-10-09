@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, Link, useNavigate, redirect } from '@tanstack/react-router';
 import {
   Car,
   Package,
@@ -49,6 +49,41 @@ import { encodeRideMetadata, encodeDispatchMetadata, parseOrderMetadata } from '
 import { calculateDeliveryPrice } from '@/lib/swift-pricing';
 
 export const Route = createFileRoute('/app')({
+  // Role-routing guard: after Google OAuth redirects here, send staff to
+  // their correct dashboards. Customers and guests stay on /app.
+  beforeLoad: async () => {
+    try {
+      const { supabase: sb } = await import('@/integrations/supabase/client');
+      const { data: { user } } = await sb.auth.getUser();
+      if (!user) return; // Not signed in — render /app normally
+
+      const SUPER_ADMIN_EMAILS = ['barakahdevcentre@gmail.com', 'barakahdevelopmentcentre@gmail.com'];
+      if (SUPER_ADMIN_EMAILS.includes(user.email?.toLowerCase() || '')) {
+        throw redirect({ to: '/admin/swift-move' as any });
+      }
+
+      const { data: roleData } = await sb
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id);
+      const userRoles = (roleData || []).map((r: any) => r.role);
+      const metaRole = user.user_metadata?.['role'];
+      const allRoles = new Set([...userRoles, metaRole].filter(Boolean));
+
+      // Redirect staff to their dashboards; customers stay on /app
+      if (allRoles.has('administrator') || allRoles.has('admin') || allRoles.has('swift_manager')) {
+        throw redirect({ to: '/admin/swift-move' as any });
+      } else if (allRoles.has('swift_dispatcher') || allRoles.has('dispatcher')) {
+        throw redirect({ to: '/dispatcher' as any });
+      } else if (allRoles.has('driver') || allRoles.has('dispatch_rider')) {
+        throw redirect({ to: '/drive' as any });
+      }
+      // Registered customers — render /app normally
+    } catch (err: any) {
+      // Re-throw TanStack Router redirects; swallow other errors so /app still renders
+      if (err?.isRedirect || err?.to || err?.statusCode) throw err;
+    }
+  },
   head: () => ({
     meta: [
       { title: 'SwiftMove App — On-Demand Rides & Parcel Dispatch' },

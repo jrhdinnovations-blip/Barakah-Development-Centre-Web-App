@@ -119,13 +119,12 @@ function AuthPage() {
   async function handleGoogle() {
     setGoogleBusy(true);
     try {
-      // Always redirect back to /auth after OAuth so the beforeLoad role-routing
-      // logic can inspect the user's roles and send them to the correct dashboard.
+      // Redirect back to /app after OAuth — this URL is already in Supabase's
+      // allowlist (proven: dispatchers could always sign in this way).
+      // /app's beforeLoad will inspect the user's roles and send staff to the
+      // correct dashboard; customers stay on /app to book rides/deliveries.
       const origin = typeof window !== "undefined" ? window.location.origin : (isSwift ? "https://swiftmove.ng" : "https://barakahdevcentre.com");
-      // Preserve any explicit redirect param so beforeLoad can honour it
-      const redirectUrl = redirectParam
-        ? `${origin}/auth?redirect=${encodeURIComponent(redirectParam)}`
-        : `${origin}/auth`;
+      const redirectUrl = `${origin}/app`;
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
