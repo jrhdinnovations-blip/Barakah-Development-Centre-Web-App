@@ -535,10 +535,10 @@ export function SwiftMoveLanding() {
 
           {user ? (
             <Link
-              to="/app"
+              to={'/my-swift-move' as any}
               className="inline-flex items-center gap-1 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-[#FF5500] hover:bg-[#e04800] border border-[#FF5500]/60 text-white text-xs font-black shadow-md shadow-[#FF5500]/25 transition-all"
             >
-              <span>Open App</span>
+              <span>My Dashboard</span>
               <ChevronRight className="h-3.5 w-3.5" />
             </Link>
           ) : (
@@ -583,9 +583,9 @@ export function SwiftMoveLanding() {
               Jos Active
             </span>
           </div>
-          {/* Back to App shortcut */}
+          {/* Dashboard shortcut */}
           <Link
-            to="/app"
+            to={'/my-swift-move' as any}
             onClick={() => setMobileMenuOpen(false)}
             className="w-full flex items-center justify-between px-3 py-3 rounded-xl text-xs font-black text-white bg-[#FF5500]/15 border border-[#FF5500]/30 hover:bg-[#FF5500]/25 transition-colors"
           >
@@ -593,7 +593,7 @@ export function SwiftMoveLanding() {
               <span className="h-7 w-7 rounded-lg bg-[#FF5500]/20 text-[#FF5500] flex items-center justify-center">
                 <ArrowRight className="h-4 w-4" />
               </span>
-              <span className="text-[#FF5500]">Open Booking App</span>
+              <span className="text-[#FF5500]">Open My Dashboard</span>
             </span>
             <ChevronRight className="h-4 w-4 text-[#FF5500]" />
           </Link>
