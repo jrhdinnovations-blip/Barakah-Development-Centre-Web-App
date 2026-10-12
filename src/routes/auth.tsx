@@ -9,7 +9,10 @@ import { detectPlatform } from "@/lib/platform-detection.server";
 
 
 const searchSchema = z.object({
-  mode: z.enum(["login", "register", "forgot"]).catch("login"),
+  mode: z
+    .enum(["login", "register", "signup", "forgot"])
+    .catch("login")
+    .transform((val) => (val === "signup" ? "register" : val)),
   redirect: z.string().optional(),
 });
 
