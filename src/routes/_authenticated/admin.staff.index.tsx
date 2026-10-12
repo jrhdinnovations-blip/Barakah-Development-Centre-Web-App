@@ -33,6 +33,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { DirectoryTabs } from '@/components/admin/directory-tabs';
+import { isSwiftmoveDomain } from '@/lib/domain-detection';
 
 export const Route = createFileRoute('/_authenticated/admin/staff/')({
   ssr: false,
@@ -41,7 +42,7 @@ export const Route = createFileRoute('/_authenticated/admin/staff/')({
   },
   head: () => ({
     meta: [
-      { title: 'All Staff — Barakah Admin' },
+      { title: isSwiftmoveDomain() ? 'All Staff — SwiftMove Admin' : 'All Staff — Barakah Admin' },
       { name: 'robots', content: 'noindex' },
     ],
   }),

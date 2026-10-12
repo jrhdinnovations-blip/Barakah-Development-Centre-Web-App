@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { Truck, ArrowLeft, Loader2, Eye, EyeOff, UserPlus, Bike, Car, CheckCircle2, Copy, Check, Sparkles, Phone, Mail, Lock } from 'lucide-react';
 import { createUserAdmin, confirmUserEmailAdmin } from '@/lib/admin.functions';
 import { requireAdminRouteAccess } from '@/lib/admin-auth';
+import { isSwiftmoveDomain } from '@/lib/domain-detection';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -15,7 +16,7 @@ export const Route = createFileRoute('/_authenticated/admin/riders/add')({
   },
   head: () => ({
     meta: [
-      { title: 'Onboard Fleet Personnel — Barakah Admin' },
+      { title: isSwiftmoveDomain() ? 'Onboard Fleet Personnel — SwiftMove Admin' : 'Onboard Fleet Personnel — Barakah Admin' },
       { name: 'robots', content: 'noindex' },
     ],
   }),

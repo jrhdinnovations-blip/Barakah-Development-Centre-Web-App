@@ -78,6 +78,7 @@ const SIDEBAR_MODULES = [
 ] as const;
 
 function AdminDashboard() {
+  const navigate = useNavigate();
   const [deliveries, setDeliveries] = useState<any[]>([]);
   const [vehicleBookings, setVehicleBookings] = useState<any[]>([]);
   const [drivers, setDrivers] = useState<any[]>([]);
@@ -502,8 +503,6 @@ function AdminDashboard() {
       </div>
     );
   }
-
-  const navigate = useNavigate();
 
   return (
     <div className="flex h-full bg-[#070b14] text-slate-200 font-sans selection:bg-orange-500/30 overflow-hidden">

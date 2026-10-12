@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router';
-import { User, Shield, Truck } from 'lucide-react';
+import { ArrowLeft, User, Shield, Truck } from 'lucide-react';
 
 interface DirectoryTabsProps {
   activeTab: 'users' | 'staff' | 'riders';
@@ -49,6 +49,15 @@ export function DirectoryTabs({ activeTab, counts }: DirectoryTabsProps) {
 
   return (
     <div className="flex flex-wrap items-center gap-2 p-1.5 bg-[#0a0f1c] border border-slate-800 rounded-2xl w-full sm:w-fit">
+      <Link
+        to="/admin"
+        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800/60 border border-transparent transition-all shrink-0"
+        title="Return to Admin Dashboard"
+      >
+        <ArrowLeft className="h-3.5 w-3.5" />
+        <span>Dashboard</span>
+      </Link>
+      <div className="h-6 w-px bg-slate-800/80 my-auto hidden sm:block" />
       {tabs.map((tab) => {
         const isActive = activeTab === tab.id;
         const Icon = tab.icon;

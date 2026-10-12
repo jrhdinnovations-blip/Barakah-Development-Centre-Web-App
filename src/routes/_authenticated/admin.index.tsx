@@ -2,13 +2,14 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { createFileRoute, redirect, Link } from '@tanstack/react-router';
 import { supabase } from '@/integrations/supabase/client';
 import { adminFetchAllOrders } from '@/lib/dispatcher.functions';
+import { isSwiftmoveDomain } from '@/lib/domain-detection';
 import {
   Users, ShieldCheck, Activity, Package, Car,
   Settings, CreditCard, Building, MapPin, Truck, Shield, RefreshCw,
   Radio, Mail, Image, ShieldAlert, TrendingUp, TrendingDown, Zap,
   ArrowUpRight, Clock, CheckCircle2, XCircle, Navigation, Loader2,
   BarChart3, Wallet, UserPlus, Key, Sparkles, Globe2, AlertCircle,
-  ChevronRight, Bell, Layers, Database
+  ChevronRight, Bell, Layers, Database, LogOut
 } from 'lucide-react';
 import {
   AreaChart, Area, ResponsiveContainer, Tooltip, XAxis,
@@ -616,62 +617,110 @@ function CentralAdminDashboard() {
       <div className="relative max-w-7xl mx-auto px-6 lg:px-10 py-8 lg:py-12 space-y-10">
 
         {/* ══ HEADER ══════════════════════════════════════════════════════════ */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <div className="relative h-12 w-12 rounded-2xl bg-gradient-to-br from-blue-600/30 to-purple-600/20 border border-blue-500/30 flex items-center justify-center shrink-0">
-                <ShieldCheck className="h-6 w-6 text-blue-400" />
-                <span className="absolute -top-1 -right-1 h-3.5 w-3.5 rounded-full bg-[#070b14] flex items-center justify-center">
-                  <span className={`h-2 w-2 rounded-full ${isRealtimeActive ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
-                </span>
+        {(() => {
+          const isSwift = isSwiftmoveDomain();
+          return (
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+              <div className="space-y-2">
+                <div className="flex items-center gap-3">
+                  <div className={`relative h-12 w-12 rounded-2xl flex items-center justify-center shrink-0 border ${
+                    isSwift
+                      ? 'bg-gradient-to-br from-orange-600/30 to-amber-600/20 border-orange-500/30'
+                      : 'bg-gradient-to-br from-blue-600/30 to-purple-600/20 border-blue-500/30'
+                  }`}>
+                    {isSwift ? (
+                      <Zap className="h-6 w-6 text-orange-400" />
+                    ) : (
+                      <ShieldCheck className="h-6 w-6 text-blue-400" />
+                    )}
+                    <span className="absolute -top-1 -right-1 h-3.5 w-3.5 rounded-full bg-[#070b14] flex items-center justify-center">
+                      <span className={`h-2 w-2 rounded-full ${isRealtimeActive ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">{greeting}</p>
+                    <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight leading-none">
+                      {isSwift ? 'SwiftMove Admin Dashboard' : 'Admin Dashboard'}
+                    </h1>
+                  </div>
+                </div>
+                <p className="text-[13px] text-slate-500 max-w-lg pl-1">
+                  {isSwift
+                    ? 'SwiftMove Logistics Operations Hub — monitor live deliveries, fleet activity, and dispatch in real time.'
+                    : 'Centralised operations hub — monitor live orders, manage your fleet, and oversee system access in real time.'}
+                </p>
               </div>
-              <div>
-                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">{greeting}</p>
-                <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight leading-none">
-                  Admin Dashboard
-                </h1>
+
+              {/* Header actions */}
+              <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                {/* Realtime status pill */}
+                <div className={`flex items-center gap-2 rounded-full border px-3.5 py-2 text-xs font-bold tracking-wider transition-colors ${
+                  isRealtimeActive
+                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                    : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                }`}>
+                  <span className={`h-2 w-2 rounded-full ${isRealtimeActive ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500 animate-pulse'}`} />
+                  {isRealtimeActive ? 'LIVE' : 'CONNECTING'}
+                  <span className="text-[10px] text-slate-500 font-mono ml-1">
+                    {lastSync.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  </span>
+                </div>
+
+                {/* Refresh button */}
+                <button
+                  onClick={handleManualRefresh}
+                  disabled={isRefreshing}
+                  className="h-10 w-10 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-center text-slate-400 hover:text-white hover:border-slate-700 hover:bg-slate-800 transition-all active:scale-95 disabled:opacity-50"
+                  title="Refresh metrics"
+                >
+                  <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin text-blue-400' : ''}`} />
+                </button>
+
+                {/* Orders Radar shortcut */}
+                <Link
+                  to="/admin/swift-move"
+                  className="flex items-center gap-2 h-10 px-3.5 rounded-xl bg-slate-900/80 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 hover:bg-slate-800 text-[12px] font-bold transition-all active:scale-95"
+                >
+                  <Package className="h-3.5 w-3.5 text-orange-400" />
+                  <span>Orders Radar</span>
+                </Link>
+
+                {/* Dispatcher shortcut */}
+                <Link
+                  to="/dispatcher"
+                  className="flex items-center gap-2 h-10 px-4 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 text-white text-[12px] font-bold shadow-lg shadow-orange-500/20 hover:shadow-orange-500/30 hover:from-orange-500 hover:to-orange-400 transition-all active:scale-95"
+                >
+                  <Radio className="h-3.5 w-3.5" />
+                  <span>Live Dispatch</span>
+                </Link>
+
+                {/* Customer App shortcut (SwiftMove) */}
+                {isSwift && (
+                  <Link
+                    to="/my-swift-move"
+                    className="flex items-center gap-2 h-10 px-3.5 rounded-xl bg-slate-900/80 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 hover:bg-slate-800 text-[12px] font-bold transition-all active:scale-95"
+                  >
+                    <Car className="h-3.5 w-3.5 text-emerald-400" />
+                    <span className="hidden sm:inline">Customer App</span>
+                  </Link>
+                )}
+
+                {/* Sign Out */}
+                <button
+                  onClick={async () => {
+                    await supabase.auth.signOut();
+                    window.location.href = isSwift ? '/' : '/auth';
+                  }}
+                  className="h-10 px-3 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center gap-1.5 text-slate-400 hover:text-red-400 hover:border-red-500/30 hover:bg-slate-800 transition-all text-[12px] font-bold active:scale-95"
+                  title="Sign Out"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Sign Out</span>
+                </button>
               </div>
             </div>
-            <p className="text-[13px] text-slate-500 max-w-lg pl-1">
-              Centralised operations hub — monitor live orders, manage your fleet, and oversee system access in real time.
-            </p>
-          </div>
-
-          {/* Header actions */}
-          <div className="flex items-center gap-3 shrink-0">
-            {/* Realtime status pill */}
-            <div className={`flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-bold tracking-wider transition-colors ${
-              isRealtimeActive
-                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-                : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
-            }`}>
-              <span className={`h-2 w-2 rounded-full ${isRealtimeActive ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500 animate-pulse'}`} />
-              {isRealtimeActive ? 'LIVE' : 'CONNECTING'}
-              <span className="text-[10px] text-slate-500 font-mono ml-1">
-                {lastSync.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-              </span>
-            </div>
-
-            {/* Refresh button */}
-            <button
-              onClick={handleManualRefresh}
-              disabled={isRefreshing}
-              className="h-10 w-10 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-center text-slate-400 hover:text-white hover:border-slate-700 hover:bg-slate-800 transition-all active:scale-95 disabled:opacity-50"
-              title="Refresh metrics"
-            >
-              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin text-blue-400' : ''}`} />
-            </button>
-
-            {/* Dispatcher shortcut */}
-            <Link
-              to="/dispatcher"
-              className="hidden sm:flex items-center gap-2 h-10 px-4 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 text-white text-[12px] font-bold shadow-lg shadow-orange-500/20 hover:shadow-orange-500/30 hover:from-orange-500 hover:to-orange-400 transition-all active:scale-95"
-            >
-              <Radio className="h-3.5 w-3.5" />
-              Live Dispatch
-            </Link>
-          </div>
-        </div>
+          );
+        })()}
 
         {/* ══ LOADING STATE ══════════════════════════════════════════════════ */}
         {isLoading && (
@@ -859,7 +908,7 @@ function CentralAdminDashboard() {
         <div className="flex items-center justify-between pt-4 border-t border-slate-800/40">
           <div className="flex items-center gap-2 text-[11px] text-slate-600">
             <Database className="h-3 w-3" />
-            <span>Barakah Development Centre · Admin Console</span>
+            <span>{isSwiftmoveDomain() ? 'SwiftMove' : 'Barakah Development Centre'} · Admin Console</span>
           </div>
           <div className="text-[11px] text-slate-700 font-mono">
             Synced {lastSync.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

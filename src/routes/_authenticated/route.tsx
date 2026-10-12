@@ -42,8 +42,7 @@ function AuthenticatedErrorFallback({ error, reset }: { error: Error; reset: () 
 
   const isChunk = isChunkLoadError(error);
   const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
-  const isAdminRoute = pathname.startsWith('/admin') || pathname.startsWith('/dispatcher');
-  const isSwift = !isAdminRoute && isSwiftmoveDomain();
+  const isSwift = isSwiftmoveDomain() || isSwiftmovePath(pathname);
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-slate-950 text-slate-100 overflow-x-hidden">
@@ -79,8 +78,8 @@ function AuthenticatedErrorFallback({ error, reset }: { error: Error; reset: () 
               {isChunk ? 'Refresh App' : 'Retry View'}
             </Button>
             <Link
-              to={(isSwift ? '/' : '/my-barakah') as any}
-              className="inline-flex items-center justify-center px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-colors"
+              to={(isSwift ? (pathname.startsWith('/admin') ? '/admin' : '/my-swift-move') : '/my-barakah') as any}
+              className="inline-flex items-center justify-center px-4 py-2 text-xs font-semibold rounded-lg bg-orange-600 hover:bg-orange-700 text-white transition-colors"
             >
               Go to Dashboard
             </Link>
@@ -96,20 +95,16 @@ function AuthenticatedLayout() {
   const pathname = location.pathname;
   const isSwiftDomain = isSwiftmoveDomain();
 
-  // Admin and dispatcher routes ALWAYS need the sidebar, regardless of domain.
-  const isAdminRoute =
-    pathname.startsWith('/admin') ||
-    pathname.startsWith('/dispatcher');
+  // On SwiftMove domain, ALL routes use clean full-width layout.
+  // Admin/dispatcher dashboards are fully self-contained with their own nav.
+  // SwiftMove customer routes also use their own SwiftmoveHeader for navigation.
+  const isCleanLayout =
+    isSwiftDomain ||
+    isSwiftmovePath(pathname) ||
+    pathname === '/history';
 
-  // SwiftMove customer routes: clean full-width shell (no sidebar — SwiftmoveHeader handles nav)
-  const isSwiftRoute =
-    !isAdminRoute &&
-    (isSwiftDomain ||
-      isSwiftmovePath(pathname) ||
-      pathname === '/history');
-
-  // For SwiftMove customer routes, use clean full-width shell (SwiftmoveHeader provides full navigation)
-  if (isSwiftRoute) {
+  // SwiftMove and SwiftMove-admin routes: clean full-width shell
+  if (isCleanLayout) {
     return (
       <div className="flex-1 min-w-0 w-full">
         <Outlet />

@@ -102,7 +102,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
             Updating Application
           </h1>
           <p className="mt-2 text-sm text-slate-300 max-w-sm mx-auto leading-relaxed">
-            A new version of Barakah & SwiftMove is ready. Tap below to refresh and load the latest updates.
+            A new version of {isSwift ? 'SwiftMove' : 'Barakah'} is ready. Tap below to refresh and load the latest updates.
           </p>
           <div className="mt-6 flex flex-col gap-3">
             <button

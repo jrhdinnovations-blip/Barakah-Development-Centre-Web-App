@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { createUserAdmin } from '@/lib/admin.functions';
 import { requireAdminRouteAccess } from '@/lib/admin-auth';
+import { isSwiftmoveDomain } from '@/lib/domain-detection';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -18,7 +19,7 @@ export const Route = createFileRoute('/_authenticated/admin/users/create')({
   },
   head: () => ({
     meta: [
-      { title: 'Create User — Barakah Admin' },
+      { title: isSwiftmoveDomain() ? 'Create User — SwiftMove Admin' : 'Create User — Barakah Admin' },
       { name: 'robots', content: 'noindex' },
     ],
   }),
@@ -162,7 +163,7 @@ function CreateUserPage() {
     let text = '';
     if (loginMethod === 'google') {
       text = [
-        '=== Barakah Platform Account (Google Account) ===',
+        `=== ${isSwiftmoveDomain() ? 'SwiftMove' : 'Barakah'} Account (Google Account) ===`,
         `Name: ${form.full_name || '—'}`,
         `Email: ${form.email}`,
         `Role: ${selectedRole.label}`,

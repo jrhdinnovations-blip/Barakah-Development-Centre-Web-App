@@ -40,16 +40,21 @@ function UnderConstructionPage() {
   const path = router.state.location.pathname;
 
   // Immediate runtime redirect if somehow reached on SwiftMove
-  if (
+  const shouldRedirect =
     isSwiftmoveDomain() ||
     isSwiftmovePath(path) ||
     path === '/swiftmove' ||
-    path === '/swift-move'
-  ) {
+    path === '/swift-move';
+
+  if (shouldRedirect) {
     if (typeof window !== 'undefined') {
       window.location.replace(isSwiftmoveDomain() ? '/my-swift-move' : '/swiftmove');
     }
-    return null;
+    return (
+      <div className="min-h-screen bg-[#070b14] flex items-center justify-center">
+        <div className="text-slate-500 text-sm">Redirecting…</div>
+      </div>
+    );
   }
 
   // Derive a human-readable module name from the path
@@ -82,7 +87,7 @@ function UnderConstructionPage() {
             <span className="text-blue-400">{moduleName}</span> is building.
           </h1>
           <p className="text-slate-400 text-lg max-w-xl mx-auto leading-relaxed">
-            This module is part of the Barakah Enterprise Ecosystem roadmap. Our engineering team is currently developing this feature to bring you a seamless management experience.
+            This module is part of the Enterprise Ecosystem roadmap. Our engineering team is currently developing this feature to bring you a seamless management experience.
           </p>
         </div>
 
