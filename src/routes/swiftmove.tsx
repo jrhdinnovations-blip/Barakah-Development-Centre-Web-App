@@ -98,15 +98,20 @@ export function SwiftMoveLanding() {
   // Active Action Pillar: 'ride' | 'send' | 'move' | 'track'
   const [activePillar, setActivePillar] = useState<ServicePillar>('ride');
 
-  // Quick switch pillar with smooth scroll into booking card
+  // Quick switch pillar — authenticated users go to the unified portal; guests see the CTA card
   const switchPillar = (pillar: ServicePillar) => {
     setActivePillar(pillar);
     setMobileMenuOpen(false);
-    const el = document.getElementById('booking-deck');
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (user) {
+      const serviceMap: Record<ServicePillar, string> = { ride: 'ride', send: 'parcel', track: 'track', move: 'ride' };
+      navigate({ to: '/my-swift-move' as any, search: { service: serviceMap[pillar] } });
     } else {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      const el = document.getElementById('booking-deck');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
     }
   };
 
@@ -181,7 +186,7 @@ export function SwiftMoveLanding() {
 
   // Fare calculations
   const selectedTier = useMemo(() => {
-    return VEHICLE_TIERS.find((t) => t.id === selectedTierId) || VEHICLE_TIERS[0];
+    return VEHICLE_TIERS.find((t) => t.id === selectedTierId) || VEHICLE_TIERS[0]!;
   }, [selectedTierId]);
 
   const rideFare = useMemo(() => {
@@ -190,12 +195,7 @@ export function SwiftMoveLanding() {
 
   const deliveryFare = useMemo(() => {
     const weight = courierType === 'van' ? 25 : packageCategory === 'document' ? 0.5 : 2;
-    return calculateDeliveryPrice({
-      distanceKm: distanceKm || 4.5,
-      weightKg: weight,
-      isExpress: true,
-      serviceType: courierType === 'van' ? 'truck' : 'standard',
-    });
+    return calculateDeliveryPrice(distanceKm || 4.5, weight);
   }, [distanceKm, packageCategory, courierType]);
 
   // Swap pickup & dropoff
@@ -220,7 +220,7 @@ export function SwiftMoveLanding() {
       toast.error('Please enter both pickup and destination in Jos.');
       return;
     }
-    const phoneToUse = passengerPhone.trim() || user?.user_metadata?.phone || user?.phone || '';
+    const phoneToUse = passengerPhone.trim() || (user?.user_metadata?.['phone'] as string) || (user?.phone as string) || '';
     if (!phoneToUse) {
       toast.error('Please provide a contact phone number for the driver.');
       return;
@@ -244,21 +244,23 @@ export function SwiftMoveLanding() {
         customerPhone: phoneToUse,
         notes: scheduleTiming === 'scheduled' ? `Scheduled for ${scheduledDate} at ${scheduledTime}` : 'Instant Ride Request',
         isScheduled: scheduleTiming === 'scheduled',
-        scheduledDate: scheduleTiming === 'scheduled' ? scheduledDate : undefined,
-        scheduledTime: scheduleTiming === 'scheduled' ? scheduledTime : undefined,
+        scheduledDate: scheduleTiming === 'scheduled' ? (scheduledDate || null) : null,
+        scheduledTime: scheduleTiming === 'scheduled' ? (scheduledTime || null) : null,
       });
 
       await customerCreateRideRequest({
-        customerId,
-        pickupAddress: pickupQuery,
-        dropoffAddress: dropoffQuery,
-        packageType: meta,
-        capacity: selectedTier.capacity,
-        category: selectedTier.category,
-        subCategoryDb: selectedTier.subCategoryDb,
-        distanceKm: distanceKm || 4.5,
-        fare: rideFare,
-        trackingId,
+        data: {
+          customerId,
+          pickupAddress: pickupQuery,
+          dropoffAddress: dropoffQuery,
+          packageType: meta,
+          capacity: selectedTier.capacity,
+          category: selectedTier.category,
+          subCategoryDb: selectedTier.subCategoryDb,
+          distanceKm: distanceKm || 4.5,
+          fare: rideFare,
+          trackingId,
+        },
       });
 
       setBookingConfirmation({
@@ -268,8 +270,8 @@ export function SwiftMoveLanding() {
         dropoff: dropoffQuery,
         fare: rideFare,
         etaMinutes: scheduleTiming === 'scheduled' ? 0 : (selectedTier.etaMinutes || 3),
-        scheduledDate: scheduleTiming === 'scheduled' ? scheduledDate : undefined,
-        scheduledTime: scheduleTiming === 'scheduled' ? scheduledTime : undefined,
+        ...(scheduleTiming === 'scheduled' && scheduledDate ? { scheduledDate } : {}),
+        ...(scheduleTiming === 'scheduled' && scheduledTime ? { scheduledTime } : {}),
       });
       toast.success(
         scheduleTiming === 'scheduled'
@@ -287,8 +289,8 @@ export function SwiftMoveLanding() {
         dropoff: dropoffQuery,
         fare: rideFare,
         etaMinutes: scheduleTiming === 'scheduled' ? 0 : 3,
-        scheduledDate: scheduleTiming === 'scheduled' ? scheduledDate : undefined,
-        scheduledTime: scheduleTiming === 'scheduled' ? scheduledTime : undefined,
+        ...(scheduleTiming === 'scheduled' && scheduledDate ? { scheduledDate } : {}),
+        ...(scheduleTiming === 'scheduled' && scheduledTime ? { scheduledTime } : {}),
       });
       toast.success(
         scheduleTiming === 'scheduled'
@@ -317,24 +319,22 @@ export function SwiftMoveLanding() {
       const customerId = user?.id || 'anon-customer-' + Date.now();
 
       const meta = encodeDispatchMetadata({
-        senderName: user?.user_metadata?.full_name || 'Customer',
-        senderPhone: senderPhone || user?.user_metadata?.phone || '',
-        recipientName: recipientName || 'Recipient',
-        recipientPhone: recipientPhone,
-        packageCategory: packageCategory,
-        notes: `Courier: ${courierType.toUpperCase()}`,
-        weightKg: courierType === 'van' ? 25 : 2,
+        cargoType: `Express ${packageCategory.toUpperCase()} (${courierType.toUpperCase()})`,
+        customerPhone: senderPhone || (user?.user_metadata?.['phone'] as string) || (user?.phone as string) || '',
+        description: `Recipient: ${recipientName || 'Recipient'} (${recipientPhone || 'No phone'}). Courier: ${courierType.toUpperCase()}`,
       });
 
       await customerCreateDispatchOrder({
-        customerId,
-        pickupAddress: pickupQuery,
-        dropoffAddress: dropoffQuery,
-        packageType: meta,
-        weightKg: courierType === 'van' ? 25 : 2,
-        distanceKm: distanceKm || 4.5,
-        fare: deliveryFare,
-        trackingId,
+        data: {
+          customerId,
+          pickupAddress: pickupQuery,
+          dropoffAddress: dropoffQuery,
+          packageType: meta,
+          weightKg: courierType === 'van' ? 25 : 2,
+          distanceKm: distanceKm || 4.5,
+          fare: deliveryFare,
+          trackingId,
+        },
       });
 
       setBookingConfirmation({
@@ -515,7 +515,7 @@ export function SwiftMoveLanding() {
             Live Radar
           </button>
           <Link
-            to="/_authenticated/drive"
+            to={"/drive" as any}
             className="px-3.5 py-1.5 rounded-full hover:bg-white/5 hover:text-[#FF5500] transition-colors"
           >
             Drive &amp; Earn
@@ -550,17 +550,14 @@ export function SwiftMoveLanding() {
               >
                 Sign In
               </Link>
-              <button
-                type="button"
-                onClick={() => {
-                  switchPillar('send');
-                  document.getElementById('booking-deck')?.scrollIntoView({ behavior: 'smooth' });
-                }}
-                className="inline-flex items-center gap-1 sm:gap-1.5 px-3.5 sm:px-5 py-1.5 sm:py-2 rounded-full bg-[#FF5500] hover:bg-[#e04800] text-white text-xs font-black shadow-lg shadow-[#FF5500]/25 transition-all active:scale-95 cursor-pointer"
+              <Link
+                to="/auth"
+                search={{ mode: 'signup' }}
+                className="inline-flex items-center gap-1 sm:gap-1.5 px-3.5 sm:px-5 py-1.5 sm:py-2 rounded-full bg-[#FF5500] hover:bg-[#e04800] text-white text-xs font-black shadow-lg shadow-[#FF5500]/25 transition-all active:scale-95"
               >
-                <span>Book Dispatch</span>
+                <span>Get Started</span>
                 <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-              </button>
+              </Link>
             </>
           )}
 
@@ -654,7 +651,7 @@ export function SwiftMoveLanding() {
           </button>
           <div className="pt-2 border-t border-white/10 flex flex-col gap-1">
             <Link
-              to="/_authenticated/drive"
+              to={"/drive" as any}
               onClick={() => setMobileMenuOpen(false)}
               className="flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold text-[#E8ECF2] hover:bg-white/5"
             >
@@ -715,795 +712,176 @@ export function SwiftMoveLanding() {
               </div>
             </div>
 
-            {/* ── RIGHT: Booking application — visible on first load ── */}
-          <div id="booking-deck" className="w-full scroll-mt-24">
-            <div className="bg-[#181D2B] rounded-2xl sm:rounded-3xl border border-[#0033AD]/60 shadow-2xl p-4 sm:p-8 relative transition-all">
-              
-              {/* Segmented 4-Pillar Tabs */}
-              <div className="flex sm:grid sm:grid-cols-4 gap-1.5 sm:gap-2 p-1.5 bg-[#0A0D14] border border-white/10 rounded-xl sm:rounded-2xl mb-5 sm:mb-7 overflow-x-auto no-scrollbar">
-                <button
-                  type="button"
-                  onClick={() => switchPillar('ride')}
-                  className={`flex-1 py-2.5 sm:py-3 px-3 rounded-lg sm:rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap ${
-                    activePillar === 'ride'
-                      ? 'bg-[#FF5500] text-white shadow-lg shadow-[#FF5500]/25'
-                      : 'text-[#A3ADB8] hover:text-white hover:bg-white/5'
-                  }`}
-                >
-                  <Car className="h-4 w-4 shrink-0" />
-                  <span>City Ride</span>
-                </button>
+            {/* ── RIGHT: Sign-In CTA + Public Tracking ── */}
+          <div id="booking-deck" className="w-full scroll-mt-24 space-y-5">
 
-                <button
-                  type="button"
-                  onClick={() => switchPillar('send')}
-                  className={`flex-1 py-2.5 sm:py-3 px-3 rounded-lg sm:rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap ${
-                    activePillar === 'send'
-                      ? 'bg-[#FF5500] text-white shadow-lg shadow-[#FF5500]/25'
-                      : 'text-[#A3ADB8] hover:text-white hover:bg-white/5'
-                  }`}
-                >
-                  <Package className="h-4 w-4 shrink-0" />
-                  <span>Send Parcel</span>
-                </button>
+            {/* Sign-In Promotional Card */}
+            <div className="bg-[#181D2B] rounded-2xl sm:rounded-3xl border border-[#0033AD]/60 shadow-2xl p-5 sm:p-8 relative overflow-hidden">
+              {/* Decorative glow */}
+              <div className="absolute top-0 right-0 w-48 h-48 bg-[#FF5500]/[0.08] rounded-full blur-[80px] pointer-events-none" />
+              <div className="absolute bottom-0 left-0 w-32 h-32 bg-[#0033AD]/15 rounded-full blur-[60px] pointer-events-none" />
 
-                <button
-                  type="button"
-                  onClick={() => switchPillar('track')}
-                  className={`flex-1 py-2.5 sm:py-3 px-3 rounded-lg sm:rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap ${
-                    activePillar === 'track'
-                      ? 'bg-[#FF5500] text-white shadow-lg shadow-[#FF5500]/25'
-                      : 'text-[#A3ADB8] hover:text-white hover:bg-white/5'
-                  }`}
-                >
-                  <Radio className="h-4 w-4 shrink-0" />
-                  <span>Track Live</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => switchPillar('move')}
-                  className={`flex-1 py-2.5 sm:py-3 px-3 rounded-lg sm:rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap ${
-                    activePillar === 'move'
-                      ? 'bg-[#FF5500] text-white shadow-lg shadow-[#FF5500]/25'
-                      : 'text-[#A3ADB8] hover:text-white hover:bg-white/5'
-                  }`}
-                >
-                  <Truck className="h-4 w-4 shrink-0" />
-                  <span>Agri &amp; Freight</span>
-                </button>
-              </div>
-
-              {/* ── TAB 1: RIDE (PASSENGER HAILING & SCHEDULE) ────────── */}
-              {activePillar === 'ride' && (
-                <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-200">
-                  
-                  {/* Instant Ride vs Schedule for Later Toggle */}
-                  <div className="flex items-center p-1 bg-[#0A0D14] rounded-xl sm:rounded-2xl border border-white/10">
-                    <button
-                      type="button"
-                      onClick={() => setScheduleTiming('now')}
-                      className={`flex-1 py-2 sm:py-2.5 px-3 rounded-lg sm:rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                        scheduleTiming === 'now'
-                          ? 'bg-[#FF5500] text-white shadow-xs'
-                          : 'text-[#A3ADB8] hover:text-white'
-                      }`}
-                    >
-                      <Zap className={`h-4 w-4 ${scheduleTiming === 'now' ? 'text-white fill-white' : 'text-[#8895A5]'}`} />
-                      <span>Ride Now (Instant)</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setScheduleTiming('scheduled')}
-                      className={`flex-1 py-2 sm:py-2.5 px-3 rounded-lg sm:rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                        scheduleTiming === 'scheduled'
-                          ? 'bg-[#0033AD] text-white shadow-xs'
-                          : 'text-[#A3ADB8] hover:text-white'
-                      }`}
-                    >
-                      <CalendarClock className="h-4 w-4" />
-                      <span>Schedule for Later</span>
-                    </button>
+              <div className="relative z-10 space-y-6">
+                <div>
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#0033AD]/20 border border-[#0033AD]/40 text-[11px] font-black uppercase tracking-wider text-[#3B82F6] mb-4">
+                    <Shield className="h-3 w-3" />
+                    <span>Secure Platform</span>
                   </div>
+                  <h2 className="font-[Barlow_Condensed,sans-serif] text-2xl sm:text-3xl lg:text-4xl font-black uppercase tracking-tight text-white mb-2 leading-tight">
+                    Book a Ride<br />
+                    <span className="text-[#FF5500]">or Send a Parcel</span>
+                  </h2>
+                  <p className="text-sm text-[#A3ADB8] font-medium leading-relaxed max-w-md">
+                    Sign in to access our full logistics suite&nbsp;&mdash; instant city rides, express parcel dispatch, and live tracking across Jos &amp; Plateau State.
+                  </p>
+                </div>
 
-                  {/* Scheduled Pickers */}
-                  {scheduleTiming === 'scheduled' && (
-                    <div className="p-3 sm:p-5 rounded-xl sm:rounded-2xl bg-[#121620] border border-[#0033AD]/40 space-y-3 animate-in fade-in duration-200">
-                      <div className="space-y-2 sm:space-y-0 sm:flex sm:items-center sm:justify-between">
-                        <span className="text-xs font-black uppercase tracking-wider text-[#E8ECF2] flex items-center gap-1.5">
-                          <Calendar className="h-3.5 w-3.5 text-[#FF5500] shrink-0" />
-                          <span>Pickup Date &amp; Time</span>
-                        </span>
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => setScheduledDate(todayStr)}
-                            className={`px-3 py-1 rounded-lg text-xs font-bold border transition-colors cursor-pointer ${
-                              scheduledDate === todayStr ? 'bg-[#FF5500] text-white border-[#FF5500]' : 'bg-[#0A0D14] text-[#A3ADB8] border-white/10 hover:border-white/30'
-                            }`}
-                          >
-                            Today
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setScheduledDate(tomorrowStr)}
-                            className={`px-3 py-1 rounded-lg text-xs font-bold border transition-colors cursor-pointer ${
-                              scheduledDate === tomorrowStr ? 'bg-[#FF5500] text-white border-[#FF5500]' : 'bg-[#0A0D14] text-[#A3ADB8] border-white/10 hover:border-white/30'
-                            }`}
-                          >
-                            Tomorrow
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2.5">
-                        <div>
-                          <label className="block text-[11px] font-bold text-[#A3ADB8] mb-1">
-                            Date <span className="text-[#FF5500]">*</span>
-                          </label>
-                          <input
-                            type="date"
-                            min={todayStr}
-                            value={scheduledDate}
-                            onChange={(e) => setScheduledDate(e.target.value)}
-                            className="w-full px-2.5 py-2.5 bg-[#0A0D14] border border-white/10 rounded-xl text-sm font-bold text-[#E8ECF2] focus:outline-none focus:border-[#FF5500] min-h-[44px]"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-bold text-[#A3ADB8] mb-1">
-                            Time <span className="text-[#FF5500]">*</span>
-                          </label>
-                          <input
-                            type="time"
-                            value={scheduledTime}
-                            onChange={(e) => setScheduledTime(e.target.value)}
-                            className="w-full px-2.5 py-2.5 bg-[#0A0D14] border border-white/10 rounded-xl text-sm font-bold text-[#E8ECF2] focus:outline-none focus:border-[#FF5500] min-h-[44px]"
-                            required
-                          />
-                        </div>
-                      </div>
-
-                      <p className="text-[11px] text-[#A3ADB8] font-semibold flex items-start gap-1.5">
-                        <CheckCircle className="h-3.5 w-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                        <span>A verified driver will be reserved and arrive at your scheduled pickup time.</span>
-                      </p>
+                {/* Feature highlights grid */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex items-center gap-2.5 p-3 rounded-xl bg-white/[0.03] border border-white/10">
+                    <Car className="h-5 w-5 text-[#3B82F6] shrink-0" />
+                    <div>
+                      <span className="text-xs font-bold text-white block">City Rides</span>
+                      <span className="text-[10px] text-[#8895A5]">Keke, Sedan &amp; VIP</span>
                     </div>
+                  </div>
+                  <div className="flex items-center gap-2.5 p-3 rounded-xl bg-white/[0.03] border border-white/10">
+                    <Package className="h-5 w-5 text-[#FF5500] shrink-0" />
+                    <div>
+                      <span className="text-xs font-bold text-white block">Send Parcel</span>
+                      <span className="text-[10px] text-[#8895A5]">Express dispatch</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2.5 p-3 rounded-xl bg-white/[0.03] border border-white/10">
+                    <Radio className="h-4 w-4 text-emerald-400 shrink-0" />
+                    <div>
+                      <span className="text-xs font-bold text-white block">Live Tracking</span>
+                      <span className="text-[10px] text-[#8895A5]">Real-time GPS</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2.5 p-3 rounded-xl bg-white/[0.03] border border-white/10">
+                    <Truck className="h-5 w-5 text-[#FFB800] shrink-0" />
+                    <div>
+                      <span className="text-xs font-bold text-white block">Agri Haulage</span>
+                      <span className="text-[10px] text-[#8895A5]">Farm-to-market</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* CTA Buttons */}
+                <div className="space-y-3">
+                  {user ? (
+                    <Link
+                      to={'/my-swift-move' as any}
+                      className="w-full py-4 rounded-xl sm:rounded-2xl bg-[#FF5500] hover:bg-[#e04800] text-white font-black text-sm sm:text-base uppercase tracking-wider shadow-lg shadow-[#FF5500]/25 transition-all flex items-center justify-center gap-2 active:scale-[0.98] min-h-[52px]"
+                    >
+                      <Zap className="h-4 w-4 sm:h-5 sm:w-5" />
+                      <span>Open My Dashboard</span>
+                      <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />
+                    </Link>
+                  ) : (
+                    <>
+                      <Link
+                        to="/auth"
+                        search={{ mode: 'signup' }}
+                        className="w-full py-4 rounded-xl sm:rounded-2xl bg-[#FF5500] hover:bg-[#e04800] text-white font-black text-sm sm:text-base uppercase tracking-wider shadow-lg shadow-[#FF5500]/25 transition-all flex items-center justify-center gap-2 active:scale-[0.98] min-h-[52px]"
+                      >
+                        <Zap className="h-4 w-4 sm:h-5 sm:w-5" />
+                        <span>Create Free Account</span>
+                        <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />
+                      </Link>
+                      <Link
+                        to="/auth"
+                        search={{ mode: 'login' }}
+                        className="w-full py-3 rounded-xl sm:rounded-2xl bg-[#121620] hover:bg-white/10 text-[#A3ADB8] hover:text-white font-bold text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-1.5 min-h-[44px] border border-white/10"
+                      >
+                        <span>Already have an account? Sign In</span>
+                        <ChevronRight className="h-3.5 w-3.5" />
+                      </Link>
+                    </>
                   )}
-
-                  {/* Location Inputs with Swap button */}
-                  <div className="relative space-y-2 sm:space-y-3">
-                    
-                    {/* Pickup Address */}
-                    <div className="relative">
-                      <div className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center">
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                      </div>
-                      <input
-                        type="text"
-                        value={pickupQuery}
-                        onChange={(e) => setPickupQuery(e.target.value)}
-                        onFocus={() => setActiveInput('pickup')}
-                        placeholder="Pickup — e.g. Jos Main Market, Rayfield"
-                        className="w-full pl-10 pr-10 py-3 sm:py-3.5 bg-[#121620] border border-[#0033AD]/40 rounded-xl sm:rounded-2xl text-[15px] sm:text-sm text-[#E8ECF2] placeholder:text-[#8895A5] focus:outline-none focus:border-[#FF5500] font-bold transition-all min-h-[48px]"
-                      />
-                      {pickupQuery && (
-                        <button
-                          type="button"
-                          onClick={() => setPickupQuery('')}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-[#8895A5] hover:text-white"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      )}
-
-                      {/* Autocomplete Dropdown */}
-                      {pickupSuggestions.length > 0 && activeInput === 'pickup' && (
-                        <div className="absolute left-0 right-0 top-full mt-1.5 bg-[#121620] border border-[#0033AD]/60 rounded-xl sm:rounded-2xl shadow-2xl z-30 max-h-56 overflow-y-auto p-1.5">
-                          {pickupSuggestions.map((s, idx) => (
-                            <button
-                              key={idx}
-                              type="button"
-                              onClick={() => { setPickupQuery(s.name); setActiveInput(null); }}
-                              className="w-full text-left px-3 py-2.5 rounded-lg text-xs hover:bg-white/5 flex items-center justify-between text-[#E8ECF2] font-bold min-h-[44px]"
-                            >
-                              <span className="flex items-center gap-2">
-                                <MapPin className="h-3.5 w-3.5 text-[#FF5500] shrink-0" />
-                                <span className="font-extrabold text-[#E8ECF2]">{s.name}</span>
-                              </span>
-                              <span className="text-[10px] text-[#8895A5] ml-2">{s.area}</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Swap Button */}
-                    <div className="flex justify-center -my-1">
-                      <button
-                        type="button"
-                        onClick={handleSwapLocations}
-                        className="h-8 w-8 sm:h-9 sm:w-9 rounded-full bg-[#181D2B] border border-[#0033AD]/60 shadow-md hover:bg-white/10 active:scale-90 flex items-center justify-center text-[#E8ECF2] hover:text-[#FF5500] transition-all z-10 cursor-pointer"
-                        title="Swap pickup and destination"
-                      >
-                        <ArrowUpDown className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-
-                    {/* Dropoff Address */}
-                    <div className="relative">
-                      <div className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 rounded-full bg-[#FF5500]/20 border-2 border-[#FF5500] flex items-center justify-center">
-                        <span className="h-1.5 w-1.5 rounded-full bg-[#FF5500]" />
-                      </div>
-                      <input
-                        type="text"
-                        value={dropoffQuery}
-                        onChange={(e) => setDropoffQuery(e.target.value)}
-                        onFocus={() => setActiveInput('dropoff')}
-                        placeholder="Destination — e.g. Bukuru, British America"
-                        className="w-full pl-10 pr-10 py-3 sm:py-3.5 bg-[#121620] border border-[#0033AD]/40 rounded-xl sm:rounded-2xl text-[15px] sm:text-sm text-[#E8ECF2] placeholder:text-[#8895A5] focus:outline-none focus:border-[#FF5500] font-bold transition-all min-h-[48px]"
-                      />
-                      {dropoffQuery && (
-                        <button
-                          type="button"
-                          onClick={() => setDropoffQuery('')}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-[#8895A5] hover:text-white"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      )}
-
-                      {/* Dropoff Suggestions */}
-                      {dropoffSuggestions.length > 0 && activeInput === 'dropoff' && (
-                        <div className="absolute left-0 right-0 top-full mt-1.5 bg-[#121620] border border-[#0033AD]/60 rounded-xl sm:rounded-2xl shadow-2xl z-30 max-h-56 overflow-y-auto p-1.5">
-                          {dropoffSuggestions.map((s, idx) => (
-                            <button
-                              key={idx}
-                              type="button"
-                              onClick={() => { setDropoffQuery(s.name); setActiveInput(null); }}
-                              className="w-full text-left px-3 py-2.5 rounded-lg text-xs hover:bg-white/5 flex items-center justify-between text-[#E8ECF2] font-bold min-h-[44px]"
-                            >
-                              <span className="flex items-center gap-2">
-                                <MapPin className="h-3.5 w-3.5 text-[#FF5500] shrink-0" />
-                                <span className="font-extrabold text-[#E8ECF2]">{s.name}</span>
-                              </span>
-                              <span className="text-[10px] text-[#8895A5] ml-2">{s.area}</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                  </div>
-
-                  {/* Fast Landmark Chips */}
-                  <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 -mx-1 px-1 touch-pan-x">
-                    <span className="text-xs font-bold text-[#8895A5] shrink-0">Popular:</span>
-                    {QUICK_LANDMARKS.map((landmark) => (
-                      <button
-                        key={landmark}
-                        type="button"
-                        onClick={() => handleSelectLandmark(landmark)}
-                        className="shrink-0 px-3 py-1 rounded-full bg-[#121620] border border-[#0033AD]/40 hover:border-[#FF5500] text-[#B8C2CC] hover:text-white text-xs font-bold transition-colors whitespace-nowrap min-h-[32px] cursor-pointer"
-                      >
-                        {landmark}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Vehicle Tier Cards (Sedan vs Keke) */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                    {VEHICLE_TIERS.map((tier) => {
-                      const fare = calculateTierFare(tier, distanceKm, 1.0);
-                      const isSelected = selectedTierId === tier.id;
-                      return (
-                        <div
-                          key={tier.id}
-                          onClick={() => setSelectedTierId(tier.id)}
-                          className={`p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border cursor-pointer transition-all flex items-center justify-between min-h-[68px] ${
-                            isSelected
-                              ? 'border-[#FF5500] bg-[#FF5500]/15 shadow-md shadow-[#FF5500]/10'
-                              : 'border-[#0033AD]/40 hover:border-[#0033AD] bg-[#121620]'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className={`h-11 w-11 sm:h-12 sm:w-12 rounded-xl flex items-center justify-center shrink-0 ${
-                              isSelected ? 'bg-[#FF5500] text-white shadow-xs' : 'bg-[#0A0D14] text-[#A3ADB8]'
-                            }`}>
-                              {tier.iconType === 'keke' ? <Bike className="h-6 w-6" /> : <Car className="h-6 w-6" />}
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-1.5">
-                                <h4 className="font-black text-[#E8ECF2] text-sm sm:text-base">{tier.name}</h4>
-                                {tier.popular && (
-                                  <span className="text-[10px] font-black bg-[#FFB800]/20 text-[#FFB800] border border-[#FFB800]/30 px-2 py-0.5 rounded-full uppercase tracking-wider">
-                                    Popular
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-xs font-semibold text-[#8895A5]">{tier.subTitle} • {tier.capacity} seats</p>
-                              <p className="text-xs font-extrabold text-emerald-400">
-                                {scheduleTiming === 'scheduled' ? `📅 Scheduled for ${scheduledDate}` : `ETA: ~${tier.etaMinutes} mins`}
-                              </p>
-                            </div>
-                          </div>
-                          
-                          <div className="text-right shrink-0 pl-2">
-                            <span className="text-base sm:text-xl font-black text-[#E8ECF2] block font-[Barlow_Condensed,sans-serif]">
-                              ₦{fare.toLocaleString()}
-                            </span>
-                            <span className="block text-[10px] text-[#8895A5] font-bold uppercase tracking-wider">Fixed Fare</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Passenger Phone Input */}
-                  <div className="pt-1">
-                    <label className="block text-xs sm:text-sm font-bold text-[#A3ADB8] mb-1.5">
-                      Passenger Contact Phone <span className="text-[#FF5500]">*</span>
-                    </label>
-                    <div className="relative">
-                      <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8895A5]" />
-                      <input
-                        type="tel"
-                        value={passengerPhone}
-                        onChange={(e) => setPassengerPhone(e.target.value)}
-                        placeholder="e.g. 0803 123 4567 (Driver calls this number)"
-                        className="w-full pl-10 pr-4 py-3 bg-[#121620] border border-[#0033AD]/40 rounded-xl text-base sm:text-sm text-[#E8ECF2] placeholder:text-[#8895A5] focus:outline-none focus:border-[#FF5500] font-bold min-h-[48px]"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Action CTA Button */}
-                  <div className="pt-2">
-                    <button
-                      type="button"
-                      disabled={isBooking}
-                      onClick={handleConfirmRide}
-                      className="w-full py-4 rounded-xl sm:rounded-2xl bg-[#FF5500] hover:bg-[#e04800] text-white font-black text-sm sm:text-base uppercase tracking-wider shadow-xl shadow-[#FF5500]/25 transition-all flex items-center justify-center gap-2 active:scale-[0.98] min-h-[52px] disabled:opacity-50 cursor-pointer"
-                    >
-                      {isBooking ? (
-                        <>
-                          <Loader2 className="h-5 w-5 animate-spin" />
-                          <span>{scheduleTiming === 'scheduled' ? 'Confirming Scheduled Ride...' : 'Matching Nearby Driver in Jos...'}</span>
-                        </>
-                      ) : (
-                        <>
-                          {scheduleTiming === 'scheduled' ? (
-                            <>
-                              <CalendarClock className="h-5 w-5" />
-                              <span>Confirm &amp; Schedule {selectedTier.name} • ₦{rideFare.toLocaleString()}</span>
-                            </>
-                          ) : (
-                            <>
-                              <span>Request {selectedTier.name} Now • ₦{rideFare.toLocaleString()}</span>
-                              <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />
-                            </>
-                          )}
-                        </>
-                      )}
-                    </button>
-
-                  </div>
-
                 </div>
-              )}
+              </div>
+            </div>
 
-              {/* ── TAB 2: SEND (PARCEL DISPATCH) ────────────────────── */}
-              {activePillar === 'send' && (
-                <div className="space-y-4 sm:space-y-5 animate-in fade-in duration-200">
-                  
-                  {/* Pickup & Destination Inputs */}
-                  <div className="space-y-2.5 sm:space-y-3">
-                    <div>
-                      <label className="block text-xs sm:text-sm font-bold text-[#A3ADB8] mb-1.5">
-                        Sender Pickup Location
-                      </label>
-                      <input
-                        type="text"
-                        value={pickupQuery}
-                        onChange={(e) => setPickupQuery(e.target.value)}
-                        placeholder="Sender address, shop, or landmark in Jos"
-                        className="w-full px-4 py-3 bg-[#121620] border border-[#0033AD]/40 rounded-xl text-base sm:text-sm text-[#E8ECF2] placeholder:text-[#8895A5] focus:outline-none focus:border-[#FF5500] font-bold min-h-[48px]"
-                      />
-                    </div>
+            {/* Public Tracking Widget */}
+            <div className="bg-[#181D2B] rounded-2xl border border-[#0033AD]/40 p-4 sm:p-6">
+              <div className="flex items-center gap-2 mb-3">
+                <Radio className="h-4 w-4 text-[#FF5500]" />
+                <span className="text-xs font-black uppercase tracking-wider text-white">Track Your Order</span>
+              </div>
+              <form
+                onSubmit={(e) => { e.preventDefault(); handleSearchTracking(); }}
+                className="flex gap-2"
+              >
+                <input
+                  type="text"
+                  value={trackingCode}
+                  onChange={(e) => setTrackingCode(e.target.value)}
+                  placeholder="Enter tracking ID (e.g. SMR-123456)"
+                  className="flex-1 px-4 py-3 rounded-xl bg-[#0A0D14] border border-white/10 text-white text-xs font-semibold placeholder:text-[#8895A5] focus:outline-none focus:border-[#FF5500]/50 transition-colors"
+                />
+                <button
+                  type="submit"
+                  disabled={isSearchingTrack}
+                  className="px-5 py-3 rounded-xl bg-[#0033AD] hover:bg-[#0044cc] text-white text-xs font-black uppercase tracking-wider transition-all disabled:opacity-50 cursor-pointer shrink-0"
+                >
+                  {isSearchingTrack ? 'Searching...' : 'Track'}
+                </button>
+              </form>
 
-                    <div>
-                      <label className="block text-xs sm:text-sm font-bold text-[#A3ADB8] mb-1.5">
-                        Recipient Destination
-                      </label>
-                      <input
-                        type="text"
-                        value={dropoffQuery}
-                        onChange={(e) => setDropoffQuery(e.target.value)}
-                        placeholder="Recipient address or exact landmark in Jos"
-                        className="w-full px-4 py-3 bg-[#121620] border border-[#0033AD]/40 rounded-xl text-base sm:text-sm text-[#E8ECF2] placeholder:text-[#8895A5] focus:outline-none focus:border-[#FF5500] font-bold min-h-[48px]"
-                      />
-                    </div>
+              {/* Tracking Result */}
+              {trackingResult && (
+                <div className="mt-4 p-4 rounded-xl bg-[#0A0D14] border border-white/10 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-[#8895A5]">Reference</span>
+                    <span className="font-mono font-black text-[#FF5500] text-sm">{trackingResult.reference}</span>
                   </div>
-
-                  {/* Recipient Details & Phone */}
-                  <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
-                    <div>
-                      <label className="block text-[11px] sm:text-sm font-bold text-[#A3ADB8] mb-1.5">
-                        Recipient Name
-                      </label>
-                      <input
-                        type="text"
-                        value={recipientName}
-                        onChange={(e) => setRecipientName(e.target.value)}
-                        placeholder="e.g. Sarah Pam"
-                        className="w-full px-3 sm:px-4 py-3 bg-[#121620] border border-[#0033AD]/40 rounded-xl text-[15px] sm:text-sm text-[#E8ECF2] placeholder:text-[#8895A5] focus:outline-none focus:border-[#FF5500] font-bold min-h-[48px]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] sm:text-sm font-bold text-[#A3ADB8] mb-1.5">
-                        Phone (OTP) <span className="text-[#FF5500]">*</span>
-                      </label>
-                      <input
-                        type="tel"
-                        value={recipientPhone}
-                        onChange={(e) => setRecipientPhone(e.target.value)}
-                        placeholder="0806 999 8888"
-                        className="w-full px-3 sm:px-4 py-3 bg-[#121620] border border-[#0033AD]/40 rounded-xl text-[15px] sm:text-sm text-[#E8ECF2] placeholder:text-[#8895A5] focus:outline-none focus:border-[#FF5500] font-bold min-h-[48px]"
-                      />
-                    </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-[#8895A5]">Type</span>
+                    <span className="text-xs font-bold text-white">{trackingResult.type}</span>
                   </div>
-
-                  {/* Package Category Selector */}
-                  <div>
-                    <label className="block text-xs sm:text-sm font-bold text-[#A3ADB8] mb-1.5">
-                      Package Category
-                    </label>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      {[
-                        { id: 'document', label: 'Documents & Letters', icon: '📄' },
-                        { id: 'parcel', label: 'Standard Parcel', icon: '📦' },
-                        { id: 'fragile', label: 'Food & Fragile', icon: '🍱' },
-                        { id: 'bulk', label: 'Bulk Goods & Cargo', icon: '🚚' },
-                      ].map((cat) => (
-                        <button
-                          key={cat.id}
-                          type="button"
-                          onClick={() => setPackageCategory(cat.id as any)}
-                          className={`p-3 rounded-xl border text-left text-xs font-bold transition-all min-h-[54px] cursor-pointer ${
-                            packageCategory === cat.id
-                              ? 'border-[#FF5500] bg-[#FF5500]/15 text-[#E8ECF2] shadow-xs'
-                              : 'border-[#0033AD]/40 hover:border-white/20 bg-[#121620] text-[#A3ADB8]'
-                          }`}
-                        >
-                          <span className="text-base sm:text-lg block mb-0.5">{cat.icon}</span>
-                          <span className="text-xs leading-tight block font-extrabold">{cat.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Courier Mode: Motorcycle vs Cargo Van */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                    <div
-                      onClick={() => setCourierType('bike')}
-                      className={`p-4 rounded-xl sm:rounded-2xl border cursor-pointer transition-all flex items-center justify-between min-h-[68px] ${
-                        courierType === 'bike'
-                          ? 'border-[#FF5500] bg-[#FF5500]/15 shadow-xs'
-                          : 'border-[#0033AD]/40 hover:border-[#0033AD] bg-[#121620]'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="h-11 w-11 rounded-xl bg-[#FF5500]/20 text-[#FF5500] flex items-center justify-center font-bold shrink-0">
-                          <Bike className="h-5 w-5 sm:h-6 sm:w-6" />
-                        </div>
-                        <div>
-                          <h4 className="font-black text-[#E8ECF2] text-sm sm:text-base">Express Motorbike</h4>
-                          <p className="text-xs font-semibold text-[#8895A5]">Fastest courier &lt; 45 mins</p>
-                        </div>
-                      </div>
-                      <span className="font-black text-base sm:text-xl text-[#E8ECF2] shrink-0 pl-2 font-[Barlow_Condensed,sans-serif]">
-                        ₦{deliveryFare.toLocaleString()}
-                      </span>
-                    </div>
-
-                    <div
-                      onClick={() => setCourierType('van')}
-                      className={`p-4 rounded-xl sm:rounded-2xl border cursor-pointer transition-all flex items-center justify-between min-h-[68px] ${
-                        courierType === 'van'
-                          ? 'border-[#FF5500] bg-[#FF5500]/15 shadow-xs'
-                          : 'border-[#0033AD]/40 hover:border-[#0033AD] bg-[#121620]'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="h-11 w-11 rounded-xl bg-[#0033AD]/20 text-white flex items-center justify-center font-bold shrink-0">
-                          <Truck className="h-5 w-5 sm:h-6 sm:w-6" />
-                        </div>
-                        <div>
-                          <h4 className="font-black text-[#E8ECF2] text-sm sm:text-base">Cargo Van / Truck</h4>
-                          <p className="text-xs font-semibold text-[#8895A5]">Heavier boxes &amp; freight</p>
-                        </div>
-                      </div>
-                      <span className="font-black text-base sm:text-xl text-[#E8ECF2] shrink-0 pl-2 font-[Barlow_Condensed,sans-serif]">
-                        ₦{(deliveryFare + 2500).toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Send Action Button */}
-                  <div className="pt-2">
-                    <button
-                      type="button"
-                      disabled={isBooking}
-                      onClick={handleConfirmDelivery}
-                      className="w-full py-4 rounded-xl sm:rounded-2xl bg-[#FF5500] hover:bg-[#e04800] text-white font-black text-sm sm:text-base uppercase tracking-wider shadow-xl shadow-[#FF5500]/25 transition-all flex items-center justify-center gap-2 active:scale-[0.98] min-h-[52px] disabled:opacity-50 cursor-pointer"
-                    >
-                      {isBooking ? (
-                        <>
-                          <Loader2 className="h-5 w-5 animate-spin" />
-                          <span>Dispatching Nearest Rider in Jos...</span>
-                        </>
-                      ) : (
-                        <>
-                          <span>Dispatch Courier • ₦{deliveryFare.toLocaleString()}</span>
-                          <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />
-                        </>
-                      )}
-                    </button>
-
-                  </div>
-
-                </div>
-              )}
-
-              {/* ── TAB 3: LIVE TRACKING RADAR ───────────────────────── */}
-              {activePillar === 'track' && (
-                <div className="space-y-4 sm:space-y-5 animate-in fade-in duration-200">
-                  
-                  {/* Radar Telemetry Header */}
-                  <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-[#0A0D14] border border-[#0033AD]/60 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <span className="relative flex h-3 w-3">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FF5500] opacity-75" />
-                        <span className="relative inline-flex rounded-full h-3 w-3 bg-[#FF5500]" />
-                      </span>
-                      <div>
-                        <span className="text-xs sm:text-sm font-black text-white block">SwiftMove Live Radar Active</span>
-                        <span className="text-[11px] font-semibold text-[#8895A5]">Real-time GPS tracking across Jos and Plateau corridors</span>
-                      </div>
-                    </div>
-                    <span className="hidden sm:inline-flex px-2.5 py-1 rounded-full bg-[#0033AD]/30 border border-[#0033AD]/60 text-white text-[11px] font-extrabold">
-                      Live Telemetry
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-[#8895A5]">Status</span>
+                    <span className={`text-xs font-black uppercase px-2 py-0.5 rounded-full ${
+                      trackingResult.status === 'completed' || trackingResult.status === 'delivered'
+                        ? 'bg-emerald-500/20 text-emerald-400'
+                        : trackingResult.status === 'in_transit'
+                          ? 'bg-[#FF5500]/20 text-[#FF5500]'
+                          : 'bg-[#FFB800]/20 text-[#FFB800]'
+                    }`}>
+                      {trackingResult.status?.replace(/_/g, ' ')}
                     </span>
                   </div>
-
-                  {/* Search Tracking Form */}
-                  <form onSubmit={handleSearchTracking} className="space-y-2.5">
-                    <label className="block text-xs sm:text-sm font-bold text-[#A3ADB8]">
-                      Enter Order Tracking Code
-                    </label>
-                    <div className="flex gap-2">
-                      <div className="relative flex-1 min-w-0">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8895A5]" />
-                        <input
-                          type="text"
-                          value={trackingCode}
-                          onChange={(e) => setTrackingCode(e.target.value)}
-                          placeholder="e.g. SM-9021 or SMR-948201"
-                          className="w-full pl-9 pr-3 py-3 bg-[#121620] border border-[#0033AD]/40 rounded-xl text-[15px] sm:text-sm text-[#E8ECF2] placeholder:text-[#8895A5] focus:outline-none focus:border-[#FF5500] font-mono font-black min-h-[48px]"
-                        />
-                      </div>
-                      <button
-                        type="submit"
-                        disabled={isSearchingTrack}
-                        className="shrink-0 px-4 sm:px-7 py-3 rounded-xl bg-[#FF5500] hover:bg-[#e04800] text-white font-black text-sm uppercase tracking-wider shadow-lg shadow-[#FF5500]/25 transition-all flex items-center justify-center gap-1.5 min-h-[48px] disabled:opacity-50 active:scale-[0.98] cursor-pointer"
-                      >
-                        {isSearchingTrack ? <Loader2 className="h-4 w-4 animate-spin" /> : <Radio className="h-4 w-4" />}
-                        <span className="hidden sm:inline">Track Order</span>
-                        <span className="sm:hidden">Track</span>
-                      </button>
+                  <div className="border-t border-white/10 pt-3 space-y-1.5">
+                    <div className="flex items-start gap-2 text-xs">
+                      <span className="text-emerald-400 font-bold shrink-0">FROM:</span>
+                      <span className="text-white font-medium">{trackingResult.pickup}</span>
                     </div>
-
-                    {/* Quick Demo Test Pill */}
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] text-[#8895A5] font-bold shrink-0">Quick Demos:</span>
-                      <button
-                        type="button"
-                        onClick={() => handleSearchTracking(undefined, 'SM-9021')}
-                        className="px-2.5 py-1 rounded-lg bg-[#121620] hover:bg-[#FF5500]/20 text-[#FF5500] border border-white/10 text-[11px] font-black transition-colors cursor-pointer truncate"
-                      >
-                        Demo: SM-9021
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleSearchTracking(undefined, 'SMR-948201')}
-                        className="px-2.5 py-1 rounded-lg bg-[#121620] hover:bg-white/10 text-[#A3ADB8] border border-white/10 text-[11px] font-black transition-colors cursor-pointer truncate"
-                      >
-                        Demo: SMR-948201
-                      </button>
+                    <div className="flex items-start gap-2 text-xs">
+                      <span className="text-[#FF5500] font-bold shrink-0">TO:</span>
+                      <span className="text-white font-medium">{trackingResult.dropoff}</span>
                     </div>
-                  </form>
-
-                  {/* Tracking Result View */}
-                  {trackingResult && (
-                    <div className="p-4 sm:p-6 rounded-2xl bg-[#0A0D14] border border-[#0033AD]/60 space-y-4 animate-in fade-in duration-200">
-                      
-                      {/* Status Banner */}
-                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
-                        <div>
-                          <span className="text-xs font-black uppercase tracking-wider text-[#FF5500] block">
-                            {trackingResult.type} Telemetry
-                          </span>
-                          <h4 className="text-lg sm:text-xl font-black text-white font-mono">
-                            {trackingResult.reference}
-                          </h4>
-                        </div>
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-xs font-black shadow-xs">
-                          <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                          <span>{trackingResult.status.replace('_', ' ').toUpperCase()}</span>
-                        </span>
+                  </div>
+                  {trackingResult.driver && (
+                    <div className="border-t border-white/10 pt-3 flex items-center justify-between">
+                      <div>
+                        <span className="text-xs font-bold text-white block">{trackingResult.driver.name}</span>
+                        <span className="text-[10px] text-[#8895A5]">{trackingResult.driver.vehicle}</span>
                       </div>
-
-                      {/* 4-Stage Progress Stepper */}
-                      <div className="py-2">
-                        <div className="grid grid-cols-4 gap-1 text-center">
-                          <div className="space-y-1">
-                            <div className="h-2 rounded-full bg-emerald-500" />
-                            <span className="text-[10px] sm:text-xs font-bold text-emerald-400">1. Dispatched</span>
-                          </div>
-                          <div className="space-y-1">
-                            <div className="h-2 rounded-full bg-emerald-500" />
-                            <span className="text-[10px] sm:text-xs font-bold text-emerald-400">2. Matched</span>
-                          </div>
-                          <div className="space-y-1">
-                            <div className="h-2 rounded-full bg-[#FF5500] animate-pulse" />
-                            <span className="text-[10px] sm:text-xs font-black text-[#FF5500]">3. In Transit 🚗</span>
-                          </div>
-                          <div className="space-y-1">
-                            <div className="h-2 rounded-full bg-white/10" />
-                            <span className="text-[10px] sm:text-xs font-semibold text-[#8895A5]">4. Arrived</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Route Path */}
-                      <div className="space-y-2.5 p-3.5 bg-[#121620] rounded-xl border border-white/10 text-xs sm:text-sm">
-                        <div className="flex items-start gap-2.5">
-                          <MapPin className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
-                          <div>
-                            <span className="text-[#8895A5] block text-[10px] font-black uppercase tracking-wider">PICKUP ORIGIN</span>
-                            <span className="font-extrabold text-white">{trackingResult.pickup}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-start gap-2.5">
-                          <Navigation className="h-4 w-4 text-[#FF5500] shrink-0 mt-0.5" />
-                          <div>
-                            <span className="text-[#8895A5] block text-[10px] font-black uppercase tracking-wider">DELIVERY DESTINATION</span>
-                            <span className="font-extrabold text-white">{trackingResult.dropoff}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Driver Card */}
-                      {trackingResult.driver && (
-                        <div className="p-3.5 bg-[#121620] rounded-xl border border-white/10 flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="h-11 w-11 rounded-full bg-[#0033AD]/30 text-white flex items-center justify-center font-black text-sm shrink-0 border border-[#0033AD]">
-                              {trackingResult.driver.name.charAt(0)}
-                            </div>
-                            <div>
-                              <div className="font-black text-sm text-white">{trackingResult.driver.name}</div>
-                              <div className="text-xs font-semibold text-[#8895A5]">{trackingResult.driver.vehicle}</div>
-                              <div className="text-xs font-bold text-[#FFB800] flex items-center gap-1 mt-0.5">
-                                <Star className="h-3 w-3 fill-[#FFB800] text-[#FFB800]" />
-                                <span>{trackingResult.driver.rating || 4.9}</span>
-                              </div>
-                            </div>
-                          </div>
-                          <a
-                            href={`tel:${trackingResult.driver.phone}`}
-                            className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black flex items-center gap-1.5 transition-colors min-h-[42px] shadow-xs"
-                          >
-                            <Phone className="h-4 w-4" />
-                            <span>Call Driver</span>
-                          </a>
-                        </div>
-                      )}
-
+                      <span className="text-xs font-bold text-[#FFB800]">⭐ {trackingResult.driver.rating}</span>
                     </div>
                   )}
-
+                  {trackingResult.price && (
+                    <div className="flex items-center justify-between border-t border-white/10 pt-3">
+                      <span className="text-xs font-bold text-[#8895A5]">Fare</span>
+                      <span className="font-[Barlow_Condensed,sans-serif] font-black text-white text-lg">₦{trackingResult.price.toLocaleString()}</span>
+                    </div>
+                  )}
                 </div>
               )}
-
-              {/* ── TAB 4: AGRI & FREIGHT (BUSINESS LOGISTICS) ─────── */}
-              {activePillar === 'move' && (
-                <div className="space-y-4 sm:space-y-5 animate-in fade-in duration-200">
-                  
-                  <div className="p-4 rounded-xl sm:rounded-2xl bg-[#0A0D14] border border-[#FFB800]/40 text-[#E8ECF2] text-xs sm:text-sm">
-                    <div className="font-black flex items-center gap-2 mb-1 text-sm sm:text-base text-[#FFB800]">
-                      <Award className="h-5 w-5 text-[#FFB800] shrink-0" />
-                      <span>SwiftMove Agri Haulage &amp; Enterprise</span>
-                    </div>
-                    <p className="text-[#A3ADB8] leading-relaxed text-xs sm:text-sm font-medium">
-                      Bulk farm produce haulage connecting Shendam, Mangu, and Bokkos growers to Jos markets. Consolidated invoicing, priority trucks, and insured agricultural transport.
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                    <div>
-                      <label className="block text-xs sm:text-sm font-bold text-[#A3ADB8] mb-1.5">
-                        Company or Farm Entity Name
-                      </label>
-                      <input
-                        type="text"
-                        value={companyName}
-                        onChange={(e) => setCompanyName(e.target.value)}
-                        placeholder="e.g. Shendam Grains Cooperative"
-                        className="w-full px-4 py-3 bg-[#121620] border border-[#0033AD]/40 rounded-xl text-base sm:text-sm text-[#E8ECF2] placeholder:text-[#8895A5] focus:outline-none focus:border-[#FF5500] font-bold min-h-[48px]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs sm:text-sm font-bold text-[#A3ADB8] mb-1.5">
-                        Official Work Email / Phone
-                      </label>
-                      <input
-                        type="email"
-                        value={companyEmail}
-                        onChange={(e) => setCompanyEmail(e.target.value)}
-                        placeholder="logistics@company.ng"
-                        className="w-full px-4 py-3 bg-[#121620] border border-[#0033AD]/40 rounded-xl text-base sm:text-sm text-[#E8ECF2] placeholder:text-[#8895A5] focus:outline-none focus:border-[#FF5500] font-bold min-h-[48px]"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs sm:text-sm font-bold text-[#A3ADB8] mb-2">
-                      Primary Logistics Requirement
-                    </label>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                      {[
-                        { id: 'daily_dispatch', title: 'Farm Produce Haulage', desc: 'Irish potatoes, tomatoes, grains' },
-                        { id: 'team_rides', title: 'Corporate Staff Mobility', desc: 'Prepaid team rides with limits' },
-                        { id: 'freight_heavy', title: 'Heavy Freight & Cargo', desc: '5-Ton trucks & intercity vans' },
-                      ].map((item) => (
-                        <div
-                          key={item.id}
-                          onClick={() => setBusinessFleetType(item.id)}
-                          className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
-                            businessFleetType === item.id
-                              ? 'border-[#FF5500] bg-[#FF5500]/15 text-white shadow-xs'
-                              : 'border-[#0033AD]/40 hover:border-white/20 bg-[#121620] text-[#A3ADB8]'
-                          }`}
-                        >
-                          <div className="font-black text-xs sm:text-sm mb-0.5 text-white">{item.title}</div>
-                          <div className="text-xs text-[#8895A5] font-medium">{item.desc}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="pt-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        toast.success('Corporate haulage request submitted! Our corporate desk will contact you.');
-                        if (user) {
-                          navigate({ to: '/_authenticated/my-swift-move' });
-                        } else {
-                          navigate({ to: '/auth', search: { mode: 'signup' } });
-                        }
-                      }}
-                      className="w-full py-4 rounded-xl sm:rounded-2xl bg-[#FFB800] hover:bg-[#e6a600] text-[#0A0D14] font-black text-sm sm:text-base uppercase tracking-wider shadow-lg transition-all flex items-center justify-center gap-2 active:scale-[0.98] min-h-[52px] cursor-pointer"
-                    >
-                      <span>Book Haulage / Corporate Account</span>
-                      <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />
-                    </button>
-
-                  </div>
-
-                </div>
-              )}
-
             </div>
+
           </div>
 
           </div>{/* end grid */}
@@ -1828,7 +1206,7 @@ export function SwiftMoveLanding() {
             <div className="flex flex-wrap items-center justify-center sm:justify-end gap-x-6 gap-y-2">
               <span className="hover:text-white transition-colors cursor-pointer py-1">Privacy Policy</span>
               <span className="hover:text-white transition-colors cursor-pointer py-1">Terms of Service</span>
-              <Link to="/_authenticated/drive" className="text-[#FF5500] hover:text-[#ff7733] font-semibold transition-colors py-1">
+              <Link to={"/drive" as any} className="text-[#FF5500] hover:text-[#ff7733] font-semibold transition-colors py-1">
                 Driver Registration &rarr;
               </Link>
             </div>

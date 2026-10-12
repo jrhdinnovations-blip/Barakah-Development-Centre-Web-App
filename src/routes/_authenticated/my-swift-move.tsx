@@ -1,273 +1,328 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { createFileRoute } from '@tanstack/react-router';
-import {
-  GoogleMap,
-  Marker,
-  DirectionsRenderer,
-  useJsApiLoader,
-} from '@react-google-maps/api';
-import { LocationSearchInput } from '@/components/LocationSearchInput';
-import { InteractiveMap } from '@/components/InteractiveMap';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { z } from 'zod';
 import { toast } from 'sonner';
 import {
-  Loader2,
-  MapPin,
-  Navigation,
+  Car,
   Package,
+  Navigation,
+  MapPin,
+  Clock,
+  Search,
+  History,
+  Shield,
+  ShieldCheck,
+  AlertTriangle,
+  ChevronRight,
+  Check,
+  X,
+  Plus,
+  Minus,
+  Sparkles,
+  CreditCard,
+  RotateCcw,
+  Calendar,
+  Phone,
+  PhoneCall,
+  Star,
+  Loader2,
   Weight,
   Banknote,
   Truck,
-  CheckCircle2,
-  ArrowRight,
   Info,
-  ShieldCheck,
-  PhoneCall,
-  History,
-  Clock,
-  Search,
-  X,
-  RotateCcw,
   Copy,
-  Calendar,
+  CheckCircle2,
+  User,
+  Locate,
+  ArrowUpDown,
+  DollarSign,
+  MessageCircle,
 } from 'lucide-react';
+import { useJsApiLoader } from '@react-google-maps/api';
+
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
+import { InteractiveMap } from '@/components/InteractiveMap';
+import {
+  LocationSuggestion,
+  fetchRealtimeLocationSuggestions,
+  getBrowserGpsLocation,
+  geocodePlaceId,
+  searchLocalLocations,
+  resolveJosLocation,
+} from '@/lib/location-suggestions';
+import {
+  calculateGoogleRoute,
+  haversineKm,
+  resolveAddressToCoordinates,
+} from '@/lib/google-maps-client';
+import {
+  VEHICLE_TIERS,
+  POPULAR_DESTINATIONS,
+  calculateTierFare,
+  type VehicleTier,
+  type MockNearbyDriver,
+  type QuickDestination,
+} from '@/lib/ride-pricing';
 import {
   calculateDeliveryPrice,
   getPricingBreakdown,
 } from '@/lib/swift-pricing';
-import { POPULAR_DESTINATIONS } from '@/lib/ride-pricing';
-import { calculateGoogleRoute, haversineKm, resolveAddressToCoordinates } from '@/lib/google-maps-client';
-import { searchLocalLocations, resolveJosLocation } from '@/lib/location-suggestions';
-import { encodeDispatchMetadata, parseOrderMetadata } from '@/lib/swift-order';
-import { initializeSwiftPaystack } from '@/lib/payments.functions';
 import {
+  encodeRideMetadata,
+  encodeDispatchMetadata,
+  parseOrderMetadata,
+} from '@/lib/swift-order';
+import {
+  customerCreateRideRequest,
+  customerCancelRideRequest,
+  driverAcceptRideRequest,
+  fetchAvailableDrivers,
+  customerGetActiveRide,
+  customerFindActiveRide,
+  customerRateRide,
+  customerGetTripHistory,
+  customerCreateDispatchOrder,
   customerGetDispatchHistory,
+  type CustomerTripRecord,
   type CustomerDispatchRecord,
 } from '@/lib/dispatcher.functions';
+import { initializeSwiftPaystack } from '@/lib/payments.functions';
+
+// ── Search Schema ────────────────────────────────────────────────────────────
+const searchSchema = z
+  .object({
+    service: z.enum(['ride', 'parcel', 'dispatch', 'track', 'history']).optional(),
+    tab: z.string().optional(),
+    paid: z.string().optional(),
+    orderId: z.string().optional(),
+  })
+  .catch({});
 
 export const Route = createFileRoute('/_authenticated/my-swift-move')({
+  validateSearch: searchSchema,
   ssr: false,
-  component: CustomerBookingPage,
+  component: UnifiedCustomerPortal,
 });
 
-const googleLibraries: ("places")[] = ["places"];
-
+// ── Types ────────────────────────────────────────────────────────────────────
+type ServicePillar = 'ride' | 'parcel' | 'track' | 'history';
 type LocationData = { address: string; lat: number; lng: number } | null;
+type RidePhase =
+  | 'idle'        // Location & tier selection
+  | 'searching'   // Radar broadcasting to nearby captains
+  | 'matched'     // Captain accepted, on the way to pickup
+  | 'in_transit'  // Passenger in vehicle, en route to destination
+  | 'completed'   // Arrived safely at destination, payment due
+  | 'rated';      // Feedback submitted
 
-const mapContainerStyle = { width: '100%', height: '100%' };
-const mapOptions = {
-  disableDefaultUI: true,
-  zoomControl: true,
-  styles: [
-    { elementType: 'geometry', stylers: [{ color: '#f8fafc' }] },
-    { elementType: 'labels.text.stroke', stylers: [{ color: '#ffffff' }] },
-    { elementType: 'labels.text.fill', stylers: [{ color: '#475569' }] },
-    { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#ffffff' }] },
-    { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#e2e8f0' }] },
-    { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#bae6fd' }] },
-    { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] },
-  ],
-};
-const directionsOptions = {
-  suppressMarkers: false,
-  polylineOptions: { strokeColor: '#3b82f6', strokeWeight: 5, strokeOpacity: 0.85 },
-};
+const googleLibraries: ('places')[] = ['places'];
+const JOS_CENTER = { lat: 9.8965, lng: 8.8583 }; // Jos, Plateau State
 
-function CustomerBookingPage() {
+// ── Vehicle Tier Icons ────────────────────────────────────────────────────────
+function TierIcon({ type, className = '' }: { type: string; className?: string }) {
+  const base = `w-9 h-9 ${className}`;
+  if (type === 'keke') {
+    return (
+      <svg className={base} viewBox="0 0 48 48" fill="none">
+        <path d="M14 27 L18 15 L32 15 L37 23 L37 31 L14 31 Z" stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round" fill="none" />
+        <path d="M18 15 L10 27" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <path d="M23 15 L23 27" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M30 20 L36 24" stroke="currentColor" strokeWidth="1.5" />
+        <circle cx="11" cy="33" r="5" stroke="currentColor" strokeWidth="2.5" />
+        <circle cx="34" cy="33" r="5" stroke="currentColor" strokeWidth="2.5" />
+        <path d="M7 23 L11 23" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (type === 'van') {
+    return (
+      <svg className={base} viewBox="0 0 48 48" fill="none">
+        <rect x="3" y="18" width="42" height="18" rx="3" stroke="currentColor" strokeWidth="2.5" />
+        <rect x="8" y="14" width="20" height="8" rx="2" stroke="currentColor" strokeWidth="2" />
+        <circle cx="11" cy="38" r="4" stroke="currentColor" strokeWidth="2.5" />
+        <circle cx="37" cy="38" r="4" stroke="currentColor" strokeWidth="2.5" />
+        <line x1="28" y1="14" x2="28" y2="22" stroke="currentColor" strokeWidth="1.5" />
+      </svg>
+    );
+  }
+  if (type === 'luxury') {
+    return (
+      <svg className={base} viewBox="0 0 48 48" fill="none">
+        <path d="M4 28 L10 20 L20 17 L28 17 L38 20 L44 28 L44 33 L4 33 Z" stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round" fill="none" />
+        <circle cx="13" cy="35" r="4" stroke="currentColor" strokeWidth="2.5" />
+        <circle cx="35" cy="35" r="4" stroke="currentColor" strokeWidth="2.5" />
+        <path d="M12 23 L36 23" stroke="currentColor" strokeWidth="1.5" />
+      </svg>
+    );
+  }
+  return (
+    <svg className={base} viewBox="0 0 48 48" fill="none">
+      <path d="M4 30 L10 22 L18 19 L30 19 L38 22 L44 30 L44 34 L4 34 Z" stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round" fill="none" />
+      <circle cx="14" cy="36" r="4" stroke="currentColor" strokeWidth="2.5" />
+      <circle cx="34" cy="36" r="4" stroke="currentColor" strokeWidth="2.5" />
+      <path d="M13 24 L35 24" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
+// ── Pulse Radar for Searching ────────────────────────────────────────────────
+function RadarPulse() {
+  return (
+    <div className="relative flex items-center justify-center w-28 h-28 mx-auto my-3">
+      <div className="absolute inset-0 rounded-full border-2 border-orange-500/30 animate-ping" style={{ animationDuration: '1.8s' }} />
+      <div className="absolute inset-3 rounded-full border-2 border-orange-400/40 animate-ping" style={{ animationDuration: '1.8s', animationDelay: '0.6s' }} />
+      <div className="absolute inset-6 rounded-full border-2 border-orange-300/50 animate-ping" style={{ animationDuration: '1.8s', animationDelay: '1.2s' }} />
+      <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-orange-600 to-amber-500 flex items-center justify-center z-10 shadow-lg shadow-orange-500/40">
+        <Car className="w-6 h-6 text-white" />
+      </div>
+    </div>
+  );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// ── MASTER HARMONIZED CUSTOMER PORTAL
+// ═════════════════════════════════════════════════════════════════════════════
+function UnifiedCustomerPortal() {
   const auth = useAuth() as any;
   const user = auth?.user || auth?.session?.user;
+  const userId = user?.id;
+  const navigate = useNavigate();
+  const searchParams = Route.useSearch();
 
-  // Location state
-  const [pickup, setPickup] = useState<LocationData>(null);
-  const [dropoff, setDropoff] = useState<LocationData>(null);
-  const [pickupText, setPickupText] = useState('');
-  const [dropoffText, setDropoffText] = useState('');
-  const [mapDirections, setMapDirections] = useState<any>(null);
-  const [mapError, setMapError] = useState(false);
+  // ── 1. ACTIVE SERVICE PILLAR ──────────────────────────────────────────────
+  const [activeService, setActiveService] = useState<ServicePillar>(() => {
+    const s = searchParams.service;
+    if (s === 'parcel' || s === 'dispatch') return 'parcel';
+    if (s === 'track') return 'track';
+    if (s === 'history') return 'history';
+    return 'ride'; // Default to ride
+  });
 
-  // Parcel & pricing state
-  const [weightKg, setWeightKg] = useState<number | ''>('');
-  const [parcelDescription, setParcelDescription] = useState('');
-  const [distanceKm, setDistanceKm] = useState<number>(0);
-  const [durationText, setDurationText] = useState<string>('');
-  const [routePolyline, setRoutePolyline] = useState<[number, number][]>([]);
-  const [isCalculatingRoute, setIsCalculatingRoute] = useState(false);
-  const [fare, setFare] = useState<number>(0);
-
-  // ── Scheduling state ─────────────────────────────────────────────────────
-  const [dispatchTiming, setDispatchTiming] = useState<'now' | 'scheduled'>('now');
-  const todayStr = useMemo(() => new Date().toISOString().split('T')[0]!, []);
-  const tomorrowStr = useMemo(() => new Date(Date.now() + 86400000).toISOString().split('T')[0]!, []);
-  const [schedDate, setSchedDate] = useState<string>(todayStr);
-  const [schedTime, setSchedTime] = useState<string>('09:30');
-
-  // Jos, Plateau State, Nigeria default center
-  const defaultCenter = { lat: 9.8965, lng: 8.8583 };
-  const mapCenter = useMemo(() => {
-    return pickup ? { lat: pickup.lat, lng: pickup.lng } : defaultCenter;
-  }, [pickup?.lat, pickup?.lng]);
-
-  // Order state
-  const [activeOrder, setActiveOrder] = useState<any>(null);
-  const [isBooking, setIsBooking] = useState(false);
-  const [isCancelling, setIsCancelling] = useState(false);
-  const [showDelivered, setShowDelivered] = useState(false);
-  const [showPayment, setShowPayment] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'paystack' | 'transfer' | null>('paystack');
-  const [isConfirmingPayment, setIsConfirmingPayment] = useState(false);
-  const [paymentDone, setPaymentDone] = useState(false);
-  // Rider assignment notification state (shown once dispatcher assigns)
-  const [showRiderAssigned, setShowRiderAssigned] = useState(false);
-  const [assignedRider, setAssignedRider] = useState<{
-    name: string;
-    phone: string;
-    vehicleMake: string;
-    plateNumber: string;
-    rating: number;
-    vehicleType: string;
-  } | null>(null);
-  // We store customer phone separately for the customer to share if needed
-  const [customerOwnPhone, setCustomerOwnPhone] = useState<string | null>(null);
-
-  // Parcel tracking state
-  const [trackingInput, setTrackingInput] = useState('');
-  const [trackingResult, setTrackingResult] = useState<any>(null);
-  const [trackingLoading, setTrackingLoading] = useState(false);
-  const [trackingError, setTrackingError] = useState('');
-  const [showTrackingPanel, setShowTrackingPanel] = useState(false);
-
-  const handleTrackParcel = useCallback(async (inputRef?: string) => {
-    const query = (inputRef ?? trackingInput).trim();
-    if (!query) {
-      setTrackingError('Please enter a tracking ID or reference number.');
-      return;
-    }
-    setTrackingLoading(true);
-    setTrackingError('');
-    setTrackingResult(null);
-
-    try {
-      // Search by payment_reference (tracking ID) or partial order ID
-      const { data: byRef, error: refErr } = await supabase
-        .from('swift_deliveries')
-        .select('*')
-        .or(`payment_reference.eq.${query},id.eq.${query}`)
-        .maybeSingle();
-
-      if (byRef) {
-        setTrackingResult(byRef);
-        setShowTrackingPanel(true);
-        return;
-      }
-
-      // Fallback: partial match on payment_reference using ilike
-      const { data: byPartial } = await supabase
-        .from('swift_deliveries')
-        .select('*')
-        .ilike('payment_reference', `%${query}%`)
-        .limit(1)
-        .maybeSingle();
-
-      if (byPartial) {
-        setTrackingResult(byPartial);
-        setShowTrackingPanel(true);
-        return;
-      }
-
-      setTrackingError('No parcel found with that tracking ID. Please check and try again.');
-    } catch (err: any) {
-      setTrackingError('Tracking lookup failed. Please try again.');
-    } finally {
-      setTrackingLoading(false);
-    }
-  }, [trackingInput]);
-
-  // Fetch the logged-in user's own phone once on mount
+  // Sync state if URL query changes
   useEffect(() => {
-    if (!user?.id) return;
-    supabase.from('profiles').select('phone').eq('user_id', user.id).maybeSingle()
-      .then(({ data }) => { if (data?.phone) setCustomerOwnPhone(data.phone); });
-  }, [user?.id]);
-
-  // Main Tab: 'dispatch' (book parcel) | 'history' (dispatch history)
-  const [mainTab, setMainTab] = useState<'dispatch' | 'history'>('dispatch');
-  const [dispatchHistory, setDispatchHistory] = useState<CustomerDispatchRecord[]>([]);
-  const [loadingHistory, setLoadingHistory] = useState(false);
-  const [historySearch, setHistorySearch] = useState('');
-  const [historyFilter, setHistoryFilter] = useState<'all' | 'active' | 'delivered' | 'cancelled'>('all');
-
-  const fetchDispatchHistory = useCallback(async () => {
-    if (!user?.id) return;
-    setLoadingHistory(true);
-    try {
-      const res = await customerGetDispatchHistory({ data: { customerId: user.id } });
-      if (res?.dispatches) {
-        setDispatchHistory(res.dispatches);
-      } else {
-        setDispatchHistory([]);
-      }
-    } catch (err) {
-      console.warn('[fetchDispatchHistory] server fn error, falling back to direct query:', err);
-      try {
-        const { data: deliveries } = await supabase
-          .from('swift_deliveries')
-          .select('*')
-          .eq('customer_id', user.id)
-          .order('created_at', { ascending: false });
-
-        const mapped: CustomerDispatchRecord[] = (deliveries || [])
-          .filter((d) => !parseOrderMetadata(d.package_type).isRide)
-          .map((d) => {
-            const meta = parseOrderMetadata(d.package_type);
-            return {
-              id: d.id,
-              reference: d.payment_reference || `TRK-${d.id.slice(0, 8)}`,
-              createdAt: d.created_at,
-              status: d.status || 'pending',
-              pickupAddress: d.pickup_address,
-              dropoffAddress: d.dropoff_address,
-              fare: d.estimated_price || 0,
-              distanceKm: d.distance_km ?? undefined,
-              weightKg: d.weight_kg ?? undefined,
-              packageType: meta.tierName || 'Standard Parcel',
-              description: meta.customerNotes || undefined,
-              riderName: meta.driverName || null,
-              riderPhone: meta.driverPhone || null,
-              paymentMethod: (d as any).payment_method || null,
-            };
-          });
-        setDispatchHistory(mapped);
-      } catch (_) {}
-    } finally {
-      setLoadingHistory(false);
+    const s = searchParams.service;
+    if (s === 'parcel' || s === 'dispatch') {
+      setActiveService('parcel');
+    } else if (s === 'ride') {
+      setActiveService('ride');
+    } else if (s === 'track') {
+      setActiveService('track');
+    } else if (s === 'history') {
+      setActiveService('history');
     }
-  }, [user?.id]);
+  }, [searchParams.service]);
 
-  useEffect(() => {
-    if (user?.id) {
-      fetchDispatchHistory();
-    }
-  }, [fetchDispatchHistory, user?.id]);
+  const switchService = (newService: ServicePillar) => {
+    setActiveService(newService);
+    navigate({
+      search: { service: newService } as any,
+    });
+  };
 
-  // Wizard state
-  const [step, setStep] = useState<1 | 2 | 3>(1);
-
-  // Refs for autocomplete inputs
-  const pickupInputRef = useRef<HTMLInputElement>(null);
-  const dropoffInputRef = useRef<HTMLInputElement>(null);
-
-  // Load Maps API — but NEVER block the page on it
+  // ── 2. SHARED LOCATION & ROUTE STATE ──────────────────────────────────────
   const { isLoaded: mapsLoaded } = useJsApiLoader({
     googleMapsApiKey: import.meta.env['VITE_GOOGLE_MAPS_API_KEY'] || '',
     libraries: googleLibraries,
   });
 
-  // ─── Pipeline Step 3 & 4: Routes -> Distance + Duration (Instant 0ms + Async Refine) ───
+  const pickupInputRef = useRef<HTMLInputElement>(null);
+  const dropoffInputRef = useRef<HTMLInputElement>(null);
+
+  const [pickupText, setPickupText] = useState('');
+  const [dropoffText, setDropoffText] = useState('');
+  const [pickup, setPickup] = useState<LocationData>(null);
+  const [dropoff, setDropoff] = useState<LocationData>(null);
+  const [distanceKm, setDistanceKm] = useState(0);
+  const [durationText, setDurationText] = useState('');
+  const [routePolyline, setRoutePolyline] = useState<[number, number][]>([]);
+  const [isCalculatingRoute, setIsCalculatingRoute] = useState(false);
+
+  // Suggestions & Autocomplete
+  const [activeSuggestionField, setActiveSuggestionField] = useState<'pickup' | 'dropoff' | null>(null);
+  const [liveSuggestions, setLiveSuggestions] = useState<LocationSuggestion[]>([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [isLocatingGps, setIsLocatingGps] = useState(false);
+
+  // Map Center
+  const mapCenter = useMemo(() => {
+    if (pickup) return { lat: pickup.lat, lng: pickup.lng };
+    return JOS_CENTER;
+  }, [pickup?.lat, pickup?.lng]);
+
+  // Real-time suggestions debouncer
+  useEffect(() => {
+    if (!activeSuggestionField) return;
+    const query = activeSuggestionField === 'pickup' ? pickupText : dropoffText;
+    let active = true;
+    const timer = setTimeout(async () => {
+      setIsLoadingSuggestions(true);
+      try {
+        const results = await fetchRealtimeLocationSuggestions(query, mapsLoaded);
+        if (active) setLiveSuggestions(results);
+      } finally {
+        if (active) setIsLoadingSuggestions(false);
+      }
+    }, 150);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [activeSuggestionField, pickupText, dropoffText, mapsLoaded]);
+
+  // Geocode / Fallback resolver
+  const resolveLocationFromText = async (text: string): Promise<LocationData> => {
+    const trimmed = text.trim();
+    if (!trimmed || trimmed.length < 2) return null;
+    if (trimmed.toLowerCase().includes('current location') || trimmed.toLowerCase().includes('live gps')) return null;
+
+    const match = resolveJosLocation(trimmed);
+    if (match && match.lat && match.lng) {
+      return {
+        address: `${match.label}, ${match.sublabel}`,
+        lat: match.lat,
+        lng: match.lng,
+      };
+    }
+
+    const geo = await resolveAddressToCoordinates(trimmed).catch(() => null);
+    if (geo && geo.lat && geo.lng) {
+      return {
+        address: geo.address,
+        lat: geo.lat,
+        lng: geo.lng,
+      };
+    }
+    return null;
+  };
+
+  // Debounced auto-resolution
+  useEffect(() => {
+    const trimmed = pickupText.trim();
+    if (trimmed.length < 3) return;
+    if (pickup && (pickup.address.toLowerCase().includes(trimmed.toLowerCase()) || trimmed.toLowerCase().includes(pickup.address.toLowerCase()))) return;
+    const timer = setTimeout(async () => {
+      const loc = await resolveLocationFromText(trimmed);
+      if (loc) setPickup(loc);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [pickupText]);
+
+  useEffect(() => {
+    const trimmed = dropoffText.trim();
+    if (trimmed.length < 3) return;
+    if (dropoff && (dropoff.address.toLowerCase().includes(trimmed.toLowerCase()) || trimmed.toLowerCase().includes(dropoff.address.toLowerCase()))) return;
+    const timer = setTimeout(async () => {
+      const loc = await resolveLocationFromText(trimmed);
+      if (loc) setDropoff(loc);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [dropoffText]);
+
+  // Route calculation
   useEffect(() => {
     if (!pickup || !dropoff) {
-      setMapDirections(null);
       setDistanceKm(0);
       setDurationText('');
       setRoutePolyline([]);
@@ -308,950 +363,1546 @@ function CustomerBookingPage() {
     };
   }, [pickup?.lat, pickup?.lng, dropoff?.lat, dropoff?.lng]);
 
-  // ─── Pipeline Step 5: Recalculate fare when distance or weight changes ───
-  useEffect(() => {
-    if (distanceKm > 0 && weightKg && pickup && dropoff) {
-      setFare(calculateDeliveryPrice(distanceKm, Number(weightKg)));
-    } else {
-      setFare(0);
+  const handleLocateMe = async () => {
+    setIsLocatingGps(true);
+    toast.loading('Detecting your GPS location...', { id: 'live-gps' });
+    try {
+      const gps = await getBrowserGpsLocation();
+      const loc = { address: gps.address, lat: gps.lat, lng: gps.lng };
+      setPickup(loc);
+      setPickupText(gps.address);
+      if (pickupInputRef.current) pickupInputRef.current.value = gps.address;
+      toast.success('Live GPS location detected!', { id: 'live-gps' });
+    } catch (err: any) {
+      toast.error(err.message || 'Could not retrieve GPS location', { id: 'live-gps' });
+      const fallback = { address: 'Jos Main Market / Terminus, Jos', lat: 9.9248, lng: 8.8912 };
+      setPickup(fallback);
+      setPickupText(fallback.address);
+      if (pickupInputRef.current) pickupInputRef.current.value = fallback.address;
+    } finally {
+      setIsLocatingGps(false);
     }
-  }, [distanceKm, weightKg, pickup, dropoff]);
+  };
 
-  // ─── Telemetry / real-time delivery status listener ───
-  useEffect(() => {
-    if (!activeOrder?.id) return;
+  const handleSwapLocations = () => {
+    const oldP = pickup;
+    const oldD = dropoff;
+    const oldPT = pickupText;
+    const oldDT = dropoffText;
+    setPickup(oldD);
+    setDropoff(oldP);
+    setPickupText(oldDT);
+    setDropoffText(oldPT);
+    if (pickupInputRef.current) pickupInputRef.current.value = oldDT;
+    if (dropoffInputRef.current) dropoffInputRef.current.value = oldPT;
+  };
 
-    const handleOrderSync = (updated: any) => {
-      if (!updated) return;
-      setActiveOrder((prevOrder: any) => {
-        // Trigger rider notification only when driver_id becomes populated and status turns 'accepted'
-        if (
-          updated.status === 'accepted' &&
-          updated.driver_id &&
-          (!prevOrder?.driver_id || prevOrder.driver_id !== updated.driver_id)
-        ) {
-          const meta = parseOrderMetadata(updated.package_type);
-          const rider = {
-            name: meta.driverName || 'SwiftMove Rider',
-            phone: meta.driverPhone || '',
-            vehicleMake: meta.vehicleMake || meta.tierName || 'Dispatch Vehicle',
-            plateNumber: meta.plateNumber || '',
-            rating: meta.driverRating || 5.0,
-            vehicleType: meta.tierName || 'Motorcycle',
-          };
-          setAssignedRider(rider);
-          setShowRiderAssigned(true);
-          // Chime sound
-          try {
-            const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
-            osc.frequency.exponentialRampToValueAtTime(783.99, audioCtx.currentTime + 0.2); // G5
-            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start();
-            osc.stop(audioCtx.currentTime + 0.5);
-          } catch {}
-        }
+  const handleQuickDestination = (dest: QuickDestination) => {
+    const fullAddress = `${dest.name}, ${dest.address}`;
+    setDropoff({ address: fullAddress, lat: dest.lat, lng: dest.lng });
+    setDropoffText(dest.name);
+    if (dropoffInputRef.current) dropoffInputRef.current.value = dest.name;
+    if (!pickup && !pickupText.trim()) {
+      handleLocateMe();
+    }
+  };
 
-        const s = updated.status;
-        if (s === 'picked_up' && prevOrder?.status !== 'picked_up') toast.success('📦 Package collected — rider en route!');
-        if (s === 'in_transit' && prevOrder?.status !== 'in_transit') toast.info('🚚 Your parcel is on its way!');
-        if (s === 'delivered' && prevOrder?.status !== 'delivered') {
-          toast.success('✅ Delivery completed!');
-          setShowDelivered(true);
-        }
+  // ── 3. RIDE HAILING STATE & FUNCTIONS ──────────────────────────────────────
+  const [ridePhase, setRidePhase] = useState<RidePhase>('idle');
+  const [selectedTier, setSelectedTier] = useState<VehicleTier>(VEHICLE_TIERS[0]!);
+  const [useInDriveMode, setUseInDriveMode] = useState(false);
+  const [customFare, setCustomFare] = useState(0);
+  const [ridePaymentMethod, setRidePaymentMethod] = useState<'cash' | 'paystack' | 'wallet'>('cash');
+  const [isTripPaid, setIsTripPaid] = useState<boolean>(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState<boolean>(false);
+  const [matchedDriver, setMatchedDriver] = useState<MockNearbyDriver | null>(null);
+  const [safetyPin, setSafetyPin] = useState('');
+  const [activeRideOrderId, setActiveRideOrderId] = useState<string | null>(null);
+  const [activeRideOrder, setActiveRideOrder] = useState<any>(null);
+  const [showSosModal, setShowSosModal] = useState(false);
+  const [ratingGiven, setRatingGiven] = useState(0);
+  const [hoveredStar, setHoveredStar] = useState(0);
 
-        return updated;
+  // Ride Scheduling
+  const [rideTiming, setRideTiming] = useState<'now' | 'scheduled'>('now');
+  const todayStr = useMemo(() => new Date().toISOString().split('T')[0]!, []);
+  const tomorrowStr = useMemo(() => new Date(Date.now() + 86400000).toISOString().split('T')[0]!, []);
+  const [rideSchedDate, setRideSchedDate] = useState<string>(todayStr);
+  const [rideSchedTime, setRideSchedTime] = useState<string>('09:30');
+
+  // Available Drivers
+  const [availableDrivers, setAvailableDrivers] = useState<MockNearbyDriver[]>([]);
+  const [onlineDriversCount, setOnlineDriversCount] = useState<number>(0);
+
+  const loadDrivers = useCallback(async () => {
+    try {
+      const cLat = pickup?.lat || JOS_CENTER.lat;
+      const cLng = pickup?.lng || JOS_CENTER.lng;
+      const res = await fetchAvailableDrivers({
+        data: { centerLat: cLat, centerLng: cLng },
       });
-    };
+      if (res?.drivers) {
+        setAvailableDrivers(res.drivers as MockNearbyDriver[]);
+        setOnlineDriversCount(res.totalCount || res.drivers.length);
+      }
+    } catch (e) {
+      console.warn('Failed to load available drivers:', e);
+    }
+  }, [pickup?.lat, pickup?.lng]);
 
-    // Immediate initial poll
-    const pollOrder = async () => {
-      const { data } = await supabase
-        .from('swift_deliveries')
-        .select('*')
-        .eq('id', activeOrder.id)
-        .maybeSingle();
-      if (data) handleOrderSync(data);
-    };
-
+  useEffect(() => {
+    loadDrivers();
     const channel = supabase
-      .channel(`delivery-track-${activeOrder.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'swift_deliveries',
-          filter: `id=eq.${activeOrder.id}`,
-        },
-        (payload: any) => {
-          handleOrderSync(payload.new);
-        }
-      )
+      .channel('swift-active-drivers')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'drivers' }, () => {
+        loadDrivers();
+      })
       .subscribe();
-
-    const interval = setInterval(pollOrder, 3000);
-
+    const interval = setInterval(loadDrivers, 12000);
     return () => {
       supabase.removeChannel(channel);
       clearInterval(interval);
     };
-  }, [activeOrder?.id]);
+  }, [loadDrivers]);
 
-  // ─── Proceed from Step 1 (Locations) to Step 2 (Parcel Details) ───
-  const handleProceedToParcelDetails = async () => {
-    const rawPickup = pickupText.trim();
-    const rawDropoff = dropoffText.trim();
+  // Dynamic Tier Fares
+  const tierFares = useMemo(() => {
+    return VEHICLE_TIERS.map((tier) => ({
+      ...tier,
+      fare: distanceKm > 0 ? calculateTierFare(tier, distanceKm) : tier.baseFare,
+      hasRealFare: distanceKm > 0,
+    }));
+  }, [distanceKm]);
 
-    if (!rawPickup || !rawDropoff) {
+  const activeRideFare = useMemo(() => {
+    if (distanceKm > 0) {
+      return calculateTierFare(selectedTier, distanceKm);
+    }
+    return selectedTier.baseFare;
+  }, [selectedTier, distanceKm]);
+
+  useEffect(() => {
+    if (activeRideFare > 0 && ridePhase === 'idle' && !useInDriveMode) {
+      setCustomFare(activeRideFare);
+    }
+  }, [activeRideFare, ridePhase, useInDriveMode]);
+
+  const currentFareToDisplay = useInDriveMode ? customFare : activeRideFare;
+
+  // Process Ride Order Update
+  const processRideOrderUpdate = useCallback(
+    (order: any) => {
+      if (!order) return;
+      setActiveRideOrder(order);
+      const meta = parseOrderMetadata(order.package_type);
+
+      if (order.status === 'accepted') {
+        const driverName = meta.driverName || (order as any).driver_name || 'Swift Driver';
+        const driverPhone = meta.driverPhone || (order as any).driver_phone || '08000000000';
+        const driverRating = meta.driverRating || (order as any).driver_rating || 4.9;
+        const driverLat = order.driver_lat ?? (pickup?.lat ?? JOS_CENTER.lat);
+        const driverLng = order.driver_lng ?? (pickup?.lng ?? JOS_CENTER.lng);
+
+        const driver: MockNearbyDriver = {
+          id: order.driver_id || 'driver-1',
+          name: driverName,
+          phone: driverPhone,
+          rating: driverRating,
+          trips: 240,
+          vehicleType: meta.tierName || selectedTier.name,
+          vehicleMake: meta.vehicleMake || 'Toyota Corolla',
+          vehicleModel: meta.vehicleMake || 'Toyota Corolla',
+          plateNumber: meta.plateNumber || 'JOS-829-AA',
+          vehicleColor: meta.vehicleColor || 'Silver',
+          tierId: selectedTier.id,
+          lat: driverLat,
+          lng: driverLng,
+        };
+        setMatchedDriver(driver);
+        if (meta.safetyPin) setSafetyPin(meta.safetyPin);
+        setRidePhase((prev) => {
+          if (prev !== 'in_transit' && prev !== 'completed' && prev !== 'rated') {
+            if (prev === 'searching' || prev === 'idle') {
+              toast.success(`🚗 Driver found! ${driver.name} is on the way.`);
+            }
+            return 'matched';
+          }
+          return prev;
+        });
+      } else if (order.status === 'picked_up') {
+        setRidePhase('matched');
+        toast.info('Driver has arrived at pickup!');
+      } else if (order.status === 'in_transit') {
+        setRidePhase('in_transit');
+        toast.info('Trip in progress — en route to destination!');
+      } else if (order.status === 'delivered') {
+        setRidePhase('completed');
+        toast.success('🎉 You have arrived safely at your destination!');
+      } else if (order.status === 'cancelled') {
+        toast.error('Ride request was cancelled.');
+        handleResetRide();
+      }
+    },
+    [selectedTier, pickup]
+  );
+
+  const handleResetRide = useCallback(() => {
+    setRidePhase('idle');
+    setMatchedDriver(null);
+    setSafetyPin('');
+    setActiveRideOrderId(null);
+    setActiveRideOrder(null);
+    setIsTripPaid(false);
+    setRatingGiven(0);
+    setRideTiming('now');
+  }, []);
+
+  // Subscribe to active ride order changes
+  useEffect(() => {
+    if (!activeRideOrderId) return;
+    const poll = async () => {
+      try {
+        const res = await customerGetActiveRide({
+          data: { orderId: activeRideOrderId, customerId: userId || '' },
+        });
+        if (res?.order) processRideOrderUpdate(res.order);
+      } catch (e) {
+        console.warn('[customerGetActiveRide poll] error:', e);
+      }
+    };
+    poll();
+
+    const channel = supabase
+      .channel(`customer-ride-order-${activeRideOrderId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'swift_deliveries', filter: `id=eq.${activeRideOrderId}` },
+        (payload: any) => {
+          processRideOrderUpdate(payload.new);
+        }
+      )
+      .subscribe();
+
+    const interval = setInterval(poll, 2500);
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
+  }, [activeRideOrderId, processRideOrderUpdate, userId]);
+
+  // Active Ride session recovery on mount
+  useEffect(() => {
+    if (!userId) return;
+    let active = true;
+    customerFindActiveRide({ data: { customerId: userId } })
+      .then((res) => {
+        if (!active || !res?.order) return;
+        const data = res.order;
+        const meta = parseOrderMetadata(data.package_type);
+        if (!meta.isRide && !data.package_type?.toLowerCase().includes('ride')) return;
+
+        setActiveRideOrderId(data.id);
+        setActiveRideOrder(data);
+        if (data.pickup_address) {
+          setPickupText(data.pickup_address);
+          const pMatch = resolveJosLocation(data.pickup_address);
+          if (pMatch?.lat && pMatch?.lng) setPickup({ address: data.pickup_address, lat: pMatch.lat, lng: pMatch.lng });
+        }
+        if (data.dropoff_address) {
+          setDropoffText(data.dropoff_address);
+          const dMatch = resolveJosLocation(data.dropoff_address);
+          if (dMatch?.lat && dMatch?.lng) setDropoff({ address: data.dropoff_address, lat: dMatch.lat, lng: dMatch.lng });
+        }
+        processRideOrderUpdate(data);
+      })
+      .catch(console.warn);
+    return () => {
+      active = false;
+    };
+  }, [userId, processRideOrderUpdate]);
+
+  // Submit Ride Request
+  const handleConfirmRideRequest = async () => {
+    const rawP = pickupText.trim();
+    const rawD = dropoffText.trim();
+    if (!rawP || !rawD) {
+      toast.error('Please enter both pickup and destination in Jos');
+      return;
+    }
+
+    let activeP = pickup;
+    let activeD = dropoff;
+    if (!activeP) {
+      activeP = await resolveLocationFromText(rawP);
+      if (activeP) setPickup(activeP);
+    }
+    if (!activeD) {
+      activeD = await resolveLocationFromText(rawD);
+      if (activeD) setDropoff(activeD);
+    }
+    if (!activeP || !activeD) {
+      toast.error('Could not locate pickup or destination. Please select a recognized Jos location.');
+      return;
+    }
+
+    const calculatedDist = distanceKm > 0 ? distanceKm : Math.max(1.8, Math.round(haversineKm(activeP.lat, activeP.lng, activeD.lat, activeD.lng) * 1.35 * 10) / 10);
+    const calculatedFare = useInDriveMode && customFare > 0 ? customFare : calculateTierFare(selectedTier, calculatedDist);
+
+    const generatedPin = String(Math.floor(1000 + Math.random() * 9000));
+    setSafetyPin(generatedPin);
+    const trackingId = `SMR-${Math.floor(100000 + Math.random() * 900000)}`;
+
+    const metadata = encodeRideMetadata({
+      tierName: selectedTier.name,
+      tierId: selectedTier.id,
+      seats: selectedTier.capacity,
+      safetyPin: generatedPin,
+      customerPhone: user?.phone || user?.user_metadata?.phone || '',
+      notes: useInDriveMode ? `Customer offered fare: ₦${calculatedFare.toLocaleString()}` : `Standard Ride`,
+      isScheduled: rideTiming === 'scheduled',
+      scheduledDate: rideTiming === 'scheduled' ? (rideSchedDate || null) : null,
+      scheduledTime: rideTiming === 'scheduled' ? (rideSchedTime || null) : null,
+    });
+
+    setRidePhase('searching');
+    toast.loading('Broadcasting ride request to nearby drivers...', { id: 'ride-req' });
+
+    try {
+      const res = await customerCreateRideRequest({
+        data: {
+          customerId: userId || 'anon-customer',
+          pickupAddress: activeP.address,
+          dropoffAddress: activeD.address,
+          packageType: metadata,
+          capacity: selectedTier.capacity,
+          distanceKm: calculatedDist,
+          fare: calculatedFare,
+          trackingId,
+          category: selectedTier.category,
+          subCategoryDb: selectedTier.subCategoryDb,
+        },
+      });
+
+      if (res?.delivery?.id) {
+        setActiveRideOrderId(res.delivery.id);
+        setActiveRideOrder(res.delivery);
+        toast.success('Captains notified! Searching for nearest driver...', { id: 'ride-req' });
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Could not dispatch ride request', { id: 'ride-req' });
+      setRidePhase('idle');
+    }
+  };
+
+  const handleCancelRideRequest = async () => {
+    if (!activeRideOrderId) {
+      handleResetRide();
+      return;
+    }
+    toast.loading('Cancelling ride request...', { id: 'cancel-ride' });
+    try {
+      await customerCancelRideRequest({
+        data: {
+          orderId: activeRideOrderId,
+          customerId: userId || '',
+        },
+      });
+      toast.success('Ride request cancelled.', { id: 'cancel-ride' });
+      handleResetRide();
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not cancel ride', { id: 'cancel-ride' });
+    }
+  };
+
+  const handlePayRidePaystack = async () => {
+    if (!activeRideOrderId) return;
+    setIsProcessingPayment(true);
+    toast.loading('Opening Paystack checkout...', { id: 'pay-ride' });
+    try {
+      const res = await initializeSwiftPaystack({
+        data: {
+          entityType: 'swift_ride',
+          entityId: activeRideOrderId,
+          amountKobo: Math.round(currentFareToDisplay * 100),
+          description: `SwiftMove Ride Fare (${activeRideOrderId})`,
+          callbackPath: `/my-swift-move?service=ride&paid=true&orderId=${activeRideOrderId}`,
+        },
+      });
+      if (res?.authorizationUrl) {
+        window.location.href = res.authorizationUrl;
+      } else {
+        toast.error('Could not initialize Paystack', { id: 'pay-ride' });
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Payment initialization failed', { id: 'pay-ride' });
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  };
+
+  const handleConfirmRideCash = () => {
+    setIsTripPaid(true);
+    toast.success('Cash payment recorded! Please rate your driver.');
+  };
+
+  const handleRateDriver = async (rating: number) => {
+    setRatingGiven(rating);
+    if (activeRideOrderId) {
+      try {
+        await customerRateRide({
+          data: {
+            orderId: activeRideOrderId,
+            customerId: userId || '',
+            rating,
+          },
+        });
+      } catch (_) {}
+    }
+    toast.success(`Thank you for rating ${rating} stars!`);
+    setTimeout(() => {
+      handleResetRide();
+    }, 1800);
+  };
+
+  // ── 4. PARCEL DISPATCH STATE & FUNCTIONS ──────────────────────────────────
+  const [parcelStep, setParcelStep] = useState<1 | 2 | 3>(1);
+  const [parcelCategory, setParcelCategory] = useState<'document' | 'parcel' | 'fragile' | 'bulk'>('parcel');
+  const [weightKg, setWeightKg] = useState<number | ''>(2);
+  const [parcelDescription, setParcelDescription] = useState('');
+  const [recipientName, setRecipientName] = useState('');
+  const [recipientPhone, setRecipientPhone] = useState('');
+  const [parcelTiming, setParcelTiming] = useState<'now' | 'scheduled'>('now');
+  const [parcelSchedDate, setParcelSchedDate] = useState<string>(todayStr);
+  const [parcelSchedTime, setParcelSchedTime] = useState<string>('09:30');
+
+  // Parcel Order State
+  const [activeParcelOrder, setActiveParcelOrder] = useState<any>(null);
+  const [isBookingParcel, setIsBookingParcel] = useState(false);
+  const [parcelPaymentMethod, setParcelPaymentMethod] = useState<'paystack' | 'transfer' | null>('paystack');
+  const [showParcelPaymentModal, setShowParcelPaymentModal] = useState(false);
+  const [isConfirmingParcelPayment, setIsConfirmingParcelPayment] = useState(false);
+  const [parcelPaymentDone, setParcelPaymentDone] = useState(false);
+
+  // Parcel Fare Calculation
+  const parcelFare = useMemo(() => {
+    const safeW = typeof weightKg === 'number' && weightKg > 0 ? weightKg : 2;
+    return calculateDeliveryPrice(distanceKm || 3.5, safeW);
+  }, [distanceKm, weightKg]);
+
+  const pricingBreakdown = useMemo(() => {
+    const safeW = typeof weightKg === 'number' && weightKg > 0 ? weightKg : 2;
+    return getPricingBreakdown(distanceKm || 3.5, safeW);
+  }, [distanceKm, weightKg]);
+
+  const handleProceedToParcelStep2 = async () => {
+    const rawP = pickupText.trim();
+    const rawD = dropoffText.trim();
+    if (!rawP || !rawD) {
       toast.error('Please enter both pickup and destination addresses');
       return;
     }
-
-    setIsCalculatingRoute(true);
-    try {
-      let activePickup = pickup;
-      let activeDropoff = dropoff;
-
-      if (!activePickup) {
-        const match = resolveJosLocation(rawPickup);
-        if (match && match.lat && match.lng) {
-          activePickup = { address: `${match.label}, ${match.sublabel}`, lat: match.lat, lng: match.lng };
-        } else {
-          const geo = await resolveAddressToCoordinates(rawPickup).catch(() => null);
-          if (geo && geo.lat && geo.lng) {
-            activePickup = { address: geo.address, lat: geo.lat, lng: geo.lng };
-          }
-        }
-        if (activePickup) setPickup(activePickup);
-      }
-
-      if (!activeDropoff) {
-        const match = resolveJosLocation(rawDropoff);
-        if (match && match.lat && match.lng) {
-          activeDropoff = { address: `${match.label}, ${match.sublabel}`, lat: match.lat, lng: match.lng };
-        } else {
-          const geo = await resolveAddressToCoordinates(rawDropoff).catch(() => null);
-          if (geo && geo.lat && geo.lng) {
-            activeDropoff = { address: geo.address, lat: geo.lat, lng: geo.lng };
-          }
-        }
-        if (activeDropoff) setDropoff(activeDropoff);
-      }
-
-      if (!activePickup) {
-        toast.error('Could not locate pickup address. Please select a recognized Jos location.');
-        return;
-      }
-      if (!activeDropoff) {
-        toast.error('Could not locate delivery address. Please select a recognized Jos location.');
-        return;
-      }
-
-      // 3. Accurate road route calculation guarantees accurate road distance
-      if (activePickup && activeDropoff) {
-        try {
-          const routeResult = await calculateGoogleRoute(
-            { lat: activePickup.lat, lng: activePickup.lng },
-            { lat: activeDropoff.lat, lng: activeDropoff.lng }
-          );
-          if (routeResult && routeResult.distanceKm > 0) {
-            setDistanceKm(routeResult.distanceKm);
-            setDurationText(routeResult.durationText);
-            setRoutePolyline(routeResult.polylinePoints);
-          }
-        } catch (_) {
-          const straightKm = haversineKm(activePickup.lat, activePickup.lng, activeDropoff.lat, activeDropoff.lng);
-          const fallbackKm = Math.max(0.5, Math.round(straightKm * 1.35 * 10) / 10);
-          setDistanceKm(fallbackKm);
-          setDurationText(`~${Math.max(3, Math.ceil(fallbackKm * 2))} mins`);
-          setRoutePolyline([
-            [activePickup.lat, activePickup.lng],
-            [activeDropoff.lat, activeDropoff.lng],
-          ]);
-        }
-      }
-
-      setStep(2);
-    } finally {
-      setIsCalculatingRoute(false);
+    let activeP = pickup;
+    let activeD = dropoff;
+    if (!activeP) {
+      activeP = await resolveLocationFromText(rawP);
+      if (activeP) setPickup(activeP);
     }
-  };
-
-  // ─── Book dispatch ───
-  const handleBookDispatch = () => {
-    if (!pickup || !dropoff || !user?.id) return;
-    if (distanceKm <= 0) {
-      toast.error('Please wait for the route to be calculated.');
+    if (!activeD) {
+      activeD = await resolveLocationFromText(rawD);
+      if (activeD) setDropoff(activeD);
+    }
+    if (!activeP || !activeD) {
+      toast.error('Could not locate pickup or delivery address. Please pick a recognized Jos landmark.');
       return;
     }
-    setShowPayment(true);
+    setParcelStep(2);
   };
 
-  const handleCancelOrder = async () => {
-    if (!activeOrder?.id) return;
-    setIsCancelling(true);
-    try {
-      const { error } = await supabase
-        .from('swift_deliveries')
-        .update({ status: 'cancelled' })
-        .eq('id', activeOrder.id)
-        .eq('status', 'pending');
-      if (error) throw error;
-      toast.success('Order cancelled.');
-      handleReset();
-    } catch (e: any) {
-      toast.error(e.message || 'Cannot cancel an order already in progress.');
-    } finally {
-      setIsCancelling(false);
+  const handleProceedToParcelStep3 = () => {
+    if (!recipientName.trim()) {
+      toast.error('Please enter the recipient name');
+      return;
     }
-  };
-
-  const handleReset = useCallback(() => {
-    setPickup(null);
-    setDropoff(null);
-    setPickupText('');
-    setDropoffText('');
-    setMapDirections(null);
-    setDistanceKm(0);
-    setDurationText('');
-    setFare(0);
-    setWeightKg('');
-    setParcelDescription('');
-    setActiveOrder(null);
-    setStep(1);
-    setShowDelivered(false);
-    setShowPayment(false);
-    setPaymentMethod(null);
-    setPaymentDone(false);
-    setDispatchTiming('now');
-    setSchedDate(todayStr);
-    setSchedTime('09:30');
-    if (pickupInputRef.current) pickupInputRef.current.value = '';
-    if (dropoffInputRef.current) dropoffInputRef.current.value = '';
-  }, [todayStr]);
-
-  // ─── Confirm payment ───
-  const handleConfirmPayment = async () => {
-    if (!paymentMethod) return;
-    setIsConfirmingPayment(true);
-    try {
-      if (activeOrder?.id) {
-        // Order already exists — Paystack redirect for payment
-        if (paymentMethod === 'paystack') {
-          toast.loading('Connecting to Paystack...', { id: 'paystack-init' });
-          try {
-            const paystackInit = await initializeSwiftPaystack({
-              data: {
-                entityType: 'swift_delivery',
-                entityId: activeOrder.id,
-                amountKobo: Math.round((activeOrder.estimated_price || fare) * 100),
-                description: `SwiftMove: ${pickup?.address || ''} → ${dropoff?.address || ''}`,
-                callbackPath: '/my-swift-move',
-              },
-            });
-            if (paystackInit?.authorizationUrl) {
-              toast.success('Redirecting to Paystack...', { id: 'paystack-init' });
-              window.location.href = paystackInit.authorizationUrl;
-              return;
-            }
-            toast.error('Could not get Paystack payment link.', { id: 'paystack-init' });
-          } catch (payErr: any) {
-            toast.error(payErr.message || 'Could not connect to Paystack.', { id: 'paystack-init' });
-          }
-        } else {
-          // Bank transfer — mark payment as confirmed; dispatcher will assign a rider
-          // Do NOT mark as delivered — keep as 'pending' so it appears in dispatcher queue
-          setPaymentDone(true);
-          toast.success('Payment recorded! Sending your order to the dispatcher...');
-        }
-      } else {
-        // No active order yet — create order first then redirect/confirm
-        const trackingId = `TRK-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`;
-        let customerPhone: string | null = null;
-
-        const { data: profData } = await supabase
-          .from('profiles')
-          .select('phone')
-          .eq('user_id', user?.id)
-          .maybeSingle();
-
-        if (profData?.phone) {
-          customerPhone = profData.phone;
-        } else {
-          customerPhone = user?.user_metadata?.phone || null;
-        }
-
-        const embeddedPackageType = encodeDispatchMetadata({
-          cargoType: 'Dispatch Parcel',
-          description: parcelDescription,
-          customerPhone,
-          isScheduled: dispatchTiming === 'scheduled',
-          scheduledDate: dispatchTiming === 'scheduled' ? schedDate : undefined,
-          scheduledTime: dispatchTiming === 'scheduled' ? schedTime : undefined,
-        });
-
-        const { data, error } = await supabase
-          .from('swift_deliveries')
-          .insert({
-            customer_id: user?.id || '',
-            pickup_address: pickup?.address || '',
-            dropoff_address: dropoff?.address || '',
-            package_type: embeddedPackageType,
-            weight_kg: Number(weightKg) || 1,
-            distance_km: distanceKm,
-            estimated_price: fare,
-            payment_reference: trackingId,
-            status: 'pending',
-          })
-          .select()
-          .single();
-
-        if (error) throw error;
-        setActiveOrder(data);
-
-        if (paymentMethod === 'paystack') {
-          toast.loading('Connecting to Paystack...', { id: 'paystack-init' });
-          try {
-            const paystackInit = await initializeSwiftPaystack({
-              data: {
-                entityType: 'swift_delivery',
-                entityId: data.id,
-                amountKobo: Math.round(fare * 100),
-                description: `SwiftMove: ${pickup?.address || ''} → ${dropoff?.address || ''}`,
-                callbackPath: '/my-swift-move',
-              },
-            });
-            if (paystackInit?.authorizationUrl) {
-              toast.success('Redirecting to Paystack...', { id: 'paystack-init' });
-              window.location.href = paystackInit.authorizationUrl;
-              return;
-            }
-            toast.error('Could not get Paystack payment link.', { id: 'paystack-init' });
-          } catch (payErr: any) {
-            toast.error(payErr.message || 'Could not connect to Paystack.', { id: 'paystack-init' });
-          }
-        } else {
-          // Bank transfer: keep order as 'pending' in dispatcher queue
-          setPaymentDone(true);
-          toast.success('Payment recorded! The dispatcher will assign a rider shortly.');
-        }
-      }
-    } catch (err: any) {
-      toast.error('Payment failed: ' + err.message);
-    } finally {
-      setIsConfirmingPayment(false);
+    if (!recipientPhone.trim() || recipientPhone.length < 8) {
+      toast.error('Please enter a valid recipient phone number');
+      return;
     }
+    setParcelStep(3);
   };
 
-  const breakdown = fare > 0 ? getPricingBreakdown(distanceKm, Number(weightKg) || 1) : null;
-  // Form is complete only when all 4 inputs are provided
-  const isFormComplete = !!(pickup && dropoff && weightKg && parcelDescription.trim());
-  // Show pricing on step 3 — distance is always >0 by the time user reaches step 3
-  const showMap = mapsLoaded && !mapError;
+  const handleConfirmParcelOrder = async () => {
+    if (!pickup || !dropoff) return;
+    setIsBookingParcel(true);
+    toast.loading('Creating express dispatch order...', { id: 'create-dispatch' });
 
-  // ── Dispatch History Tab Render ──────────────────────────────────────────
-  const renderDispatchHistory = () => {
-    const q = historySearch.toLowerCase().trim();
-    const filtered = dispatchHistory.filter((d) => {
-      const matchesSearch =
-        !q ||
-        (d.pickupAddress && d.pickupAddress.toLowerCase().includes(q)) ||
-        (d.dropoffAddress && d.dropoffAddress.toLowerCase().includes(q)) ||
-        (d.reference && d.reference.toLowerCase().includes(q)) ||
-        (d.description && d.description.toLowerCase().includes(q)) ||
-        (d.riderName && d.riderName.toLowerCase().includes(q));
-
-      if (!matchesSearch) return false;
-
-      if (historyFilter === 'delivered') return d.status === 'delivered' || d.status === 'completed';
-      if (historyFilter === 'active') return ['in_transit', 'accepted', 'assigned', 'pending', 'picked_up'].includes(d.status);
-      if (historyFilter === 'cancelled') return d.status === 'cancelled';
-      return true;
+    const trackingId = `SMD-${Math.floor(100000 + Math.random() * 900000)}`;
+    const metadata = encodeDispatchMetadata({
+      cargoType: `Express ${parcelCategory.toUpperCase()}`,
+      customerPhone: user?.phone || user?.user_metadata?.phone || '',
+      description: `Recipient: ${recipientName.trim()} (${recipientPhone.trim()}). ${parcelDescription.trim()}`,
+      isScheduled: parcelTiming === 'scheduled',
+      scheduledDate: parcelTiming === 'scheduled' ? (parcelSchedDate || null) : null,
+      scheduledTime: parcelTiming === 'scheduled' ? (parcelSchedTime || null) : null,
     });
 
-    const deliveredCount = dispatchHistory.filter((d) => d.status === 'delivered' || d.status === 'completed').length;
-    const activeCount = dispatchHistory.filter((d) => ['in_transit', 'accepted', 'assigned', 'pending', 'picked_up'].includes(d.status)).length;
-    const cancelledCount = dispatchHistory.filter((d) => d.status === 'cancelled').length;
+    try {
+      const res = await customerCreateDispatchOrder({
+        data: {
+          customerId: userId || 'anon-customer',
+          pickupAddress: pickup.address,
+          dropoffAddress: dropoff.address,
+          packageType: metadata,
+          weightKg: typeof weightKg === 'number' ? weightKg : 2,
+          distanceKm: distanceKm || 3.5,
+          fare: parcelFare,
+          trackingId,
+        },
+      });
 
-    return (
-      <div className="space-y-4">
-        {/* Search & Filter Header */}
-        <div className="space-y-2.5">
-          <div className="relative">
-            <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search tracking ref, address, rider..."
-              value={historySearch}
-              onChange={(e) => setHistorySearch(e.target.value)}
-              className="w-full pl-9 pr-8 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-slate-800 placeholder:text-slate-400"
-            />
-            {historySearch && (
-              <button
-                type="button"
-                onClick={() => setHistorySearch('')}
-                className="absolute right-2.5 top-2.5 p-0.5 text-slate-400 hover:text-slate-600 rounded-full cursor-pointer"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
+      if (res?.delivery) {
+        setActiveParcelOrder(res.delivery);
+        setShowParcelPaymentModal(true);
+        toast.success('Dispatch order initialized! Please complete payment.', { id: 'create-dispatch' });
+      }
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not create parcel order', { id: 'create-dispatch' });
+    } finally {
+      setIsBookingParcel(false);
+    }
+  };
+
+  const handlePayParcelPaystack = async () => {
+    if (!activeParcelOrder?.id) return;
+    setIsConfirmingParcelPayment(true);
+    toast.loading('Connecting to Paystack...', { id: 'paystack-init' });
+    try {
+      const res = await initializeSwiftPaystack({
+        data: {
+          entityType: 'swift_delivery',
+          entityId: activeParcelOrder.id,
+          amountKobo: Math.round(parcelFare * 100),
+          description: `SwiftMove Parcel Dispatch (${activeParcelOrder.id})`,
+          callbackPath: `/my-swift-move?service=parcel&paid=true&orderId=${activeParcelOrder.id}`,
+        },
+      });
+      if (res?.authorizationUrl) {
+        window.location.href = res.authorizationUrl;
+      } else {
+        toast.error('Paystack initialization failed', { id: 'paystack-init' });
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Payment failed', { id: 'paystack-init' });
+    } finally {
+      setIsConfirmingParcelPayment(false);
+    }
+  };
+
+  const handleConfirmParcelTransfer = async () => {
+    if (!activeParcelOrder?.id) return;
+    setIsConfirmingParcelPayment(true);
+    try {
+      await (supabase.from('swift_deliveries') as any)
+        .update({ status: 'pending', payment_method: 'bank_transfer' })
+        .eq('id', activeParcelOrder.id);
+      setParcelPaymentDone(true);
+      toast.success('Bank transfer recorded! Awaiting dispatcher confirmation.');
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to update order');
+    } finally {
+      setIsConfirmingParcelPayment(false);
+    }
+  };
+
+  // ── 5. TRACKING TAB STATE & FUNCTIONS ─────────────────────────────────────
+  const [trackingQueryInput, setTrackingQueryInput] = useState('');
+  const [trackingLoading, setTrackingLoading] = useState(false);
+  const [trackingResult, setTrackingResult] = useState<any>(null);
+  const [trackingError, setTrackingError] = useState('');
+
+  const handleTrackQuery = async (queryToSearch?: string) => {
+    const q = (queryToSearch ?? trackingQueryInput).trim();
+    if (!q) {
+      setTrackingError('Please enter a tracking ID or reference code.');
+      return;
+    }
+    setTrackingLoading(true);
+    setTrackingError('');
+    setTrackingResult(null);
+
+    try {
+      const { data, error } = await supabase
+        .from('swift_deliveries')
+        .select('*')
+        .or(`payment_reference.eq.${q},id.eq.${q}`)
+        .maybeSingle();
+
+      if (data) {
+        setTrackingResult(data);
+        return;
+      }
+
+      // Partial fallback
+      const { data: partial } = await supabase
+        .from('swift_deliveries')
+        .select('*')
+        .ilike('payment_reference', `%${q}%`)
+        .limit(1)
+        .maybeSingle();
+
+      if (partial) {
+        setTrackingResult(partial);
+        return;
+      }
+      setTrackingError('No ride or parcel found with that reference. Please check and try again.');
+    } catch (e: any) {
+      setTrackingError('Tracking lookup failed. Please try again.');
+    } finally {
+      setTrackingLoading(false);
+    }
+  };
+
+  // ── 6. UNIFIED HISTORY STATE & FUNCTIONS ──────────────────────────────────
+  const [unifiedHistory, setUnifiedHistory] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historySearch, setHistorySearch] = useState('');
+  const [historyFilter, setHistoryFilter] = useState<'all' | 'rides' | 'parcels' | 'active' | 'completed'>('all');
+
+  const fetchUnifiedHistory = useCallback(async () => {
+    if (!userId) return;
+    setLoadingHistory(true);
+    try {
+      const { data: rows } = await supabase
+        .from('swift_deliveries')
+        .select('*')
+        .eq('customer_id', userId)
+        .order('created_at', { ascending: false });
+
+      const mapped = (rows || []).map((row) => {
+        const meta = parseOrderMetadata(row.package_type);
+        const isRide = meta.isRide || row.package_type?.toLowerCase().includes('ride');
+        return {
+          id: row.id,
+          reference: row.payment_reference || `REF-${row.id.slice(0, 8)}`,
+          type: isRide ? 'ride' : 'parcel',
+          title: isRide ? meta.tierName || 'Passenger Ride' : meta.tierName || 'Parcel Dispatch',
+          status: row.status || 'pending',
+          createdAt: row.created_at,
+          pickupAddress: row.pickup_address,
+          dropoffAddress: row.dropoff_address,
+          fare: row.estimated_price || 0,
+          distanceKm: row.distance_km,
+          weightKg: row.weight_kg,
+          driverName: meta.driverName,
+          driverPhone: meta.driverPhone,
+          plateNumber: meta.plateNumber,
+          notes: meta.customerNotes,
+        };
+      });
+      setUnifiedHistory(mapped);
+    } catch (e) {
+      console.warn('History fetch error:', e);
+    } finally {
+      setLoadingHistory(false);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    if (activeService === 'history') {
+      fetchUnifiedHistory();
+    }
+  }, [activeService, fetchUnifiedHistory]);
+
+  const filteredHistory = useMemo(() => {
+    return unifiedHistory.filter((item) => {
+      const q = historySearch.toLowerCase().trim();
+      const matchSearch =
+        !q ||
+        item.reference?.toLowerCase().includes(q) ||
+        item.pickupAddress?.toLowerCase().includes(q) ||
+        item.dropoffAddress?.toLowerCase().includes(q) ||
+        item.title?.toLowerCase().includes(q);
+
+      if (!matchSearch) return false;
+      if (historyFilter === 'rides') return item.type === 'ride';
+      if (historyFilter === 'parcels') return item.type === 'parcel';
+      if (historyFilter === 'active') return ['pending', 'searching', 'accepted', 'in_transit', 'assigned'].includes(item.status);
+      if (historyFilter === 'completed') return ['delivered', 'completed'].includes(item.status);
+      return true;
+    });
+  }, [unifiedHistory, historySearch, historyFilter]);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ── RENDER SUB-PANELS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // Shared Location Input Card
+  const renderSharedLocationInputs = () => (
+    <div className="relative">
+      <div className="p-3 rounded-2xl bg-white border border-slate-200/90 space-y-2.5 shadow-sm">
+        {/* Pickup Input */}
+        <div className="relative flex items-center gap-2.5">
+          <div className="w-3 h-3 rounded-full bg-blue-500 shrink-0 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
+          <input
+            ref={pickupInputRef}
+            type="text"
+            value={pickupText}
+            onFocus={() => setActiveSuggestionField('pickup')}
+            onChange={(e) => {
+              setPickupText(e.target.value);
+              setActiveSuggestionField('pickup');
+              if (!e.target.value.trim()) setPickup(null);
+            }}
+            placeholder="Pickup location (e.g. Terminus, Rayfield, UNIJOS)..."
+            className="w-full min-w-0 flex-1 py-1.5 bg-transparent text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
+          />
+          {pickupText ? (
+            <button
+              type="button"
+              onClick={() => {
+                setPickupText('');
+                setPickup(null);
+                if (pickupInputRef.current) pickupInputRef.current.value = '';
+              }}
+              className="text-slate-400 hover:text-slate-700 p-1 cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleLocateMe}
+              disabled={isLocatingGps}
+              className="text-blue-600 hover:text-blue-800 p-1 text-xs font-semibold flex items-center gap-1 cursor-pointer shrink-0"
+              title="Detect live GPS location"
+            >
+              {isLocatingGps ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Locate className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline">GPS</span>
+            </button>
+          )}
+        </div>
+
+        {/* Divider with Swap Button */}
+        <div className="relative flex items-center justify-between pl-6 pr-2">
+          <div className="h-px bg-slate-100 flex-1" />
+          <button
+            type="button"
+            onClick={handleSwapLocations}
+            className="p-1 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 transition-colors mx-2 cursor-pointer shadow-xs"
+            title="Swap locations"
+          >
+            <ArrowUpDown className="w-3 h-3" />
+          </button>
+          <div className="h-px bg-slate-100 flex-1" />
+        </div>
+
+        {/* Destination / Dropoff Input */}
+        <div className="relative flex items-center gap-2.5">
+          <div className="w-3 h-3 rounded-full bg-orange-500 shrink-0 shadow-[0_0_8px_rgba(249,115,22,0.5)]" />
+          <input
+            ref={dropoffInputRef}
+            type="text"
+            value={dropoffText}
+            onFocus={() => setActiveSuggestionField('dropoff')}
+            onChange={(e) => {
+              setDropoffText(e.target.value);
+              setActiveSuggestionField('dropoff');
+              if (!e.target.value.trim()) setDropoff(null);
+            }}
+            placeholder="Destination in Jos (e.g. Airport, Bukuru, JUTH)..."
+            className="w-full min-w-0 flex-1 py-1.5 bg-transparent text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
+          />
+          {dropoffText && (
+            <button
+              type="button"
+              onClick={() => {
+                setDropoffText('');
+                setDropoff(null);
+                if (dropoffInputRef.current) dropoffInputRef.current.value = '';
+              }}
+              className="text-slate-400 hover:text-slate-700 p-1 cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Real-time Suggestions Overlay */}
+      {activeSuggestionField && liveSuggestions.length > 0 && (
+        <div className="absolute top-full left-0 right-0 mt-2 z-50 rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in fade-in-0 duration-150">
+          <div className="px-3.5 py-2 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+              <MapPin className="h-3 w-3 text-orange-500" />
+              Suggested Locations in Jos
+            </span>
+            {isLoadingSuggestions && <Loader2 className="h-3 w-3 animate-spin text-slate-400" />}
           </div>
-
-          {/* Filter Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs custom-scrollbar">
-            {[
-              { key: 'all', label: 'All Dispatches', count: dispatchHistory.length },
-              { key: 'active', label: 'In Transit', count: activeCount },
-              { key: 'delivered', label: 'Delivered', count: deliveredCount },
-              { key: 'cancelled', label: 'Cancelled', count: cancelledCount },
-            ].map((pill) => (
+          <div className="max-h-52 overflow-y-auto divide-y divide-slate-100 custom-scrollbar">
+            {liveSuggestions.map((item) => (
               <button
-                key={pill.key}
+                key={item.id}
                 type="button"
-                onClick={() => setHistoryFilter(pill.key as any)}
-                className={`px-3 py-1 rounded-lg font-medium text-xs whitespace-nowrap transition-colors flex items-center gap-1.5 cursor-pointer ${
-                  historyFilter === pill.key
-                    ? 'bg-orange-600 text-white font-bold shadow-sm'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
+                onMouseDown={async (e) => {
+                  e.preventDefault();
+                  const field = activeSuggestionField;
+                  setActiveSuggestionField(null);
+                  let lat = item.lat;
+                  let lng = item.lng;
+                  let fullAddress = `${item.label}, ${item.sublabel}`;
+
+                  if (field === 'pickup') {
+                    setPickupText(item.label);
+                  } else {
+                    setDropoffText(item.label);
+                  }
+
+                  if (item.placeId && (!item.hasResolvedCoords || !lat || lat === 0)) {
+                    try {
+                      const resolved = await geocodePlaceId(item.placeId, item.lat, item.lng);
+                      if (resolved && (resolved.lat !== 0 || resolved.lng !== 0)) {
+                        lat = resolved.lat;
+                        lng = resolved.lng;
+                        if (resolved.address) fullAddress = resolved.address;
+                      }
+                    } catch {}
+                  }
+
+                  if (field === 'pickup') {
+                    setPickup({ address: fullAddress, lat, lng });
+                  } else {
+                    setDropoff({ address: fullAddress, lat, lng });
+                  }
+                }}
+                className="w-full text-left px-3.5 py-2.5 flex items-start gap-2.5 hover:bg-slate-50 active:bg-orange-50 transition-colors group cursor-pointer"
               >
-                <span>{pill.label}</span>
-                <span className={`text-[10px] ${historyFilter === pill.key ? 'text-orange-100' : 'text-slate-400'}`}>
-                  ({pill.count})
-                </span>
+                <span className="text-sm shrink-0 mt-0.5">{item.iconEmoji || '📍'}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold text-slate-900 group-hover:text-orange-600 transition-colors truncate">
+                    {item.label}
+                  </p>
+                  <p className="text-[11px] text-slate-500 truncate mt-0.5">{item.sublabel}</p>
+                </div>
               </button>
             ))}
           </div>
         </div>
+      )}
+    </div>
+  );
 
-        {/* Content */}
-        {loadingHistory ? (
-          <div className="flex flex-col items-center justify-center py-16 space-y-3">
-            <Loader2 className="w-8 h-8 text-orange-600 animate-spin" />
-            <p className="text-xs text-slate-400 font-medium">Loading your dispatch records...</p>
+  // ── Render Ride Pillar ─────────────────────────────────────────────────────
+  const renderRidePanel = () => {
+    // If radar searching
+    if (ridePhase === 'searching') {
+      return (
+        <div className="space-y-4 py-2 text-center animate-in fade-in duration-300">
+          <RadarPulse />
+          <div>
+            <h3 className="text-base font-bold text-slate-900">Broadcasting to Nearby Captains</h3>
+            <p className="text-xs text-slate-500 mt-1">
+              Matching you with the closest verified driver in Jos...
+            </p>
           </div>
-        ) : dispatchHistory.length === 0 ? (
-          <div className="text-center py-14 px-4 space-y-3 bg-slate-50/60 rounded-2xl border border-dashed border-slate-200">
-            <div className="w-12 h-12 rounded-full bg-orange-50 flex items-center justify-center mx-auto text-orange-600">
-              <Package className="w-6 h-6" />
-            </div>
-            <div>
-              <h4 className="text-sm font-bold text-slate-800">No Dispatches Yet</h4>
-              <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto">
-                Send packages, goods, or documents across the city with SwiftMove.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setMainTab('dispatch')}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
-            >
-              <Package className="w-3.5 h-3.5" />
-              Send a Parcel Now
-            </button>
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="text-center py-10 space-y-2 bg-slate-50 rounded-2xl border border-slate-100">
-            <p className="text-xs text-slate-500">No dispatches match your search or filter.</p>
-            <button
-              type="button"
-              onClick={() => {
-                setHistoryFilter('all');
-                setHistorySearch('');
-              }}
-              className="text-xs font-semibold text-orange-600 hover:underline cursor-pointer"
-            >
-              Clear filters
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {filtered.map((item) => {
-              const isDelivered = item.status === 'delivered' || item.status === 'completed';
-              const isLive = ['in_transit', 'accepted', 'assigned', 'picked_up', 'pending'].includes(item.status);
-              const isCancel = item.status === 'cancelled';
 
-              return (
-                <div
-                  key={item.id}
-                  className={`p-4 rounded-2xl bg-white border transition-all shadow-sm space-y-3 ${
-                    isLive ? 'border-orange-300 ring-1 ring-orange-400/30' : 'border-slate-200/90 hover:border-slate-300'
+          <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 text-left text-xs space-y-2">
+            <div className="flex justify-between text-slate-600">
+              <span>Vehicle:</span>
+              <span className="font-bold text-slate-900">{selectedTier.name}</span>
+            </div>
+            <div className="flex justify-between text-slate-600">
+              <span>Fare:</span>
+              <span className="font-bold text-blue-700">₦{currentFareToDisplay.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between text-slate-600">
+              <span>Safety PIN:</span>
+              <span className="font-mono font-black text-orange-600 text-sm tracking-wider">{safetyPin}</span>
+            </div>
+          </div>
+
+          <Button
+            variant="outline"
+            onClick={handleCancelRideRequest}
+            className="w-full border-red-200 text-red-600 hover:bg-red-50 text-xs font-bold"
+          >
+            Cancel Request
+          </Button>
+        </div>
+      );
+    }
+
+    // If driver matched
+    if (ridePhase === 'matched') {
+      return (
+        <div className="space-y-4 py-1 animate-in fade-in duration-300">
+          <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/30">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                Driver En Route
+              </span>
+              <span className="text-xs font-mono font-bold bg-white px-2 py-0.5 rounded-md border border-slate-200 text-slate-700">
+                PIN: {safetyPin}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3 mt-3">
+              <div className="w-12 h-12 rounded-full bg-slate-900 text-white flex items-center justify-center font-black text-lg">
+                {matchedDriver?.name.charAt(0) || 'D'}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-sm text-slate-900 truncate">{matchedDriver?.name || 'Swift Driver'}</p>
+                <p className="text-xs text-slate-500 truncate">
+                  {matchedDriver?.vehicleModel} · {matchedDriver?.plateNumber}
+                </p>
+                <div className="flex items-center gap-1 text-[11px] text-amber-600 font-bold mt-0.5">
+                  <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
+                  <span>{matchedDriver?.rating || 4.9}</span>
+                  <span className="text-slate-400 font-normal">· Verified Captain</span>
+                </div>
+              </div>
+            </div>
+
+            {matchedDriver?.phone && (
+              <a
+                href={`tel:${matchedDriver.phone}`}
+                className="mt-3 w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-colors"
+              >
+                <Phone className="w-3.5 h-3.5" />
+                Call Driver ({matchedDriver.phone})
+              </a>
+            )}
+          </div>
+
+          <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-1.5">
+            <p className="text-slate-400 font-semibold uppercase text-[10px]">Destination</p>
+            <p className="text-slate-800 font-medium truncate">{dropoff?.address || dropoffText}</p>
+            <div className="pt-2 border-t border-slate-200 flex justify-between">
+              <span className="text-slate-500">Trip Fare</span>
+              <span className="font-bold text-slate-900">₦{currentFareToDisplay.toLocaleString()}</span>
+            </div>
+          </div>
+
+          <Button
+            variant="ghost"
+            onClick={handleCancelRideRequest}
+            className="w-full text-xs text-red-600 hover:bg-red-50 font-semibold"
+          >
+            Cancel Trip
+          </Button>
+        </div>
+      );
+    }
+
+    // In transit
+    if (ridePhase === 'in_transit') {
+      return (
+        <div className="space-y-4 py-2 animate-in fade-in duration-300">
+          <div className="p-4 rounded-2xl bg-blue-50 border border-blue-200 text-center space-y-2">
+            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-800 bg-blue-100 px-3 py-1 rounded-full animate-pulse">
+              <Car className="w-3.5 h-3.5" />
+              Trip In Progress
+            </span>
+            <p className="text-sm font-bold text-slate-900">On the way to destination</p>
+            <p className="text-xs text-slate-600 truncate">{dropoff?.address || dropoffText}</p>
+          </div>
+
+          <Button
+            onClick={() => setShowSosModal(true)}
+            className="w-full bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2"
+          >
+            <Shield className="w-3.5 h-3.5" />
+            Emergency SOS
+          </Button>
+        </div>
+      );
+    }
+
+    // Completed / Payment
+    if (ridePhase === 'completed') {
+      return (
+        <div className="space-y-4 py-2 text-center animate-in fade-in duration-300">
+          <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+            <Check className="w-7 h-7" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-slate-900">You Have Arrived!</h3>
+            <p className="text-xs text-slate-500">Total fare due: ₦{currentFareToDisplay.toLocaleString()}</p>
+          </div>
+
+          {!isTripPaid ? (
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 text-left">
+              <p className="text-xs font-bold text-slate-700">Choose Payment Method:</p>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setRidePaymentMethod('cash')}
+                  className={`p-2.5 rounded-xl border text-xs font-bold text-center cursor-pointer ${
+                    ridePaymentMethod === 'cash' ? 'bg-emerald-50 border-emerald-500 text-emerald-800' : 'bg-white border-slate-200 text-slate-700'
                   }`}
                 >
-                  {/* Top: Tracking Ref & Status */}
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="w-8 h-8 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
-                        <Package className="w-4 h-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <span className="text-xs font-bold text-slate-900 truncate block">
-                          {item.packageType || 'Parcel Delivery'}
-                        </span>
-                        <div className="flex items-center gap-1">
-                          <span className="text-[10px] font-mono text-slate-400 truncate">
-                            {item.reference}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              navigator.clipboard.writeText(item.reference);
-                              toast.success('Tracking reference copied!');
-                            }}
-                            className="text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
-                            title="Copy tracking code"
-                          >
-                            <Copy className="w-3 h-3" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
+                  💵 Cash to Driver
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRidePaymentMethod('paystack')}
+                  className={`p-2.5 rounded-xl border text-xs font-bold text-center cursor-pointer ${
+                    ridePaymentMethod === 'paystack' ? 'bg-blue-50 border-blue-500 text-blue-800' : 'bg-white border-slate-200 text-slate-700'
+                  }`}
+                >
+                  💳 Card / Paystack
+                </button>
+              </div>
 
-                    <span
-                      className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border shrink-0 ${
-                        isDelivered
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                          : isLive
-                          ? 'bg-orange-50 text-orange-700 border-orange-200 animate-pulse'
-                          : isCancel
-                          ? 'bg-rose-50 text-rose-700 border-rose-200'
-                          : 'bg-amber-50 text-amber-700 border-amber-200'
+              {ridePaymentMethod === 'cash' ? (
+                <Button onClick={handleConfirmRideCash} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs">
+                  I Paid Cash to Driver
+                </Button>
+              ) : (
+                <Button
+                  onClick={handlePayRidePaystack}
+                  disabled={isProcessingPayment}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs"
+                >
+                  {isProcessingPayment ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                  Pay via Paystack
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-xs font-bold text-slate-700">Rate your Captain:</p>
+              <div className="flex justify-center gap-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onMouseEnter={() => setHoveredStar(star)}
+                    onMouseLeave={() => setHoveredStar(0)}
+                    onClick={() => handleRateDriver(star)}
+                    className="p-1 cursor-pointer transition-transform hover:scale-110"
+                  >
+                    <Star
+                      className={`w-7 h-7 ${
+                        star <= (hoveredStar || ratingGiven)
+                          ? 'fill-amber-400 text-amber-400'
+                          : 'text-slate-300'
                       }`}
-                    >
-                      {item.status.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
-                    </span>
-                  </div>
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
 
-                  {/* Description / Weight */}
-                  {(item.description || item.weightKg) && (
-                    <div className="text-[11px] text-slate-600 bg-amber-50/50 px-2.5 py-1.5 rounded-lg border border-amber-100 flex items-center gap-2">
-                      {item.weightKg ? (
-                        <span className="font-semibold text-slate-700 flex items-center gap-1">
-                          <Weight className="w-3 h-3 text-orange-500" />
-                          {item.weightKg} kg
+    // Default Idle View
+    return (
+      <div className="space-y-3.5">
+        {/* Shared Locations */}
+        {renderSharedLocationInputs()}
+
+        {/* Quick Destinations */}
+        {!dropoffText && (
+          <div className="space-y-1.5">
+            <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Popular in Jos</p>
+            <div className="flex flex-wrap gap-1.5">
+              {POPULAR_DESTINATIONS.slice(0, 5).map((dest) => (
+                <button
+                  key={dest.label}
+                  type="button"
+                  onClick={() => handleQuickDestination(dest)}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white border border-slate-200 text-xs text-slate-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-900 transition-all cursor-pointer shadow-2xs"
+                >
+                  <span>{dest.iconEmoji}</span>
+                  <span>{dest.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Route Info Badge */}
+        {pickup && dropoff && (
+          <div className="flex items-center justify-between px-3.5 py-2 rounded-xl bg-blue-50 border border-blue-200 text-xs">
+            <div className="flex items-center gap-2 text-slate-800">
+              <Navigation className="w-3.5 h-3.5 text-blue-600" />
+              {distanceKm > 0 ? (
+                <>
+                  <span className="font-bold text-slate-900">{distanceKm} km</span>
+                  <span className="text-slate-400">·</span>
+                  <span className="text-slate-600">{durationText}</span>
+                </>
+              ) : isCalculatingRoute ? (
+                <span className="flex items-center gap-1.5 text-blue-700 font-medium">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Calculating road distance…
+                </span>
+              ) : null}
+            </div>
+            <span className="text-[10px] text-blue-800 font-bold uppercase tracking-wider bg-blue-100 px-2 py-0.5 rounded-full">
+              Live Route
+            </span>
+          </div>
+        )}
+
+        {/* Vehicle Tier Picker */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Choose Ride Type</p>
+            <span className="text-[10px] font-bold text-emerald-700 flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              {onlineDriversCount > 0 ? `${onlineDriversCount} online` : 'Drivers ready'}
+            </span>
+          </div>
+
+          <div className="space-y-2 max-h-[220px] overflow-y-auto pr-0.5 custom-scrollbar">
+            {tierFares.map((tier) => {
+              const isSelected = selectedTier.id === tier.id;
+              return (
+                <button
+                  key={tier.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedTier(tier);
+                    if (!useInDriveMode) setCustomFare(tier.fare);
+                  }}
+                  className={`w-full flex items-center gap-3 p-2.5 rounded-xl border transition-all text-left cursor-pointer ${
+                    isSelected
+                      ? 'bg-blue-50/90 border-blue-500 shadow-sm ring-1 ring-blue-500/20'
+                      : 'bg-white border-slate-200 hover:bg-slate-50/80 shadow-2xs'
+                  }`}
+                >
+                  <div className={`shrink-0 ${isSelected ? 'text-blue-600' : 'text-slate-500'}`}>
+                    <TierIcon type={tier.iconType} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-xs sm:text-sm text-slate-900 truncate">{tier.name}</span>
+                      {tier.popular && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-800">
+                          POPULAR
                         </span>
-                      ) : null}
-                      {item.description ? (
-                        <span className="truncate text-slate-600">{item.description}</span>
-                      ) : null}
-                    </div>
-                  )}
-
-                  {/* Route (Pickup → Delivery) */}
-                  <div className="space-y-1.5 text-xs text-slate-600 bg-slate-50/70 p-2.5 rounded-xl border border-slate-100">
-                    <div className="flex items-start gap-2">
-                      <div className="w-2 h-2 rounded-full bg-orange-500 mt-1 shrink-0" />
-                      <span className="truncate text-slate-800 font-medium">{item.pickupAddress}</span>
-                    </div>
-                    {item.dropoffAddress && (
-                      <div className="flex items-start gap-2">
-                        <div className="w-2 h-2 rounded-full bg-emerald-600 mt-1 shrink-0" />
-                        <span className="truncate text-slate-700">{item.dropoffAddress}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Rider Info if assigned */}
-                  {item.riderName && (
-                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100 text-[11px]">
-                      <div className="flex items-center gap-1.5 text-slate-700">
-                        <Truck className="w-3.5 h-3.5 text-orange-500" />
-                        <span className="font-semibold">{item.riderName}</span>
-                      </div>
-                      {item.riderPhone && (
-                        <a
-                          href={`tel:${item.riderPhone}`}
-                          className="text-orange-600 hover:text-orange-700 font-medium inline-flex items-center gap-0.5"
-                        >
-                          <PhoneCall className="w-3 h-3" /> Call Rider
-                        </a>
                       )}
                     </div>
-                  )}
-
-                  {/* Bottom Row: Date & Fare */}
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
-                    <div className="text-[10px] text-slate-400 flex items-center gap-1">
-                      <Calendar className="w-3 h-3" />
-                      {new Date(item.createdAt).toLocaleDateString('en-NG', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-black text-slate-900">
-                        ₦{Number(item.fare).toLocaleString()}
-                      </span>
-
-                      {isLive ? (
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            try {
-                              const { data: fullOrder } = await supabase
-                                .from('swift_deliveries')
-                                .select('*')
-                                .eq('id', item.id)
-                                .maybeSingle();
-                              if (fullOrder) {
-                                setActiveOrder(fullOrder);
-                                setPickupText(fullOrder.pickup_address);
-                                setDropoffText(fullOrder.dropoff_address);
-                                const pMatch = resolveJosLocation(fullOrder.pickup_address);
-                                if (pMatch?.lat && pMatch?.lng) {
-                                  setPickup({ address: fullOrder.pickup_address, lat: pMatch.lat, lng: pMatch.lng });
-                                }
-                                const dMatch = resolveJosLocation(fullOrder.dropoff_address);
-                                if (dMatch?.lat && dMatch?.lng) {
-                                  setDropoff({ address: fullOrder.dropoff_address, lat: dMatch.lat, lng: dMatch.lng });
-                                }
-                                setMainTab('dispatch');
-                              }
-                            } catch (err) {
-                              toast.error('Could not load live order.');
-                            }
-                          }}
-                          className="px-2.5 py-1 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-lg text-xs transition-all shadow-sm cursor-pointer"
-                        >
-                          Track Live →
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPickupText(item.pickupAddress);
-                            setDropoffText(item.dropoffAddress);
-                            const pMatch = resolveJosLocation(item.pickupAddress);
-                            if (pMatch?.lat && pMatch?.lng) {
-                              setPickup({ address: item.pickupAddress, lat: pMatch.lat, lng: pMatch.lng });
-                            }
-                            const dMatch = resolveJosLocation(item.dropoffAddress);
-                            if (dMatch?.lat && dMatch?.lng) {
-                              setDropoff({ address: item.dropoffAddress, lat: dMatch.lat, lng: dMatch.lng });
-                            }
-                            if (item.weightKg) setWeightKg(item.weightKg);
-                            if (item.description) setParcelDescription(item.description);
-                            setMainTab('dispatch');
-                            setStep(1);
-                            toast.success('Addresses loaded! Click continue to proceed.');
-                          }}
-                          className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg text-[11px] transition-all flex items-center gap-1 cursor-pointer"
-                          title="Send another parcel with this route"
-                        >
-                          <RotateCcw className="w-3 h-3" />
-                          <span>Send Similar</span>
-                        </button>
-                      )}
+                    <p className="text-[11px] text-slate-500 truncate">{tier.subTitle}</p>
+                    <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400">
+                      <span>{tier.capacity} seats</span>
+                      <span>·</span>
+                      <span>~{tier.etaMinutes}m away</span>
                     </div>
                   </div>
-                </div>
+                  <div className="text-right shrink-0">
+                    <p className="font-extrabold text-sm sm:text-base text-slate-900">₦{tier.fare.toLocaleString()}</p>
+                    {isSelected && <Check className="w-3.5 h-3.5 text-blue-600 ml-auto mt-0.5" />}
+                  </div>
+                </button>
               );
             })}
           </div>
-        )}
+        </div>
+
+        {/* InDrive Negotiable Fare */}
+        <div className="p-2.5 rounded-xl bg-white border border-slate-200 text-xs shadow-2xs space-y-1.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-orange-500" />
+              <span className="font-bold text-slate-800">Offer Your Own Fare</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                const next = !useInDriveMode;
+                setUseInDriveMode(next);
+                if (next && customFare <= 0) setCustomFare(activeRideFare);
+              }}
+              className={`relative w-8 h-4.5 rounded-full transition-colors cursor-pointer ${
+                useInDriveMode ? 'bg-orange-600' : 'bg-slate-200'
+              }`}
+            >
+              <div
+                className={`absolute top-0.5 w-3.5 h-3.5 rounded-full bg-white transition-all ${
+                  useInDriveMode ? 'left-4' : 'left-0.5'
+                }`}
+              />
+            </button>
+          </div>
+
+          {useInDriveMode && (
+            <div className="flex items-center justify-between pt-1 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setCustomFare((prev) => Math.max(500, prev - 100))}
+                className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center font-bold"
+              >
+                -
+              </button>
+              <span className="font-black text-sm text-slate-900">₦{customFare.toLocaleString()}</span>
+              <button
+                type="button"
+                onClick={() => setCustomFare((prev) => prev + 100)}
+                className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center font-bold"
+              >
+                +
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Instant Ride CTA */}
+        <Button
+          onClick={handleConfirmRideRequest}
+          disabled={!pickupText.trim() || !dropoffText.trim()}
+          className="w-full h-11 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white font-extrabold text-sm rounded-xl shadow-md cursor-pointer transition-all"
+        >
+          <Car className="w-4 h-4 mr-2" />
+          Order Ride · ₦{currentFareToDisplay.toLocaleString()}
+        </Button>
       </div>
     );
   };
 
+  // ── Render Parcel Pillar ───────────────────────────────────────────────────
+  const renderParcelPanel = () => {
+    // Step 1: Locations
+    if (parcelStep === 1) {
+      return (
+        <div className="space-y-3.5">
+          {renderSharedLocationInputs()}
+
+          {/* Route Distance */}
+          {pickup && dropoff && distanceKm > 0 && (
+            <div className="flex items-center justify-between px-3.5 py-2 rounded-xl bg-orange-50 border border-orange-200 text-xs">
+              <div className="flex items-center gap-2 text-slate-800">
+                <Truck className="w-3.5 h-3.5 text-orange-600" />
+                <span className="font-bold text-slate-900">{distanceKm} km</span>
+                <span className="text-slate-400">·</span>
+                <span className="text-slate-600">{durationText}</span>
+              </div>
+              <span className="text-[10px] text-orange-800 font-bold uppercase tracking-wider bg-orange-100 px-2 py-0.5 rounded-full">
+                Delivery Route
+              </span>
+            </div>
+          )}
+
+          <Button
+            onClick={handleProceedToParcelStep2}
+            disabled={!pickupText.trim() || !dropoffText.trim()}
+            className="w-full h-11 bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-sm rounded-xl shadow-md cursor-pointer"
+          >
+            Continue to Parcel Details <ChevronRight className="w-4 h-4 ml-1" />
+          </Button>
+        </div>
+      );
+    }
+
+    // Step 2: Parcel Details
+    if (parcelStep === 2) {
+      return (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-800">Step 2: Parcel Info</span>
+            <button
+              type="button"
+              onClick={() => setParcelStep(1)}
+              className="text-xs text-orange-600 hover:underline font-semibold cursor-pointer"
+            >
+              ← Back to Route
+            </button>
+          </div>
+
+          {/* Package Category */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Package Category</label>
+            <div className="grid grid-cols-2 gap-1.5">
+              {[
+                { id: 'document', label: '📄 Document', desc: 'Letters, paperwork' },
+                { id: 'parcel', label: '📦 Parcel', desc: 'Standard goods' },
+                { id: 'fragile', label: '🍷 Fragile', desc: 'Glass, electronics' },
+                { id: 'bulk', label: '🏋️ Bulk Freight', desc: 'Heavy boxes' },
+              ].map((cat) => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setParcelCategory(cat.id as any)}
+                  className={`p-2 rounded-xl border text-left text-xs transition-all cursor-pointer ${
+                    parcelCategory === cat.id
+                      ? 'bg-orange-50 border-orange-500 text-orange-950 font-bold ring-1 ring-orange-500/20'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <p className="text-xs font-bold">{cat.label}</p>
+                  <p className="text-[10px] text-slate-500 truncate">{cat.desc}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Weight */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Weight (kg)</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min="0.5"
+                max="100"
+                step="0.5"
+                value={weightKg}
+                onChange={(e) => setWeightKg(parseFloat(e.target.value) || '')}
+                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold focus:outline-none focus:border-orange-500"
+                placeholder="2 kg"
+              />
+              <span className="text-xs text-slate-500 font-bold">KG</span>
+            </div>
+          </div>
+
+          {/* Recipient Details */}
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Recipient Contact</label>
+            <input
+              type="text"
+              value={recipientName}
+              onChange={(e) => setRecipientName(e.target.value)}
+              placeholder="Recipient Full Name"
+              className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold focus:outline-none focus:border-orange-500"
+            />
+            <input
+              type="tel"
+              value={recipientPhone}
+              onChange={(e) => setRecipientPhone(e.target.value)}
+              placeholder="Recipient Phone Number (e.g. 080...)"
+              className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold focus:outline-none focus:border-orange-500"
+            />
+          </div>
+
+          {/* Notes */}
+          <input
+            type="text"
+            value={parcelDescription}
+            onChange={(e) => setParcelDescription(e.target.value)}
+            placeholder="Package notes (e.g. 'Handle gently', 'Leave with gate')"
+            className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold focus:outline-none focus:border-orange-500"
+          />
+
+          <Button
+            onClick={handleProceedToParcelStep3}
+            className="w-full h-11 bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-sm rounded-xl cursor-pointer"
+          >
+            Review Fare & Payment <ChevronRight className="w-4 h-4 ml-1" />
+          </Button>
+        </div>
+      );
+    }
+
+    // Step 3: Review & Checkout
+    return (
+      <div className="space-y-3.5">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-bold text-slate-800">Step 3: Review & Book</span>
+          <button
+            type="button"
+            onClick={() => setParcelStep(2)}
+            className="text-xs text-orange-600 hover:underline font-semibold cursor-pointer"
+          >
+            ← Edit Details
+          </button>
+        </div>
+
+        {/* Pricing Summary */}
+        <div className="p-3.5 rounded-2xl bg-orange-50/70 border border-orange-200 space-y-2 text-xs">
+          <div className="flex justify-between text-slate-600">
+            <span>Base Dispatch Fare</span>
+            <span className="font-semibold text-slate-800">₦{pricingBreakdown.baseFare.toLocaleString()}</span>
+          </div>
+          <div className="flex justify-between text-slate-600">
+            <span>Distance Cost ({pricingBreakdown.distanceKm} km)</span>
+            <span className="font-semibold text-slate-800">₦{pricingBreakdown.distanceCost.toLocaleString()}</span>
+          </div>
+          <div className="flex justify-between text-slate-600">
+            <span>Weight Cost ({pricingBreakdown.weightKg} kg)</span>
+            <span className="font-semibold text-slate-800">₦{pricingBreakdown.weightCost.toLocaleString()}</span>
+          </div>
+          <div className="pt-2 border-t border-orange-200 flex justify-between text-sm">
+            <span className="font-bold text-slate-900">Total Delivery Price</span>
+            <span className="font-black text-orange-600 text-base">₦{parcelFare.toLocaleString()}</span>
+          </div>
+        </div>
+
+        {/* Recipient Snapshot */}
+        <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
+          <p className="text-[10px] text-slate-400 font-bold uppercase">Recipient</p>
+          <p className="font-bold text-slate-900">{recipientName} · {recipientPhone}</p>
+          <p className="text-slate-500 truncate text-[11px]">{dropoff?.address}</p>
+        </div>
+
+        <Button
+          onClick={handleConfirmParcelOrder}
+          disabled={isBookingParcel}
+          className="w-full h-11 bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-sm rounded-xl cursor-pointer"
+        >
+          {isBookingParcel ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Package className="w-4 h-4 mr-2" />}
+          Proceed to Payment · ₦{parcelFare.toLocaleString()}
+        </Button>
+      </div>
+    );
+  };
+
+  // ── Render Track Pillar ────────────────────────────────────────────────────
+  const renderTrackPanel = () => (
+    <div className="space-y-4">
+      <div className="space-y-1.5">
+        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+          Enter Tracking ID or Reference
+        </label>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={trackingQueryInput}
+            onChange={(e) => setTrackingQueryInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleTrackQuery()}
+            placeholder="e.g. SMR-104928, SMD-892110..."
+            className="flex-1 px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold focus:outline-none focus:border-orange-500 uppercase font-mono"
+          />
+          <Button
+            onClick={() => handleTrackQuery()}
+            disabled={trackingLoading}
+            className="bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs rounded-xl"
+          >
+            {trackingLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+          </Button>
+        </div>
+      </div>
+
+      {trackingError && (
+        <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 font-medium">
+          {trackingError}
+        </div>
+      )}
+
+      {trackingResult && (
+        <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-3 animate-in fade-in duration-200 shadow-sm text-xs">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+            <div>
+              <span className="font-mono font-black text-sm text-slate-900 block">{trackingResult.payment_reference}</span>
+              <span className="text-[10px] text-slate-400">
+                Created: {new Date(trackingResult.created_at).toLocaleDateString()}
+              </span>
+            </div>
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 text-orange-800 border border-orange-200 capitalize">
+              {trackingResult.status?.replace('_', ' ')}
+            </span>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-start gap-2">
+              <div className="w-2 h-2 rounded-full bg-blue-500 mt-1 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[10px] text-slate-400 uppercase font-bold">Pickup</p>
+                <p className="font-semibold text-slate-800 truncate">{trackingResult.pickup_address}</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <div className="w-2 h-2 rounded-full bg-orange-500 mt-1 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[10px] text-slate-400 uppercase font-bold">Destination</p>
+                <p className="font-semibold text-slate-800 truncate">{trackingResult.dropoff_address}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-2 border-t border-slate-100 flex justify-between items-center">
+            <span className="text-slate-500">Order Fare:</span>
+            <span className="font-black text-slate-900 text-sm">₦{Number(trackingResult.estimated_price).toLocaleString()}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  // ── Render History Pillar ──────────────────────────────────────────────────
+  const renderHistoryPanel = () => (
+    <div className="space-y-3">
+      {/* Search Bar & Filters */}
+      <div className="space-y-2">
+        <input
+          type="text"
+          value={historySearch}
+          onChange={(e) => setHistorySearch(e.target.value)}
+          placeholder="Search by reference, destination..."
+          className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold focus:outline-none focus:border-orange-500"
+        />
+
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs custom-scrollbar">
+          {[
+            { key: 'all', label: 'All Orders' },
+            { key: 'rides', label: '🚖 Rides' },
+            { key: 'parcels', label: '📦 Parcels' },
+            { key: 'active', label: 'In Transit' },
+            { key: 'completed', label: 'Completed' },
+          ].map((pill) => (
+            <button
+              key={pill.key}
+              type="button"
+              onClick={() => setHistoryFilter(pill.key as any)}
+              className={`px-3 py-1 rounded-lg text-xs font-bold whitespace-nowrap cursor-pointer transition-colors ${
+                historyFilter === pill.key
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              {pill.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loadingHistory ? (
+        <div className="py-12 flex flex-col items-center justify-center text-slate-400 space-y-2">
+          <Loader2 className="w-6 h-6 animate-spin text-orange-600" />
+          <p className="text-xs">Loading history...</p>
+        </div>
+      ) : filteredHistory.length === 0 ? (
+        <div className="py-10 text-center text-slate-400 space-y-2 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+          <History className="w-8 h-8 mx-auto text-slate-300" />
+          <p className="text-xs font-semibold">No trip or parcel orders found</p>
+        </div>
+      ) : (
+        <div className="space-y-2 max-h-[360px] overflow-y-auto pr-0.5 custom-scrollbar">
+          {filteredHistory.map((item) => (
+            <div key={item.id} className="p-3 rounded-2xl bg-white border border-slate-200 space-y-2 text-xs shadow-2xs">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 font-bold text-slate-900">
+                  {item.type === 'ride' ? <Car className="w-3.5 h-3.5 text-blue-600" /> : <Package className="w-3.5 h-3.5 text-orange-600" />}
+                  <span>{item.title}</span>
+                </div>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 capitalize">
+                  {item.status?.replace('_', ' ')}
+                </span>
+              </div>
+
+              <div className="space-y-1 text-slate-600 text-[11px]">
+                <p className="truncate"><span className="text-slate-400">From:</span> {item.pickupAddress}</p>
+                <p className="truncate"><span className="text-slate-400">To:</span> {item.dropoffAddress}</p>
+              </div>
+
+              <div className="flex items-center justify-between pt-1.5 border-t border-slate-100">
+                <span className="font-mono text-[10px] text-slate-400">{item.reference}</span>
+                <span className="font-bold text-slate-900">₦{Number(item.fare).toLocaleString()}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ── MAIN RETURN LAYOUT
+  // ═══════════════════════════════════════════════════════════════════════════
   return (
-    <div className="relative min-h-dvh bg-slate-100 overflow-hidden flex flex-col md:flex-row">
-
-      {/* ═══════════ PAYMENT MODAL OVERLAY ═══════════ */}
-      {showPayment && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-sm bg-white border border-slate-200/90 rounded-[28px] overflow-hidden shadow-2xl animate-in slide-in-from-bottom-8 duration-300">
-            
-            {paymentDone ? (
-              /* ——— Payment Confirmed: Awaiting Dispatcher Assignment ——— */
-              <div className="p-8 flex flex-col items-center text-center space-y-5">
-                <div className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center">
-                  <CheckCircle2 className="h-10 w-10 text-emerald-600" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-black text-slate-900">Payment Verified! 🎉</h2>
-                  <p className="text-slate-600 text-sm mt-2 leading-relaxed">
-                    Your order is now in the dispatcher queue.
-                    <br />
-                    <span className="text-orange-600 font-semibold">
-                      You’ll get a notification once a rider is assigned.
-                    </span>
-                  </p>
-                </div>
-                <div className="w-full flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-2xl">
-                  <span className="text-2xl">📡</span>
-                  <div className="text-left">
-                    <p className="text-amber-800 font-bold text-sm">Dispatcher on standby</p>
-                    <p className="text-amber-700/80 text-xs mt-0.5">A rider will be assigned and you’ll be notified instantly.</p>
-                  </div>
-                </div>
-                <Button
-                  className="w-full h-12 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-xl"
-                  onClick={() => setShowPayment(false)}
-                >
-                  Close & Track My Order
-                </Button>
-              </div>
-            ) : (
-              <>
-                {/* Modal Header */}
-                <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Amount Due</p>
-                    <p className="text-3xl font-black text-slate-900">₦{(activeOrder?.estimated_price || fare).toLocaleString()}</p>
-                  </div>
-                  <button
-                    onClick={() => { setShowPayment(false); setPaymentMethod(null); }}
-                    className="h-9 w-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-900 transition-colors"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                {/* Payment Method Selection */}
-                <div className="p-5 space-y-3">
-                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Choose Payment Method</p>
-
-                  {/* Paystack Option */}
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('paystack')}
-                    className={`w-full flex items-center gap-4 p-4 rounded-2xl border transition-all ${
-                      paymentMethod === 'paystack'
-                        ? 'bg-emerald-50/80 border-emerald-500 ring-1 ring-emerald-500/30'
-                        : 'bg-slate-50 border-slate-200 hover:border-slate-300'
-                    }`}
-                  >
-                    <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-                      <span className="text-xl">💳</span>
-                    </div>
-                    <div className="text-left flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-bold text-slate-900">Paystack Checkout</p>
-                        <span className="text-[10px] bg-emerald-100 text-emerald-800 font-semibold px-2 py-0.5 rounded-full border border-emerald-300">Instant</span>
-                      </div>
-                      <p className="text-[11px] text-slate-500">Debit Card, Instant Bank Transfer, USSD</p>
-                    </div>
-                    {paymentMethod === 'paystack' && <CheckCircle2 className="h-5 w-5 text-emerald-600 ml-auto shrink-0" />}
-                  </button>
-
-                  {/* Bank Transfer Option */}
-                  <button
-                    onClick={() => setPaymentMethod('transfer')}
-                    className={`w-full flex items-center gap-4 p-4 rounded-2xl border transition-all ${
-                      paymentMethod === 'transfer'
-                        ? 'bg-orange-50/80 border-orange-500 ring-1 ring-orange-500/30'
-                        : 'bg-slate-50 border-slate-200 hover:border-slate-300'
-                    }`}
-                  >
-                    <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
-                      <span className="text-xl">🏦</span>
-                    </div>
-                    <div className="text-left">
-                      <p className="text-sm font-bold text-slate-900">Bank Transfer</p>
-                      <p className="text-[11px] text-slate-500">Transfer to driver's account</p>
-                    </div>
-                    {paymentMethod === 'transfer' && <CheckCircle2 className="h-5 w-5 text-orange-600 ml-auto shrink-0" />}
-                  </button>
-
-                  {/* Transfer Details (shown when transfer is selected) */}
-                  {paymentMethod === 'transfer' && (
-                    <div className="space-y-3 animate-in fade-in duration-200">
-                      {/* Account Details Card */}
-                      <div className="bg-orange-50/70 border border-orange-200/90 rounded-2xl p-4 space-y-3">
-                        <p className="text-[10px] font-bold text-orange-700 uppercase tracking-widest">SwiftMove Account Details</p>
-
-                        {/* Zenith Bank Account */}
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-0.5">Zenith Bank</p>
-                            <p className="text-xl font-black text-slate-900 tracking-widest">1310765201</p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              navigator.clipboard.writeText('1310765201');
-                              toast.success('Zenith Bank account number copied!');
-                            }}
-                            className="shrink-0 px-3 py-1.5 rounded-lg bg-orange-100 hover:bg-orange-200 border border-orange-200 text-orange-800 text-[11px] font-bold transition-all active:scale-95"
-                          >
-                            Copy
-                          </button>
-                        </div>
-
-                        {/* Divider */}
-                        <div className="h-px bg-orange-100" />
-
-                        {/* Moniepoint Account */}
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-0.5">Moniepoint</p>
-                            <p className="text-xl font-black text-slate-900 tracking-widest">7066252731</p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              navigator.clipboard.writeText('7066252731');
-                              toast.success('Moniepoint account number copied!');
-                            }}
-                            className="shrink-0 px-3 py-1.5 rounded-lg bg-orange-100 hover:bg-orange-200 border border-orange-200 text-orange-800 text-[11px] font-bold transition-all active:scale-95"
-                          >
-                            Copy
-                          </button>
-                        </div>
-
-                        {/* Divider */}
-                        <div className="h-px bg-orange-100" />
-
-                        {/* Account Name */}
-                        <div className="flex justify-between items-center text-sm">
-                          <span className="text-slate-600 text-[11px]">Account Name</span>
-                          <span className="text-slate-900 font-bold">SwiftMove Logistics</span>
-                        </div>
-
-                        {/* Amount */}
-                        <div className="flex justify-between items-center text-sm">
-                          <span className="text-slate-600 text-[11px]">Amount to Transfer</span>
-                          <span className="text-orange-600 font-black text-base">
-                            ₦{(activeOrder?.estimated_price || fare).toLocaleString()}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* WhatsApp CTA */}
-                      <a
-                        href={`https://wa.me/2347044223076?text=${encodeURIComponent(
-                          `Hello SwiftMove! I've just made a bank transfer of ₦${(activeOrder?.estimated_price || fare).toLocaleString()} to SwiftMove Logistics (Zenith: 1310765201 / Moniepoint: 7066252731). Please find my payment receipt attached. Order reference: ${activeOrder?.payment_reference || 'pending'}`
-                        )}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="w-full flex items-center justify-center gap-2.5 py-3.5 rounded-2xl bg-[#25D366]/10 hover:bg-[#25D366]/20 border border-[#25D366]/30 text-[#15803d] font-bold text-sm transition-all active:scale-[0.98]"
-                      >
-                        <span className="text-lg">💬</span>
-                        Send Receipt on WhatsApp
-                      </a>
-
-                      {/* Call Us */}
-                      <a
-                        href="tel:+2347041626545"
-                        className="w-full flex items-center justify-center gap-2.5 py-3 rounded-2xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 font-bold text-sm transition-all active:scale-[0.98]"
-                      >
-                        <span className="text-lg">📞</span>
-                        Call Us: 07041626545
-                      </a>
-
-                      <p className="text-[10px] text-slate-500 text-center leading-relaxed">
-                        After transferring, send your receipt via WhatsApp or call us to confirm.<br />
-                        Your order will be activated once payment is verified.
-                      </p>
-                    </div>
-                  )}
-
-                </div>
-
-                {/* Confirm Button */}
-                <div className="px-5 pb-5">
-                  <Button
-                    onClick={handleConfirmPayment}
-                    disabled={!paymentMethod || isConfirmingPayment}
-                    className="w-full h-14 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-xl disabled:opacity-40 transition-all"
-                  >
-                    {isConfirmingPayment
-                      ? <><Loader2 className="animate-spin mr-2 h-5 w-5" /> Connecting…</>
-                      : paymentMethod === 'paystack'
-                        ? `Pay ₦${(activeOrder?.estimated_price || fare).toLocaleString()} with Paystack`
-                        : `Confirm ₦${(activeOrder?.estimated_price || fare).toLocaleString()} Payment`
-                    }
-                  </Button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-      
-      {/* ═══════════ RIDER ASSIGNED NOTIFICATION MODAL ═══════════ */}
-      {showRiderAssigned && assignedRider && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
-          <div className="w-full max-w-sm bg-white border border-emerald-300 rounded-[32px] overflow-hidden shadow-2xl shadow-emerald-500/10 animate-in zoom-in-95 duration-300">
-            {/* Celebration Header */}
-            <div className="relative overflow-hidden p-6 text-center border-b border-emerald-100">
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-orange-500/5 pointer-events-none" />
-              <div className="relative">
-                <div className="text-5xl mb-3">🎉</div>
-                <h2 className="text-2xl font-black text-slate-900">Rider Assigned!</h2>
-                <p className="text-emerald-700 text-sm font-semibold mt-1">
-                  {assignedRider.name} is heading to your pickup!
-                </p>
-              </div>
-            </div>
-
-            {/* Rider Details Card */}
-            <div className="p-5 space-y-4">
-              {/* Rider Profile Row */}
-              <div className="flex items-center gap-4 p-4 bg-slate-50 border border-slate-200/80 rounded-2xl">
-                <div className="h-14 w-14 rounded-full bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-2xl font-black text-white shrink-0 shadow-lg shadow-orange-500/20">
-                  {assignedRider.name.charAt(0)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-black text-slate-900 text-base truncate">{assignedRider.name}</p>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="text-amber-500 text-sm">★</span>
-                    <span className="text-slate-800 text-sm font-bold">{assignedRider.rating.toFixed(1)}</span>
-                    <span className="text-slate-500 text-xs">· Verified SwiftMove Rider</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Vehicle & Plate */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl">
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">🚗 Vehicle</p>
-                  <p className="text-slate-900 font-bold text-sm">{assignedRider.vehicleMake}</p>
-                  {assignedRider.vehicleType && assignedRider.vehicleType !== assignedRider.vehicleMake && (
-                    <p className="text-slate-500 text-[11px] mt-0.5">{assignedRider.vehicleType}</p>
-                  )}
-                </div>
-                <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl">
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">🪪 Plate No.</p>
-                  <p className="text-orange-600 font-black text-sm font-mono">{assignedRider.plateNumber || 'N/A'}</p>
-                </div>
-              </div>
-
-              {/* Call Button */}
-              {assignedRider.phone ? (
-                <a
-                  href={`tel:${assignedRider.phone}`}
-                  className="flex items-center justify-center gap-3 w-full py-4 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 font-black text-sm rounded-2xl transition-all active:scale-[0.98]"
-                >
-                  <PhoneCall className="h-5 w-5" />
-                  Call {assignedRider.name.split(' ')[0]} — {assignedRider.phone}
-                </a>
-              ) : null}
-
-              {/* Close Button */}
-              <Button
-                className="w-full h-12 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-xl"
-                onClick={() => setShowRiderAssigned(false)}
-              >
-                Got it! Track My Parcel
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ═══════════ BACKGROUND: LIVE INTERACTIVE MAP (Zero-Watermark, Live GPS) ═══════════ */}
+    <div className="relative min-h-[calc(100dvh-4rem)] bg-slate-100 overflow-hidden flex flex-col md:flex-row">
+      {/* ── Background: Real-Time Interactive Map ── */}
       <div className="absolute inset-0 z-0">
         <InteractiveMap
           pickup={pickup}
@@ -1259,808 +1910,226 @@ function CustomerBookingPage() {
           center={mapCenter}
           zoom={pickup ? 14 : 12}
           routePolyline={routePolyline}
+          drivers={activeService === 'ride' ? (availableDrivers || []) : []}
+          matchedDriver={
+            matchedDriver
+              ? {
+                  id: matchedDriver.id,
+                  name: matchedDriver.name,
+                  lat: matchedDriver.lat,
+                  lng: matchedDriver.lng,
+                  rating: matchedDriver.rating,
+                  vehicleModel: matchedDriver.vehicleModel,
+                  plateNumber: matchedDriver.plateNumber,
+                  phone: matchedDriver.phone,
+                  isMatched: true,
+                }
+              : null
+          }
         />
-        
-        {/* Soft light gradient overlay so the floating card stands out */}
-        <div className="absolute inset-0 pointer-events-none bg-gradient-to-r from-slate-100/95 via-slate-100/75 to-transparent lg:w-3/5" />
+        <div className="absolute inset-y-0 left-0 w-full lg:w-[480px] bg-gradient-to-r from-slate-100/95 via-slate-100/80 to-transparent pointer-events-none" />
       </div>
 
-      {/* ═══════════ FOREGROUND: FLOATING BOOKING CARD ═══════════ */}
-      <div className="relative z-10 w-full lg:w-[460px] flex flex-col p-4 md:p-6 lg:p-8 h-[100dvh] overflow-hidden pointer-events-none">
-        <div className="bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-[32px] shadow-2xl flex flex-col flex-1 pointer-events-auto overflow-hidden">
+      {/* ── Foreground: Floating Customer Card ── */}
+      <div className="relative z-10 w-full lg:w-[480px] flex flex-col p-3 sm:p-4 lg:p-6 h-[100dvh] overflow-hidden pointer-events-none">
+        <div className="bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-[28px] shadow-2xl flex flex-col flex-1 pointer-events-auto overflow-hidden">
           
-          <div className="p-6 space-y-6 flex-1 overflow-y-auto custom-scrollbar">
-            {/* Top Tabs: Book Dispatch vs Dispatch History */}
-            {!activeOrder && (
-              <div className="flex rounded-xl bg-slate-100 border border-slate-200 p-1 mb-1">
-                <button
-                  type="button"
-                  onClick={() => setMainTab('dispatch')}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    mainTab === 'dispatch'
-                      ? 'bg-orange-600 text-white shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <Package className="w-4 h-4" />
-                  <span>Send a Parcel</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMainTab('history');
-                    fetchDispatchHistory();
-                  }}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    mainTab === 'history'
-                      ? 'bg-orange-600 text-white shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <History className="w-4 h-4" />
-                  <span>Dispatch History</span>
-                  {dispatchHistory.length > 0 && (
-                    <span
-                      className={`w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-bold ${
-                        mainTab === 'history' ? 'bg-orange-700 text-white' : 'bg-slate-200 text-slate-700'
-                      }`}
-                    >
-                      {dispatchHistory.length > 9 ? '9+' : dispatchHistory.length}
-                    </span>
-                  )}
-                </button>
+          {/* Header Segmented Tabs */}
+          <div className="p-4 sm:p-5 pb-3 border-b border-slate-100 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex h-2.5 w-2.5 rounded-full bg-orange-600 animate-pulse" />
+                <span className="font-extrabold text-sm sm:text-base text-slate-900 tracking-tight">SwiftMove Customer Portal</span>
               </div>
-            )}
+              <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">Jos City</span>
+            </div>
 
-            {!activeOrder && mainTab === 'history' ? (
-              renderDispatchHistory()
-            ) : (
-              <>
-            {/* Header */}
-            {!activeOrder ? (
-              <div className="space-y-4">
-                <div className="text-center">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-50 border border-orange-200 text-xs font-semibold text-orange-600">
-                    <Package className="h-3.5 w-3.5" /> Express Delivery
-                  </div>
-                  <h1 className="text-2xl font-black text-slate-900 tracking-tight mt-3">Send a Parcel</h1>
-                  <p className="text-xs text-slate-500 font-medium mt-1">Fast, reliable dispatch across the city.</p>
-                </div>
+            {/* Pillar Switcher */}
+            <div className="grid grid-cols-4 p-1 rounded-xl bg-slate-100 border border-slate-200/80">
+              <button
+                type="button"
+                onClick={() => switchService('ride')}
+                className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  activeService === 'ride'
+                    ? 'bg-white text-blue-700 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <Car className="w-3.5 h-3.5" />
+                <span>Ride</span>
+              </button>
 
-                {/* Step Progress */}
-                <div className="flex items-center gap-2">
-                  {[{ n: 1, label: 'Locations' }, { n: 2, label: 'Parcel' }, { n: 3, label: 'Review' }].map(({ n, label }, idx) => (
-                    <div key={n} className="flex items-center gap-2 flex-1">
-                      <div className={`flex items-center gap-1.5 ${step === n ? 'text-slate-900' : step > n ? 'text-emerald-600' : 'text-slate-400'}`}>
-                        <div className={`h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-black border transition-all ${
-                          step === n ? 'bg-orange-600 border-orange-500 text-white shadow-[0_0_12px_rgba(249,115,22,0.35)]'
-                          : step > n ? 'bg-emerald-100 border-emerald-500 text-emerald-700'
-                          : 'bg-slate-100 border-slate-200 text-slate-400'
-                        }`}>
-                          {step > n ? '✓' : n}
-                        </div>
-                        <span className="text-[10px] font-bold uppercase tracking-wide hidden sm:block">{label}</span>
-                      </div>
-                      {idx < 2 && <div className={`flex-1 h-[2px] rounded-full transition-all ${step > n ? 'bg-emerald-500' : 'bg-slate-200'}`} />}
-                    </div>
-                  ))}
-                </div>
+              <button
+                type="button"
+                onClick={() => switchService('parcel')}
+                className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  activeService === 'parcel'
+                    ? 'bg-white text-orange-600 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <Package className="w-3.5 h-3.5" />
+                <span>Parcel</span>
+              </button>
 
-                {/* ─── Parcel Tracking Widget ─── */}
-                <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200 rounded-2xl p-4 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-xl bg-blue-600 flex items-center justify-center shrink-0">
-                      <Search className="w-3.5 h-3.5 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-black text-slate-800">Track a Parcel</p>
-                      <p className="text-[10px] text-slate-500">Enter your tracking ID or reference number</p>
-                    </div>
-                  </div>
+              <button
+                type="button"
+                onClick={() => switchService('track')}
+                className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  activeService === 'track'
+                    ? 'bg-white text-slate-900 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <Search className="w-3.5 h-3.5" />
+                <span>Track</span>
+              </button>
 
-                  <form
-                    onSubmit={(e) => { e.preventDefault(); handleTrackParcel(); }}
-                    className="flex gap-2"
-                  >
-                    <div className="relative flex-1">
-                      <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                      <input
-                        type="text"
-                        id="parcel-tracking-input"
-                        placeholder="e.g. TRK-A1B2C3D4 or SWF-…"
-                        value={trackingInput}
-                        onChange={(e) => {
-                          setTrackingInput(e.target.value);
-                          setTrackingError('');
-                        }}
-                        className="w-full pl-9 pr-8 py-2.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-800 placeholder:text-slate-400 font-medium"
-                      />
-                      {trackingInput && (
-                        <button
-                          type="button"
-                          onClick={() => { setTrackingInput(''); setTrackingResult(null); setTrackingError(''); setShowTrackingPanel(false); }}
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 rounded-full cursor-pointer"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
-                    <button
-                      type="submit"
-                      disabled={trackingLoading || !trackingInput.trim()}
-                      className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
-                    >
-                      {trackingLoading ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <Search className="w-3.5 h-3.5" />
-                      )}
-                      <span>Track</span>
-                    </button>
-                  </form>
+              <button
+                type="button"
+                onClick={() => switchService('history')}
+                className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  activeService === 'history'
+                    ? 'bg-white text-slate-900 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <History className="w-3.5 h-3.5" />
+                <span>History</span>
+              </button>
+            </div>
+          </div>
 
-                  {/* Error */}
-                  {trackingError && !trackingLoading && (
-                    <p className="text-xs text-red-600 font-medium flex items-center gap-1.5">
-                      <X className="w-3.5 h-3.5" /> {trackingError}
-                    </p>
-                  )}
-
-                  {/* Tracking Result Card */}
-                  {showTrackingPanel && trackingResult && (() => {
-                    const st = trackingResult.status || 'pending';
-                    const steps = [
-                      { key: 'pending', label: 'Order Placed', icon: '📦' },
-                      { key: 'accepted', label: 'Rider Accepted', icon: '✅' },
-                      { key: 'picked_up', label: 'Picked Up', icon: '🚀' },
-                      { key: 'in_transit', label: 'In Transit', icon: '🏍️' },
-                      { key: 'delivered', label: 'Delivered', icon: '🎉' },
-                    ];
-                    const cancelled = st === 'cancelled';
-                    const statusOrder = ['pending','accepted','picked_up','in_transit','delivered'];
-                    const currentIdx = statusOrder.indexOf(st === 'completed' ? 'delivered' : st);
-                    const meta = parseOrderMetadata(trackingResult.package_type);
-
-                    const statusColors: Record<string, string> = {
-                      pending: 'text-amber-600 bg-amber-50 border-amber-200',
-                      accepted: 'text-blue-600 bg-blue-50 border-blue-200',
-                      picked_up: 'text-indigo-600 bg-indigo-50 border-indigo-200',
-                      in_transit: 'text-orange-600 bg-orange-50 border-orange-200',
-                      delivered: 'text-emerald-600 bg-emerald-50 border-emerald-200',
-                      completed: 'text-emerald-600 bg-emerald-50 border-emerald-200',
-                      cancelled: 'text-red-600 bg-red-50 border-red-200',
-                      assigned: 'text-blue-600 bg-blue-50 border-blue-200',
-                    };
-
-                    return (
-                      <div className="bg-white border border-blue-100 rounded-2xl overflow-hidden shadow-sm animate-in slide-in-from-top-2 duration-300">
-                        {/* Result header */}
-                        <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-slate-100">
-                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-lg bg-slate-900 flex items-center justify-center">
-                              <Truck className="w-3.5 h-3.5 text-white" />
-                            </div>
-                            <div>
-                              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Tracking Result</p>
-                              <p className="text-xs font-black text-slate-900 font-mono">
-                                {trackingResult.payment_reference || `ORD-${trackingResult.id?.slice(0,8)}`}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className={`text-[10px] font-bold px-2 py-1 rounded-lg border capitalize ${statusColors[st] || 'text-slate-600 bg-slate-50 border-slate-200'}`}>
-                              {cancelled ? '✗ Cancelled' : st.replace('_',' ')}
-                            </span>
-                            <button type="button" onClick={() => setShowTrackingPanel(false)} className="p-1 text-slate-400 hover:text-slate-700 rounded-full cursor-pointer">
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="px-4 pb-4 pt-3 space-y-3">
-                          {/* Route */}
-                          <div className="text-xs space-y-1.5">
-                            <div className="flex items-start gap-2">
-                              <div className="w-2 h-2 rounded-full bg-emerald-500 mt-1 shrink-0" />
-                              <div>
-                                <span className="text-slate-400 font-semibold">From: </span>
-                                <span className="text-slate-800 font-semibold">{trackingResult.pickup_address || 'Pickup location'}</span>
-                              </div>
-                            </div>
-                            <div className="flex items-start gap-2">
-                              <div className="w-2 h-2 rounded-full bg-rose-500 mt-1 shrink-0" />
-                              <div>
-                                <span className="text-slate-400 font-semibold">To: </span>
-                                <span className="text-slate-800 font-semibold">{trackingResult.dropoff_address || 'Dropoff location'}</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Parcel info */}
-                          <div className="flex items-center gap-3 text-[10px] text-slate-500">
-                            {trackingResult.weight_kg && (
-                              <span className="flex items-center gap-1">⚖️ {trackingResult.weight_kg}kg</span>
-                            )}
-                            {trackingResult.distance_km && (
-                              <span className="flex items-center gap-1">📍 {trackingResult.distance_km}km</span>
-                            )}
-                            {trackingResult.estimated_price && (
-                              <span className="flex items-center gap-1 font-bold text-slate-700">₦{Number(trackingResult.estimated_price).toLocaleString()}</span>
-                            )}
-                            <span className="ml-auto text-[9px] text-slate-400">
-                              {new Date(trackingResult.created_at).toLocaleDateString('en-NG', { day:'numeric', month:'short', year:'numeric' })}
-                            </span>
-                          </div>
-
-                          {/* Progress timeline (hidden if cancelled) */}
-                          {!cancelled && (
-                            <div className="flex items-center gap-1 pt-1">
-                              {steps.map((s, i) => {
-                                const done = i <= currentIdx;
-                                const active = i === currentIdx;
-                                return (
-                                  <div key={s.key} className="flex items-center gap-1 flex-1 last:flex-none">
-                                    <div className="flex flex-col items-center gap-0.5">
-                                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-sm transition-all ${active ? 'bg-orange-500 shadow-md shadow-orange-200 scale-110' : done ? 'bg-emerald-500' : 'bg-slate-200'}`}>
-                                        {done ? (active ? <span className="text-[11px]">{s.icon}</span> : '✓') : ''}
-                                        {!done && <span className="text-[9px] font-bold text-slate-400">{i+1}</span>}
-                                      </div>
-                                      <span className={`text-[8px] font-bold text-center leading-tight w-10 ${active ? 'text-orange-600' : done ? 'text-emerald-600' : 'text-slate-400'}`}>
-                                        {s.label}
-                                      </span>
-                                    </div>
-                                    {i < steps.length - 1 && (
-                                      <div className={`flex-1 h-0.5 rounded-full mb-3.5 ${i < currentIdx ? 'bg-emerald-400' : 'bg-slate-200'}`} />
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-
-                          {/* Rider Info if assigned */}
-                          {meta.driverName && (
-                            <div className="flex items-center gap-2.5 p-2.5 bg-slate-50 rounded-xl border border-slate-200">
-                              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-xs font-black text-white shrink-0">
-                                {meta.driverName.charAt(0)}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs font-bold text-slate-800 truncate">{meta.driverName}</p>
-                                <p className="text-[10px] text-slate-500">SwiftMove Rider</p>
-                              </div>
-                              {meta.driverPhone && (
-                                <a href={`tel:${meta.driverPhone}`} className="flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold transition-all">
-                                  <PhoneCall className="w-3 h-3" />
-                                  Call
-                                </a>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Delivered confirmation */}
-                          {(st === 'delivered' || st === 'completed') && (
-                            <div className="flex items-center gap-2 p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-700 font-semibold">
-                              <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                              Your parcel has been successfully delivered! 🎉
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-              </div>
-            ) : (
-              <div className="text-center space-y-1">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-50 border border-orange-200 text-xs font-semibold text-orange-600">
-                  <Truck className="h-3.5 w-3.5" /> Live Tracking
-                </div>
-                <h1 className="text-2xl font-black text-slate-900 tracking-tight mt-3">Order Dispatched</h1>
-                <p className="text-xs text-slate-500 font-medium">Your parcel is being handled by SwiftMove.</p>
-              </div>
-            )}
-
-            {!activeOrder ? (
-              <div className="space-y-6">
-                
-                {/* ═══ STEP 1: LOCATIONS ═══ */}
-                {step === 1 && (
-                  <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
-                    <div className="relative space-y-4">
-                      {/* Vertical connecting line */}
-                      <div className="absolute left-6 top-8 bottom-8 w-[2px] bg-slate-200 rounded-full z-0" />
-                      
-                      {/* Pickup Input with Live GPS & Real-time Suggestions */}
-                      <div className="relative z-30">
-                        <LocationSearchInput
-                          label="Where from?"
-                          placeholder="Enter pickup location (e.g. Terminus, Rayfield, UNIJOS)…"
-                          value={pickupText}
-                          onChange={(val) => {
-                            setPickupText(val);
-                            if (!val.trim()) setPickup(null);
-                          }}
-                          onSelectLocation={(loc, isExplicit) => {
-                            setPickup(loc);
-                            if (isExplicit) {
-                              setPickupText(loc.address);
-                            }
-                          }}
-                          iconVariant="pickup"
-                          showGpsButton={true}
-                          mapsLoaded={mapsLoaded}
-                          inputRef={pickupInputRef}
-                        />
-                      </div>
-
-                      {/* Dropoff Input with Real-time Suggestions */}
-                      <div className="relative z-20">
-                        <LocationSearchInput
-                          label="Where to?"
-                          placeholder="Enter dropoff destination (e.g. Airport, Bukuru, JUTH)…"
-                          value={dropoffText}
-                          onChange={(val) => {
-                            setDropoffText(val);
-                            if (!val.trim()) setDropoff(null);
-                          }}
-                          onSelectLocation={(loc, isExplicit) => {
-                            setDropoff(loc);
-                            if (isExplicit) {
-                              setDropoffText(loc.address);
-                            }
-                          }}
-                          iconVariant="dropoff"
-                          mapsLoaded={mapsLoaded}
-                          inputRef={dropoffInputRef}
-                        />
-                      </div>
-
-                      {/* Popular Jos Destinations Chips */}
-                      <div className="relative z-10 space-y-2 pt-1">
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Popular Jos Destinations</p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {POPULAR_DESTINATIONS.map((dest) => (
-                            <button
-                              key={dest.label}
-                              type="button"
-                              onClick={() => {
-                                const full = `${dest.name}, ${dest.address}`;
-                                setDropoff({ address: full, lat: dest.lat, lng: dest.lng });
-                                setDropoffText(dest.name);
-                                if (!pickup) {
-                                  const term = { address: 'Jos Main Market / Terminus, Jos', lat: 9.9248, lng: 8.8912 };
-                                  setPickup(term);
-                                  setPickupText('Jos Main Market / Terminus');
-                                }
-                              }}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-xs text-slate-700 hover:bg-orange-50 hover:border-orange-300 hover:text-orange-950 transition-all text-left active:scale-95"
-                            >
-                              <span>{dest.iconEmoji}</span>
-                              <span>{dest.label}</span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Route Details Banner */}
-                    {distanceKm > 0 && (
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-orange-50 border border-orange-200 text-xs animate-in fade-in-0 duration-200">
-                        <span className="text-slate-700 flex items-center gap-1.5 font-medium">
-                          <span>🛣️</span> Road Distance: <strong className="text-slate-900">{distanceKm} km</strong>
-                        </span>
-                        {durationText && (
-                          <span className="text-orange-600 font-semibold flex items-center gap-1">
-                            <span>⏱️</span> {durationText}
-                          </span>
-                        )}
-                      </div>
-                    )}
-
-                    {isCalculatingRoute && distanceKm <= 0 && (
-                      <div className="flex items-center justify-center gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-orange-600">
-                        <Loader2 className="h-4 w-4 animate-spin text-orange-600" />
-                        <span>Calculating road route & distance…</span>
-                      </div>
-                    )}
-
-                    {(() => {
-                      const isStep1Ready = (!!pickup || !!pickupText.trim()) && (!!dropoff || !!dropoffText.trim());
-                      return (
-                        <Button
-                          onClick={handleProceedToParcelDetails}
-                          disabled={!isStep1Ready}
-                          className={`w-full h-14 text-sm font-black rounded-xl transition-all duration-300 flex items-center justify-center gap-2 ${
-                            isStep1Ready
-                              ? 'bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:scale-[1.01] active:scale-[0.99] border border-orange-400/30 cursor-pointer'
-                              : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-60 shadow-none'
-                          }`}
-                        >
-                          {isCalculatingRoute ? (
-                            <>
-                              <Loader2 className="h-5 w-5 animate-spin text-white" />
-                              <span>Pinpointing & Calculating Route…</span>
-                            </>
-                          ) : (
-                            <>
-                              <span>Next: Parcel Details</span>
-                              <ArrowRight className="h-5 w-5" />
-                            </>
-                          )}
-                        </Button>
-                      );
-                    })()}
-                  </div>
-                )}
-
-                {/* ═══ STEP 2: PARCEL DETAILS ═══ */}
-                {step === 2 && (
-                  <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
-                    <div className="space-y-4">
-                      {/* Weight */}
-                      <div>
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 mb-1.5 ml-2">
-                          <Weight className="h-3 w-3" /> Estimated Weight (kg)
-                        </label>
-                        <div className="relative">
-                          <input type="number" min={0.5} max={500} step={0.5} value={weightKg}
-                            onChange={(e) => setWeightKg(e.target.value === '' ? '' : Number(e.target.value))}
-                            placeholder="e.g., 2.5 kg"
-                            className="w-full h-14 pl-10 pr-4 rounded-2xl bg-slate-50 border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-orange-500/30 focus:border-orange-400 transition-all"
-                          />
-                          <Package className="absolute left-4 top-4 h-5 w-5 text-slate-400" />
-                        </div>
-                      </div>
-
-                      {/* Description */}
-                      <div>
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 mb-1.5 ml-2">
-                          <Info className="h-3 w-3" /> What are you sending? <span className="text-red-500">*</span>
-                        </label>
-                        <textarea
-                          value={parcelDescription}
-                          onChange={(e) => setParcelDescription(e.target.value)}
-                          placeholder="Describe the items securely..."
-                          className="w-full h-24 p-4 rounded-2xl bg-slate-50 border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-orange-500/30 focus:border-orange-400 transition-all resize-none"
-                        />
-                      </div>
-
-                      {/* ── Dispatch Timing Selector ── */}
-                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                          <Clock className="h-3.5 w-3.5 text-orange-500" /> Pickup Timing
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setDispatchTiming('now')}
-                            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                              dispatchTiming === 'now'
-                                ? 'bg-slate-900 text-white shadow-sm'
-                                : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-400'
-                            }`}
-                          >
-                            ⚡ Pick Up Now
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setDispatchTiming('scheduled')}
-                            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                              dispatchTiming === 'scheduled'
-                                ? 'bg-orange-500 text-white shadow-sm'
-                                : 'bg-white border border-slate-200 text-slate-600 hover:border-orange-400'
-                            }`}
-                          >
-                            <Calendar className="h-3.5 w-3.5" /> Schedule for Later
-                          </button>
-                        </div>
-
-                        {dispatchTiming === 'scheduled' && (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-200/60 animate-in fade-in duration-200">
-                            <div>
-                              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                                Date <span className="text-red-500">*</span>
-                              </label>
-                              <input
-                                type="date"
-                                min={todayStr}
-                                value={schedDate}
-                                onChange={(e) => setSchedDate(e.target.value)}
-                                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400 shadow-sm"
-                                required
-                              />
-                              <div className="flex flex-wrap gap-1.5 mt-1.5">
-                                <button type="button" onClick={() => setSchedDate(todayStr)}
-                                  className={`px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${ schedDate === todayStr ? 'bg-orange-100 border-orange-300 text-orange-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100' }`}>
-                                  Today
-                                </button>
-                                <button type="button" onClick={() => setSchedDate(tomorrowStr)}
-                                  className={`px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${ schedDate === tomorrowStr ? 'bg-orange-100 border-orange-300 text-orange-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100' }`}>
-                                  Tomorrow
-                                </button>
-                              </div>
-                            </div>
-                            <div>
-                              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                                Time
-                              </label>
-                              <input
-                                type="time"
-                                value={schedTime}
-                                onChange={(e) => setSchedTime(e.target.value)}
-                                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400 shadow-sm"
-                              />
-                              <div className="flex flex-wrap gap-1.5 mt-1.5">
-                                {['08:00', '12:00', '17:00'].map((t) => (
-                                  <button key={t} type="button" onClick={() => setSchedTime(t)}
-                                    className={`px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${ schedTime === t ? 'bg-orange-100 border-orange-300 text-orange-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100' }`}>
-                                    {t}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex gap-3">
-                      <Button variant="outline" onClick={() => setStep(1)} className="h-14 px-6 border-slate-200 text-slate-700 hover:bg-slate-100 rounded-xl">
-                        Back
-                      </Button>
-                      <Button
-                        onClick={() => setStep(3)}
-                        disabled={!weightKg || !parcelDescription.trim()}
-                        className="flex-1 h-14 bg-slate-900 hover:bg-slate-800 text-white text-sm font-black rounded-xl shadow-md transition-all"
-                      >
-                        Review Fare & Book
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {/* ═══ STEP 3: REVIEW & BOOK ═══ */}
-                {step === 3 && isFormComplete && (
-                  <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
-                    <div className="bg-slate-50 rounded-[24px] border border-slate-200/90 p-6 space-y-5 shadow-sm">
-                      
-                      {/* Price header */}
-                      <div className="flex justify-between items-end border-b border-slate-200/80 pb-5">
-                        <div>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Guaranteed Fare</p>
-                          <span className="text-4xl font-black text-slate-900">₦{breakdown?.total.toLocaleString()}</span>
-                        </div>
-                        <div className="text-right pb-1">
-                          {durationText && (
-                            <p className="text-sm text-emerald-600 font-semibold mb-1">~{durationText} delivery</p>
-                          )}
-                          <p className="text-xs text-slate-500 font-medium">{distanceKm} km • {weightKg} kg</p>
-                        </div>
-                      </div>
-
-                      {/* Transparent Fare Breakdown (Price per km & kg) */}
-                      {breakdown && (
-                        <div className="p-4 rounded-2xl bg-white border border-slate-200/80 space-y-2.5 text-xs shadow-sm">
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Fare Breakdown</p>
-                          
-                          <div className="flex justify-between items-center text-slate-600">
-                            <span className="flex items-center gap-1.5">
-                              <span>🏁</span> Base Dispatch Fare
-                            </span>
-                            <span className="font-semibold text-slate-900">₦{breakdown.baseFare.toLocaleString()}</span>
-                          </div>
-
-                          <div className="flex justify-between items-center text-slate-600">
-                            <span className="flex items-center gap-1.5">
-                              <span>🛣️</span> Distance ({breakdown.distanceKm} km @ ₦{breakdown.ratePerKm}/km)
-                            </span>
-                            <span className="font-semibold text-slate-900">₦{breakdown.distanceCost.toLocaleString()}</span>
-                          </div>
-
-                          <div className="flex justify-between items-center text-slate-600">
-                            <span className="flex items-center gap-1.5">
-                              <span>⚖️</span> Weight ({breakdown.weightKg} kg @ ₦{breakdown.ratePerKg}/kg)
-                            </span>
-                            <span className="font-semibold text-slate-900">₦{breakdown.weightCost.toLocaleString()}</span>
-                          </div>
-
-                          {breakdown.subtotal < breakdown.minFare && (
-                            <div className="flex justify-between items-center text-amber-700 pt-1 border-t border-slate-100 text-[11px]">
-                              <span>Minimum Fare Threshold Applied</span>
-                              <span className="font-semibold">₦{breakdown.minFare.toLocaleString()}</span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Trust Signals */}
-                      <div className="space-y-3 pt-2">
-                        <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200/80 p-3 rounded-xl">
-                          <div className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-                            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                          </div>
-                          <div>
-                            <p className="text-xs font-bold text-emerald-800">100% Safe & Verified Drivers</p>
-                            <p className="text-[10px] text-emerald-700/80">Every dispatch rider is fully vetted by SwiftMove.</p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-3 bg-amber-50 border border-amber-200/80 p-3 rounded-xl">
-                          <div className="h-8 w-8 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
-                            <Banknote className="h-4 w-4 text-amber-600" />
-                          </div>
-                          <div>
-                            <p className="text-xs font-bold text-amber-800">Secure Upfront Payment</p>
-                            <p className="text-[10px] text-amber-700/80">Pay securely now. Drivers receive request upon verification.</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="pt-4">
-                        <Button
-                          onClick={handleBookDispatch}
-                          disabled={isBooking}
-                          className="w-full h-14 bg-orange-600 hover:bg-orange-500 text-white text-sm font-black rounded-xl shadow-lg shadow-orange-500/25 transition-all"
-                        >
-                          {isBooking ? (
-                            <><Loader2 className="animate-spin mr-2 h-5 w-5" /> Preparing Payment…</>
-                          ) : (
-                            <><Banknote className="mr-2 h-5 w-5" /> Pay & Request Dispatch</>
-                          )}
-                        </Button>
-                        <Button variant="ghost" onClick={() => setStep(2)} disabled={isBooking} className="w-full mt-2 text-slate-500 hover:text-slate-900">
-                          Make Changes
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : showDelivered ? (
-              /* ═══ Delivery Celebration ═══ */
-              <div className="flex flex-col items-center justify-center py-10 space-y-6 text-center animate-in zoom-in-95 duration-500">
-                <div className="w-24 h-24 rounded-full bg-emerald-100 flex items-center justify-center">
-                  <CheckCircle2 className="h-12 w-12 text-emerald-600" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-black text-slate-900 tracking-tight">Delivered! 🎉</h2>
-                  <p className="text-slate-500 text-sm mt-1">Your package has arrived safely.</p>
-                </div>
-                
-                <div className="w-full bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-3">
-                  <p className="text-emerald-700 font-bold text-sm">Final Fare</p>
-                  <p className="text-3xl font-black text-slate-900">₦{(activeOrder?.estimated_price || 0).toLocaleString()} </p>
-                  <p className="text-slate-500 text-xs mt-2">Payment was verified upfront.</p>
-                  <p className="text-slate-700 text-sm mt-4 font-semibold">Receipt & Driver Earnings Sent.</p>
-                </div>
-                
-                <Button variant="ghost" className="text-slate-500 hover:text-slate-900"
-                  onClick={() => { setShowDelivered(false); handleReset(); }}>
-                  Book Another Dispatch
-                </Button>
-              </div>
-            ) : (
-              /* ═══════════ Active Order Tracking ═══════════ */
-              <div className="space-y-6 py-2 animate-in slide-in-from-right-4 duration-500">
-                {/* Status Banner */}
-                <div className={`rounded-2xl p-4 flex items-center gap-4 border ${
-                  activeOrder.status === 'pending'
-                    ? 'bg-amber-50 border-amber-200'
-                    : activeOrder.status === 'accepted'
-                    ? 'bg-emerald-50 border-emerald-200'
-                    : 'bg-orange-50 border-orange-200'
-                }`}>
-                  <div className={`h-12 w-12 rounded-full flex items-center justify-center flex-shrink-0 ${
-                    activeOrder.status === 'pending' ? 'bg-amber-100' : 'bg-emerald-100'
-                  }`}>
-                    {activeOrder.status === 'pending'
-                      ? <Loader2 className="h-6 w-6 text-amber-600 animate-spin" />
-                      : <Truck className="h-6 w-6 text-emerald-600" />}
-                  </div>
-                  <div>
-                    <h3 className="text-slate-900 font-bold text-sm">
-                      {activeOrder.status === 'pending'
-                        ? '💳 Payment Received · Awaiting Dispatcher'
-                        : activeOrder.status === 'accepted'
-                        ? '🎉 Rider Assigned · En Route to Pickup!'
-                        : activeOrder.status === 'in_transit'
-                        ? '🚚 Parcel In Transit!'
-                        : 'Rider Assigned!'}
-                    </h3>
-                    <p className="text-slate-600 text-xs mt-0.5">
-                      {activeOrder.status === 'pending'
-                        ? 'A dispatcher is reviewing your order and will assign a rider.'
-                        : activeOrder.status === 'accepted'
-                        ? 'Your rider is heading to the pickup location.'
-                        : 'Your parcel is on its way to the destination.'}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Progress Tracker */}
-                <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-5">
-                  {(() => {
-                    const steps = [
-                      { key: 'accepted',  label: 'Rider Assigned & En Route' },
-                      { key: 'picked_up', label: 'Package Collected' },
-                      { key: 'in_transit',label: 'In Transit' },
-                      { key: 'delivered', label: 'Delivered' },
-                    ];
-                    const idx = steps.findIndex(s => s.key === activeOrder.status);
-                    const pending = activeOrder.status === 'pending';
-                    
-                    return (
-                      <div className="space-y-6 relative before:absolute before:inset-0 before:ml-2.5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-200 before:to-transparent">
-                        {steps.map((step, i) => {
-                          const done = !pending && i <= idx;
-                          const active = !pending && i === idx;
-                          return (
-                            <div key={step.key} className="relative flex items-center gap-4">
-                              <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center bg-white z-10 ${
-                                active ? 'border-orange-500' : done ? 'border-emerald-500' : 'border-slate-300'
-                              }`}>
-                                {active ? <div className="h-2 w-2 rounded-full bg-orange-500 animate-ping" /> : 
-                                 done ? <div className="h-2 w-2 rounded-full bg-emerald-500" /> : null}
-                              </div>
-                              <p className={`text-sm font-semibold ${
-                                active ? 'text-slate-900 font-bold' : done ? 'text-slate-700' : 'text-slate-400'
-                              }`}>{step.label}</p>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })()}
-                </div>
-
-                {/* Order Details Card */}
-                <div className="bg-white rounded-2xl p-4 border border-slate-200/90 space-y-3 text-sm shadow-sm">
-                {/* Driver phone - extracted from package_type where driver writes it on accept */}
-                {(() => {
-                  const driverPhoneMatch = activeOrder?.package_type?.match(/\|\|\|DPHONE:([\d\+\-\(\)\s]+)/);
-                  const driverPhone = driverPhoneMatch ? driverPhoneMatch[1] : null;
-                  return driverPhone ? (
-                    <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-                      <div>
-                        <p className="text-slate-500 text-xs">Driver Phone</p>
-                        <p className="font-bold text-slate-900 mt-0.5">{driverPhone}</p>
-                      </div>
-                      <Button variant="outline" size="sm" className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200" asChild>
-                        <a href={`tel:${driverPhone}`}><PhoneCall className="h-4 w-4 mr-2" /> Call Driver</a>
-                      </Button>
-                    </div>
-                  ) : null;
-                })()}
-                  <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-                    <span className="text-slate-500">Tracking ID</span>
-                    <span className="font-mono text-orange-600 font-bold">{activeOrder.payment_reference}</span>
-                  </div>
-                  <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-                    <span className="text-slate-500">Fare (Paid)</span>
-                    <span className="font-black text-slate-900">₦{(activeOrder.estimated_price||0).toLocaleString()}</span>
-                  </div>
-                  
-                  {activeOrder.status === 'pending' && (
-                    <Button variant="ghost" onClick={handleCancelOrder} disabled={isCancelling}
-                      className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl mt-2">
-                      {isCancelling ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                      Cancel Order
-                    </Button>
-                  )}
-                  
-                  {activeOrder.status === 'delivered' && (
-                    <div className="text-center p-3 mt-2 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-xs font-bold">
-                      Payment Completed
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-              </>
-            )}
+          {/* Card Body */}
+          <div className="p-4 sm:p-5 flex-1 overflow-y-auto custom-scrollbar">
+            {activeService === 'ride' && renderRidePanel()}
+            {activeService === 'parcel' && renderParcelPanel()}
+            {activeService === 'track' && renderTrackPanel()}
+            {activeService === 'history' && renderHistoryPanel()}
           </div>
         </div>
       </div>
+
+      {/* ── Emergency SOS Modal ── */}
+      {showSosModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-sm bg-white rounded-3xl p-6 text-center space-y-4 shadow-2xl">
+            <div className="w-14 h-14 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto">
+              <AlertTriangle className="w-8 h-8" />
+            </div>
+            <div>
+              <h3 className="text-base font-extrabold text-slate-900">SwiftMove Emergency Assistance</h3>
+              <p className="text-xs text-slate-500 mt-1">
+                If you feel unsafe or require instant intervention, connect to our response line or national police.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <a
+                href="tel:08000000000"
+                className="w-full py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs flex items-center justify-center gap-2"
+              >
+                <Phone className="w-4 h-4" /> Call SwiftMove Safety Desk
+              </a>
+              <a
+                href="tel:112"
+                className="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-2"
+              >
+                <ShieldCheck className="w-4 h-4" /> Call Emergency Police (112)
+              </a>
+            </div>
+            <Button variant="ghost" onClick={() => setShowSosModal(false)} className="w-full text-xs text-slate-500">
+              Close
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Parcel Payment Modal ── */}
+      {showParcelPaymentModal && activeParcelOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-sm bg-white rounded-3xl p-6 space-y-4 shadow-2xl">
+            <div className="text-center space-y-1">
+              <h3 className="text-base font-extrabold text-slate-900">Complete Parcel Payment</h3>
+              <p className="text-xs text-slate-500">Amount due: ₦{parcelFare.toLocaleString()}</p>
+            </div>
+
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => setParcelPaymentMethod('paystack')}
+                className={`w-full p-3 rounded-xl border text-left text-xs transition-all cursor-pointer ${
+                  parcelPaymentMethod === 'paystack' ? 'bg-orange-50 border-orange-500 ring-1 ring-orange-500/20' : 'bg-slate-50 border-slate-200'
+                }`}
+              >
+                <p className="font-bold text-slate-900">💳 Instant Paystack</p>
+                <p className="text-[11px] text-slate-500">Debit card, instant bank transfer, USSD</p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setParcelPaymentMethod('transfer')}
+                className={`w-full p-3 rounded-xl border text-left text-xs transition-all cursor-pointer ${
+                  parcelPaymentMethod === 'transfer' ? 'bg-orange-50 border-orange-500 ring-1 ring-orange-500/20' : 'bg-slate-50 border-slate-200'
+                }`}
+              >
+                <p className="font-bold text-slate-900">🏦 Direct Bank Transfer</p>
+                <p className="text-[11px] text-slate-500">Zenith Bank / Moniepoint corporate accounts</p>
+              </button>
+            </div>
+
+            {parcelPaymentMethod === 'transfer' && (
+              <div className="p-3 rounded-xl bg-orange-50/80 border border-orange-200 text-xs space-y-2">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase">Zenith Bank</p>
+                    <p className="font-mono font-black text-slate-900">1310765201</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText('1310765201');
+                      toast.success('Account number copied!');
+                    }}
+                    className="p-1 text-orange-600 hover:text-orange-800 text-[11px] font-bold"
+                  >
+                    Copy
+                  </button>
+                </div>
+                <p className="text-[10px] text-slate-500">Account Name: SwiftMove Logistics</p>
+              </div>
+            )}
+
+            <div className="space-y-2 pt-2">
+              {parcelPaymentMethod === 'paystack' ? (
+                <Button
+                  onClick={handlePayParcelPaystack}
+                  disabled={isConfirmingParcelPayment}
+                  className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs rounded-xl"
+                >
+                  {isConfirmingParcelPayment ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                  Pay ₦{parcelFare.toLocaleString()} via Paystack
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleConfirmParcelTransfer}
+                  disabled={isConfirmingParcelPayment}
+                  className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl"
+                >
+                  I Have Completed Transfer
+                </Button>
+              )}
+
+              <Button
+                variant="ghost"
+                onClick={() => setShowParcelPaymentModal(false)}
+                className="w-full text-xs text-slate-500"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

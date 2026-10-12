@@ -44,10 +44,10 @@ const customerNav = {
             ],
         },
         {
-            title: 'Logistics Services',
+            title: 'SwiftMove Logistics & Rides',
             items: [
-                { title: 'Book a Dispatch', path: '/my-swift-move', icon: Package },
-                { title: 'Request a Ride', path: '/my-vehicle-hires', icon: Car },
+                { title: 'Order a Ride', path: '/my-swift-move?service=ride', icon: Car },
+                { title: 'Send a Parcel', path: '/my-swift-move?service=parcel', icon: Package },
             ],
         },
         {

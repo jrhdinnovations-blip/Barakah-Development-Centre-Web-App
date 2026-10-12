@@ -1,5 +1,5 @@
 import { Link, useNavigate } from '@tanstack/react-router';
-import { LogOut, Radio, Shield, Truck, Package, Car, Clock, LayoutDashboard } from 'lucide-react';
+import { LogOut, Radio, Shield, Truck, Package, Car, Clock, LayoutDashboard, Search } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { isSwiftmoveDomain } from '@/lib/domain-detection';
 import { SwiftmoveLogo } from '@/components/SwiftmoveLogo';
@@ -41,33 +41,34 @@ export function SwiftmoveHeader() {
           <SwiftmoveLogo />
 
           {/* Desktop nav — hidden on mobile */}
-          <nav className="hidden sm:flex items-center gap-3 sm:gap-5">
+          <nav className="hidden sm:flex items-center gap-1.5 md:gap-3">
             <Link
-              to="/app"
-              className="text-sm font-semibold text-[#FF5500] hover:text-[#e04800] transition-colors whitespace-nowrap flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#FF5500]/10 hover:bg-[#FF5500]/20 border border-[#FF5500]/30"
-              activeProps={{ className: "text-[#FF5500] font-bold" }}
+              to="/my-swift-move"
+              search={{ service: 'ride' }}
+              className="text-xs sm:text-sm font-semibold text-blue-700 hover:text-blue-800 transition-colors whitespace-nowrap flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100/80 border border-blue-200"
             >
-              <LayoutDashboard className="h-4 w-4" />
-              App
+              <Car className="h-4 w-4 text-blue-600" />
+              Order a Ride
             </Link>
             <Link
               to="/my-swift-move"
-              className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors whitespace-nowrap"
-              activeProps={{ className: "text-orange-600 font-bold" }}
+              search={{ service: 'parcel' }}
+              className="text-xs sm:text-sm font-semibold text-orange-700 hover:text-orange-800 transition-colors whitespace-nowrap flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-50 hover:bg-orange-100/80 border border-orange-200"
             >
+              <Package className="h-4 w-4 text-orange-600" />
               Send a Parcel
             </Link>
             <Link
-              to="/my-vehicle-hires"
-              className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors whitespace-nowrap"
-              activeProps={{ className: "text-blue-600 font-bold" }}
+              to="/my-swift-move"
+              search={{ service: 'track' }}
+              className="text-xs sm:text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors whitespace-nowrap flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-slate-100"
             >
-              Request a Ride
+              Track
             </Link>
             <Link
-              to="/history"
-              className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors whitespace-nowrap"
-              activeProps={{ className: "text-emerald-600 font-bold" }}
+              to="/my-swift-move"
+              search={{ service: 'history' }}
+              className="text-xs sm:text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors whitespace-nowrap flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-slate-100"
             >
               History
             </Link>
@@ -130,11 +131,12 @@ export function SwiftmoveHeader() {
           <div className="flex sm:hidden items-center gap-2">
             {/* Role badge pill for mobile */}
             {user && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border capitalize
-                {isDriver ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border capitalize ${
+                isDriver ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
                 isDispatcher ? 'bg-cyan-50 border-cyan-200 text-cyan-700' :
                 isAdmin ? 'bg-purple-50 border-purple-200 text-purple-700' :
-                'bg-blue-50 border-blue-200 text-blue-700'}">
+                'bg-blue-50 border-blue-200 text-blue-700'
+              }`}>
                 {isDriver ? 'Driver' : isDispatcher ? 'Dispatcher' : isAdmin ? 'Admin' : 'Customer'}
               </span>
             )}
@@ -162,39 +164,39 @@ export function SwiftmoveHeader() {
       <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-xl border-t border-slate-200 shadow-[0_-2px_16px_rgba(0,0,0,0.08)] px-1 pb-safe">
         <div className="flex items-center justify-around">
           <Link
-            to="/app"
-            className="flex flex-col items-center gap-0.5 py-2.5 px-3 rounded-xl transition-colors text-[#FF5500] [&.active]:text-[#FF5500]"
-            activeProps={{ className: 'active text-[#FF5500]' }}
+            to="/my-swift-move"
+            search={{ service: 'ride' }}
+            className="flex flex-col items-center gap-0.5 py-2 px-3 rounded-xl transition-colors text-slate-600 hover:text-blue-600"
           >
-            <LayoutDashboard className="h-5 w-5" />
-            <span className="text-[10px] font-bold leading-tight">App</span>
+            <Car className="h-5 w-5 text-blue-600" />
+            <span className="text-[10px] font-bold leading-tight">Ride</span>
           </Link>
 
           <Link
             to="/my-swift-move"
-            className="flex flex-col items-center gap-0.5 py-2.5 px-3 rounded-xl transition-colors text-slate-500 [&.active]:text-orange-600"
-            activeProps={{ className: 'active text-orange-600' }}
+            search={{ service: 'parcel' }}
+            className="flex flex-col items-center gap-0.5 py-2 px-3 rounded-xl transition-colors text-slate-600 hover:text-orange-600"
           >
-            <Package className="h-5 w-5" />
-            <span className="text-[10px] font-semibold leading-tight">Dispatch</span>
+            <Package className="h-5 w-5 text-orange-600" />
+            <span className="text-[10px] font-bold leading-tight">Parcel</span>
           </Link>
 
           <Link
-            to="/my-vehicle-hires"
-            className="flex flex-col items-center gap-0.5 py-2.5 px-3 rounded-xl transition-colors text-slate-500 [&.active]:text-blue-600"
-            activeProps={{ className: 'active text-blue-600' }}
+            to="/my-swift-move"
+            search={{ service: 'track' }}
+            className="flex flex-col items-center gap-0.5 py-2 px-3 rounded-xl transition-colors text-slate-600 hover:text-slate-900"
           >
-            <Car className="h-5 w-5" />
-            <span className="text-[10px] font-semibold leading-tight">Ride</span>
+            <Search className="h-5 w-5 text-slate-600" />
+            <span className="text-[10px] font-bold leading-tight">Track</span>
           </Link>
 
           <Link
-            to="/history"
-            className="flex flex-col items-center gap-0.5 py-2.5 px-3 rounded-xl transition-colors text-slate-500 [&.active]:text-emerald-600"
-            activeProps={{ className: 'active text-emerald-600' }}
+            to="/my-swift-move"
+            search={{ service: 'history' }}
+            className="flex flex-col items-center gap-0.5 py-2 px-3 rounded-xl transition-colors text-slate-600 hover:text-slate-900"
           >
-            <Clock className="h-5 w-5" />
-            <span className="text-[10px] font-semibold leading-tight">History</span>
+            <Clock className="h-5 w-5 text-slate-600" />
+            <span className="text-[10px] font-bold leading-tight">History</span>
           </Link>
 
           {isDispatcher && (

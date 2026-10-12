@@ -83,10 +83,10 @@ const customerNav: RoleNav = {
             ],
         },
         {
-            title: "Logistics Services",
+            title: "SwiftMove Logistics & Rides",
             items: [
-                { title: "Book a Dispatch", path: "/my-swift-move", icon: Package, description: "Send parcels & packages" },
-                { title: "Request a Ride", path: "/my-vehicle-hires", icon: Car, description: "On-demand passenger rides" },
+                { title: "Order a Ride", path: "/my-swift-move?service=ride", icon: Car, description: "On-demand city passenger rides" },
+                { title: "Send a Parcel", path: "/my-swift-move?service=parcel", icon: Package, description: "Send parcels & packages" },
             ],
         },
         {
