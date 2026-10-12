@@ -141,7 +141,7 @@ export function SwiftmoveHeader() {
             ) : (
               <Link
                 to="/auth"
-                search={{ mode: 'login' }}
+                search={{ mode: 'login', app: 'swiftmove' }}
                 className="text-xs font-semibold px-3.5 py-1.5 rounded-lg bg-orange-600 text-white hover:bg-orange-500 transition-colors shadow-sm whitespace-nowrap"
               >
                 Sign In
@@ -191,7 +191,7 @@ export function SwiftmoveHeader() {
             ) : (
               <Link
                 to="/auth"
-                search={{ mode: 'login' }}
+                search={{ mode: 'login', app: 'swiftmove' }}
                 className="text-xs font-bold px-3 py-1.5 rounded-lg bg-orange-600 text-white hover:bg-orange-500 transition-colors"
               >
                 Sign In

@@ -15,17 +15,19 @@ export const Route = createFileRoute('/_authenticated')({
       const { data, error } = await supabase.auth.getUser();
       const user = data?.user;
       if (error || !user) {
+        const isSwiftPath = location.pathname.includes('swift') || location.pathname.includes('drive') || location.pathname.includes('dispatch') || location.pathname.includes('app');
         throw redirect({
           to: '/auth',
-          search: { mode: 'login', redirect: location.pathname },
+          search: { mode: 'login' as const, redirect: location.pathname, ...(isSwiftPath ? { app: 'swiftmove' } : {}) },
         });
       }
       return { user };
     } catch (err: any) {
       if (isRedirect(err) || err?.isRedirect || err?.to || err?.statusCode) throw err;
+      const isSwiftPath2 = location.pathname.includes('swift') || location.pathname.includes('drive') || location.pathname.includes('dispatch') || location.pathname.includes('app');
       throw redirect({
         to: '/auth',
-        search: { mode: 'login', redirect: location.pathname },
+        search: { mode: 'login' as const, redirect: location.pathname, ...(isSwiftPath2 ? { app: 'swiftmove' } : {}) },
       });
     }
   },

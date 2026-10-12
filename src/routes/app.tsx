@@ -750,7 +750,7 @@ function SwiftMoveAppPage() {
           ) : (
             <Link
               to="/auth"
-              search={{ redirect: '/my-swift-move', mode: 'login' }}
+              search={{ redirect: '/my-swift-move', mode: 'login', app: 'swiftmove' }}
               className="px-3.5 py-1.5 rounded-xl bg-[#FF5500] hover:bg-[#e04800] text-white text-xs font-black shadow-md shadow-[#FF5500]/25 transition-all flex items-center gap-1"
             >
               <span>Sign In</span>

@@ -19,13 +19,26 @@ const searchSchema = z.object({
 });
 
 function checkIsSwift(redirectParam?: string, platform?: string, app?: string): boolean {
-  if (typeof window !== "undefined" && isSwiftmoveDomain()) return true;
+  // 1. Explicit search params — most reliable, works on SSR and CSR
+  if (platform === "swiftmove" || app === "swiftmove") return true;
+
+  // 2. Client-side domain detection
   if (typeof window !== "undefined") {
+    if (isSwiftmoveDomain()) return true;
+    // Direct hostname fallback in case isSwiftmoveDomain has timing issues
+    const host = window.location.hostname.toLowerCase();
+    if (host.includes("swiftmove") || host.endsWith(".ng")) return true;
     try {
       if (sessionStorage.getItem("barakah_swiftmove_mode") === "true") return true;
     } catch {}
   }
-  if (platform === "swiftmove" || app === "swiftmove") return true;
+
+  // 3. SSR domain detection
+  if (typeof window === "undefined") {
+    if (isSwiftmoveDomain()) return true;
+  }
+
+  // 4. Redirect path heuristics
   const p = (redirectParam || "").toLowerCase();
   if (
     p.includes("swift") ||
