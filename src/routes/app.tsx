@@ -65,10 +65,20 @@ export const Route = createFileRoute('/app')({
         .eq('user_id', user.id);
       const userRoles = (roleData || []).map((r: any) => r.role);
       const metaRole = user.user_metadata?.['role'];
-      const allRoles = new Set([...userRoles, metaRole].filter(Boolean));
+      const riderCategory = user.user_metadata?.['rider_category'];
+      const allRoles = new Set([...userRoles, metaRole, riderCategory].filter(Boolean));
+      const email = user.email?.toLowerCase() || '';
 
-      // Operational consoles for drivers and dispatchers; all others to customer portal /my-swift-move
-      if (allRoles.has('swift_dispatcher') || allRoles.has('dispatcher')) {
+      const SUPER_ADMIN_EMAILS = [
+        'barakahdevcentre@gmail.com',
+        'barakahdevelopmentcentre@gmail.com',
+        'raymondlongdiem22@gmail.com',
+      ];
+
+      // Operational consoles for drivers, dispatchers, and admins
+      if (SUPER_ADMIN_EMAILS.includes(email) || allRoles.has('administrator') || allRoles.has('admin') || allRoles.has('swift_manager')) {
+        throw redirect({ to: '/admin' as any });
+      } else if (allRoles.has('swift_dispatcher') || allRoles.has('dispatcher')) {
         throw redirect({ to: '/dispatcher' as any });
       } else if (allRoles.has('driver') || allRoles.has('dispatch_rider')) {
         throw redirect({ to: '/drive' as any });

@@ -8,15 +8,36 @@ export function SwiftmoveHeader() {
   const { user, role, logout } = useAuth();
   const navigate = useNavigate();
 
-  const isDriver = role === 'driver' || role === 'dispatch_rider';
-  const isDispatcher = role === 'swift_dispatcher' || role === 'dispatcher';
-  const isAdmin = role === 'administrator' || role === 'admin' || role === 'swift_manager';
+  const userMetaRole = user?.user_metadata?.['role'];
+  const riderCat = user?.user_metadata?.['rider_category'];
+  const userEmail = user?.email?.toLowerCase() || '';
+
+  const isDriver =
+    role === 'driver' ||
+    role === 'dispatch_rider' ||
+    userMetaRole === 'driver' ||
+    userMetaRole === 'dispatch_rider' ||
+    riderCat === 'dispatch_rider';
+
+  const isDispatcher =
+    role === 'swift_dispatcher' ||
+    role === 'dispatcher' ||
+    userMetaRole === 'swift_dispatcher' ||
+    userMetaRole === 'dispatcher';
+
+  const isAdmin =
+    role === 'administrator' ||
+    role === 'admin' ||
+    role === 'swift_manager' ||
+    userMetaRole === 'administrator' ||
+    ['barakahdevcentre@gmail.com', 'barakahdevelopmentcentre@gmail.com', 'raymondlongdiem22@gmail.com'].includes(userEmail);
+
   const isSwiftDomain = isSwiftmoveDomain();
   const homePath = isSwiftDomain ? '/' : '/swiftmove';
 
   async function handleSignOut() {
     await logout();
-    navigate({ to: '/auth', search: { mode: 'login', redirect: '/my-swift-move' } });
+    navigate({ to: '/auth', search: { mode: 'login' } });
   }
 
   return (
@@ -86,10 +107,10 @@ export function SwiftmoveHeader() {
             {isDriver && (
               <Link
                 to="/drive"
-                className="text-xs sm:text-sm font-semibold text-emerald-700 hover:text-emerald-800 transition-colors flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 whitespace-nowrap"
+                className="text-xs sm:text-sm font-semibold text-emerald-700 hover:text-emerald-800 transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 shadow-sm whitespace-nowrap"
               >
-                <Truck className="h-3.5 w-3.5 text-emerald-600" />
-                Driver Console
+                <Truck className="h-4 w-4 text-emerald-600" />
+                Rider &amp; Driver Console
               </Link>
             )}
 
@@ -106,7 +127,7 @@ export function SwiftmoveHeader() {
             {user ? (
               <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
                 <span className="hidden lg:inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full capitalize">
-                  {isDriver ? 'Driver' : isDispatcher ? 'Dispatcher' : isAdmin ? 'Admin' : 'Customer'}
+                  {isDriver ? 'Driver / Rider' : isDispatcher ? 'Dispatcher' : isAdmin ? 'Admin' : 'Customer'}
                 </span>
                 <button
                   onClick={handleSignOut}
@@ -120,7 +141,7 @@ export function SwiftmoveHeader() {
             ) : (
               <Link
                 to="/auth"
-                search={{ mode: 'login', redirect: '/my-swift-move' }}
+                search={{ mode: 'login' }}
                 className="text-xs font-semibold px-3.5 py-1.5 rounded-lg bg-orange-600 text-white hover:bg-orange-500 transition-colors shadow-sm whitespace-nowrap"
               >
                 Sign In
@@ -128,31 +149,49 @@ export function SwiftmoveHeader() {
             )}
           </nav>
 
-          {/* Mobile right side — just sign out icon */}
+          {/* Mobile right side — role console button + sign out icon */}
           <div className="flex sm:hidden items-center gap-2">
-            {/* Role badge pill for mobile */}
-            {user && (
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border capitalize ${
-                isDriver ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
-                isDispatcher ? 'bg-cyan-50 border-cyan-200 text-cyan-700' :
-                isAdmin ? 'bg-purple-50 border-purple-200 text-purple-700' :
-                'bg-blue-50 border-blue-200 text-blue-700'
-              }`}>
-                {isDriver ? 'Driver' : isDispatcher ? 'Dispatcher' : isAdmin ? 'Admin' : 'Customer'}
-              </span>
-            )}
             {user ? (
-              <button
-                onClick={handleSignOut}
-                title="Sign out"
-                className="p-2 rounded-xl text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors border border-slate-200"
-              >
-                <LogOut className="h-4 w-4" />
-              </button>
+              <>
+                {isDriver && (
+                  <Link
+                    to="/drive"
+                    className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-emerald-600 text-white flex items-center gap-1 shadow-sm whitespace-nowrap"
+                  >
+                    <Truck className="h-3.5 w-3.5" />
+                    <span>Rider Console</span>
+                  </Link>
+                )}
+                {isDispatcher && (
+                  <Link
+                    to="/dispatcher"
+                    className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-cyan-600 text-white flex items-center gap-1 shadow-sm whitespace-nowrap"
+                  >
+                    <Radio className="h-3.5 w-3.5" />
+                    <span>Dispatcher</span>
+                  </Link>
+                )}
+                {isAdmin && (
+                  <Link
+                    to="/admin"
+                    className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-purple-600 text-white flex items-center gap-1 shadow-sm whitespace-nowrap"
+                  >
+                    <Shield className="h-3.5 w-3.5" />
+                    <span>Admin</span>
+                  </Link>
+                )}
+                <button
+                  onClick={handleSignOut}
+                  title="Sign out"
+                  className="p-1.5 rounded-xl text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors border border-slate-200"
+                >
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </>
             ) : (
               <Link
                 to="/auth"
-                search={{ mode: 'login', redirect: '/my-swift-move' }}
+                search={{ mode: 'login' }}
                 className="text-xs font-bold px-3 py-1.5 rounded-lg bg-orange-600 text-white hover:bg-orange-500 transition-colors"
               >
                 Sign In
@@ -204,33 +243,33 @@ export function SwiftmoveHeader() {
           {isDispatcher && (
             <Link
               to="/dispatcher"
-              className="flex flex-col items-center gap-0.5 py-2.5 px-3 rounded-xl transition-colors text-slate-500 [&.active]:text-cyan-600"
-              activeProps={{ className: 'active text-cyan-600' }}
+              className="flex flex-col items-center gap-0.5 py-2 px-2.5 rounded-xl transition-colors text-cyan-600 bg-cyan-50 font-bold border border-cyan-200"
+              activeProps={{ className: 'active text-cyan-700 bg-cyan-100' }}
             >
-              <Radio className="h-5 w-5" />
-              <span className="text-[10px] font-semibold leading-tight">Console</span>
+              <Radio className="h-5 w-5 text-cyan-600" />
+              <span className="text-[10px] font-bold leading-tight">Dispatcher</span>
             </Link>
           )}
 
           {isDriver && (
             <Link
               to="/drive"
-              className="flex flex-col items-center gap-0.5 py-2.5 px-3 rounded-xl transition-colors text-slate-500 [&.active]:text-emerald-600"
-              activeProps={{ className: 'active text-emerald-600' }}
+              className="flex flex-col items-center gap-0.5 py-2 px-2.5 rounded-xl transition-colors text-emerald-600 bg-emerald-50 font-bold border border-emerald-200"
+              activeProps={{ className: 'active text-emerald-700 bg-emerald-100' }}
             >
-              <Truck className="h-5 w-5" />
-              <span className="text-[10px] font-semibold leading-tight">Drive</span>
+              <Truck className="h-5 w-5 text-emerald-600" />
+              <span className="text-[10px] font-bold leading-tight">Rider Console</span>
             </Link>
           )}
 
           {isAdmin && (
             <Link
               to="/admin"
-              className="flex flex-col items-center gap-0.5 py-2.5 px-3 rounded-xl transition-colors text-slate-500 [&.active]:text-purple-600"
-              activeProps={{ className: 'active text-purple-600' }}
+              className="flex flex-col items-center gap-0.5 py-2 px-2.5 rounded-xl transition-colors text-purple-600 bg-purple-50 font-bold border border-purple-200"
+              activeProps={{ className: 'active text-purple-700 bg-purple-100' }}
             >
-              <Shield className="h-5 w-5" />
-              <span className="text-[10px] font-semibold leading-tight">Admin</span>
+              <Shield className="h-5 w-5 text-purple-600" />
+              <span className="text-[10px] font-bold leading-tight">Admin</span>
             </Link>
           )}
         </div>

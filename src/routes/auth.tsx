@@ -48,8 +48,19 @@ export const Route = createFileRoute("/auth")({
       const isSwift = checkIsSwift(search.redirect, search.platform, search.app);
       let target = search.redirect;
 
-      if (!target || target === '/auth' || target.includes('/auth')) {
-        const SUPER_ADMIN_EMAILS = ['barakahdevcentre@gmail.com', 'barakahdevelopmentcentre@gmail.com'];
+      const isGenericTarget =
+        !target ||
+        target === '/auth' ||
+        target.includes('/auth') ||
+        target === '/my-swift-move' ||
+        target === '/my-barakah';
+
+      if (isGenericTarget) {
+        const SUPER_ADMIN_EMAILS = [
+          'barakahdevcentre@gmail.com',
+          'barakahdevelopmentcentre@gmail.com',
+          'raymondlongdiem22@gmail.com',
+        ];
         const email = user.email?.toLowerCase() || '';
         if (SUPER_ADMIN_EMAILS.includes(email)) {
           target = '/admin';
@@ -60,14 +71,15 @@ export const Route = createFileRoute("/auth")({
             .eq('user_id', user.id);
           const userRoles = (roleData || []).map((r: any) => r.role);
           const metaRole = user.user_metadata?.['role'];
-          const allRoles = new Set([...userRoles, metaRole].filter(Boolean));
+          const riderCategory = user.user_metadata?.['rider_category'];
+          const allRoles = new Set([...userRoles, metaRole, riderCategory].filter(Boolean));
 
-          if (allRoles.has('administrator') || allRoles.has('admin') || allRoles.has('swift_manager')) {
-            target = '/admin';
+          if (allRoles.has('driver') || allRoles.has('dispatch_rider')) {
+            target = '/drive';
           } else if (allRoles.has('swift_dispatcher') || allRoles.has('dispatcher')) {
             target = '/dispatcher';
-          } else if (allRoles.has('driver') || allRoles.has('dispatch_rider')) {
-            target = '/drive';
+          } else if (allRoles.has('administrator') || allRoles.has('admin') || allRoles.has('swift_manager')) {
+            target = '/admin';
           } else {
             target = isSwift ? '/my-swift-move' : '/my-barakah';
           }
@@ -128,37 +140,52 @@ function AuthPage() {
 
   // ── Role-based navigation helper (shared by email login + Google OAuth return) ──
   async function navigateByRole(user: any) {
-    let target = redirectParam;
+    const SUPER_ADMIN_EMAILS = [
+      'barakahdevcentre@gmail.com',
+      'barakahdevelopmentcentre@gmail.com',
+      'raymondlongdiem22@gmail.com',
+    ];
+    const email = user.email?.toLowerCase() || '';
 
-    // 1. If explicit redirect provided (and it's not /auth), honor it!
-    if (target && !target.includes('/auth')) {
-      navigate({ to: target as any });
+    const { data: roleData } = await supabase.from('user_roles').select('role').eq('user_id', user.id);
+    const userRoles = (roleData || []).map((r: any) => r.role);
+    const metaRole = user.user_metadata?.['role'];
+    const riderCategory = user.user_metadata?.['rider_category'];
+    const allRoles = new Set([...userRoles, metaRole, riderCategory].filter(Boolean));
+
+    // 1. If explicit specific non-generic redirect provided (e.g. /cart, /admin/riders, NOT /my-swift-move), honor it!
+    const isGenericTarget =
+      !redirectParam ||
+      redirectParam.includes('/auth') ||
+      redirectParam === '/my-swift-move' ||
+      redirectParam === '/my-barakah';
+
+    if (!isGenericTarget) {
+      navigate({ to: redirectParam as any });
       return;
     }
 
-    // 2. Resolve role-based destination (works for both SwiftMove and Barakah domains)
-    const SUPER_ADMIN_EMAILS = ['barakahdevcentre@gmail.com', 'barakahdevelopmentcentre@gmail.com'];
-    const email = user.email?.toLowerCase() || '';
+    // 2. Resolve operational role destination
     if (SUPER_ADMIN_EMAILS.includes(email)) {
       navigate({ to: '/admin' as any });
       return;
     }
 
-    const { data: roleData } = await supabase.from('user_roles').select('role').eq('user_id', user.id);
-    const userRoles = (roleData || []).map((r: any) => r.role);
-    const metaRole = user.user_metadata?.['role'];
-    const allRoles = new Set([...userRoles, metaRole].filter(Boolean));
-
-    if (allRoles.has('administrator') || allRoles.has('admin') || allRoles.has('swift_manager')) {
-      target = '/admin';
-    } else if (allRoles.has('swift_dispatcher') || allRoles.has('dispatcher')) {
-      target = '/dispatcher';
-    } else if (allRoles.has('driver') || allRoles.has('dispatch_rider')) {
-      target = '/drive';
-    } else {
-      target = isSwift ? '/my-swift-move' : '/my-barakah';
+    if (allRoles.has('driver') || allRoles.has('dispatch_rider')) {
+      navigate({ to: '/drive' as any });
+      return;
     }
-    navigate({ to: target as any });
+    if (allRoles.has('swift_dispatcher') || allRoles.has('dispatcher')) {
+      navigate({ to: '/dispatcher' as any });
+      return;
+    }
+    if (allRoles.has('administrator') || allRoles.has('admin') || allRoles.has('swift_manager')) {
+      navigate({ to: '/admin' as any });
+      return;
+    }
+
+    // 3. Fallback for regular customers
+    navigate({ to: (isSwift ? '/my-swift-move' : '/my-barakah') as any });
   }
 
   // ── Catch OAuth return: if user lands back on /auth already signed in ───

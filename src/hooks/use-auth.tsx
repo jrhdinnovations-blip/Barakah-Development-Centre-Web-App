@@ -29,6 +29,8 @@ export function useAuth() {
         const roles = (roleRows || []).map((r: any) => r.role);
         const metaRole = user.user_metadata?.['role'] as string | undefined;
         if (metaRole && !roles.includes(metaRole)) roles.push(metaRole);
+        const riderCat = user.user_metadata?.['rider_category'] as string | undefined;
+        if (riderCat && !roles.includes(riderCat)) roles.push(riderCat);
 
         // Prioritize specific privileges over default registered_user
         const PRIORITY = [
@@ -76,6 +78,8 @@ export function useAuth() {
         const roles = (roleRows || []).map((r: any) => r.role);
         const metaRole = currentUser.user_metadata?.['role'] as string | undefined;
         if (metaRole && !roles.includes(metaRole)) roles.push(metaRole);
+        const riderCat = currentUser.user_metadata?.['rider_category'] as string | undefined;
+        if (riderCat && !roles.includes(riderCat)) roles.push(riderCat);
 
         const PRIORITY = [
           'administrator',

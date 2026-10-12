@@ -214,6 +214,43 @@ function UnifiedCustomerPortal() {
     }
   }, [searchParams.service]);
 
+  // Auto-redirect drivers, dispatchers, and admins to their respective consoles
+  // if they land on /my-swift-move without an explicit service tab selected
+  const metaRole = user?.user_metadata?.['role'];
+  const riderCat = user?.user_metadata?.['rider_category'];
+  const userEmail = user?.email?.toLowerCase() || '';
+
+  const isDriverOrRider =
+    auth?.role === 'driver' ||
+    auth?.role === 'dispatch_rider' ||
+    metaRole === 'driver' ||
+    metaRole === 'dispatch_rider' ||
+    riderCat === 'dispatch_rider';
+
+  const isDispatcher =
+    auth?.role === 'swift_dispatcher' ||
+    auth?.role === 'dispatcher' ||
+    metaRole === 'swift_dispatcher' ||
+    metaRole === 'dispatcher';
+
+  const isAdminUser =
+    auth?.role === 'administrator' ||
+    auth?.role === 'admin' ||
+    auth?.role === 'swift_manager' ||
+    metaRole === 'administrator' ||
+    ['barakahdevcentre@gmail.com', 'barakahdevelopmentcentre@gmail.com', 'raymondlongdiem22@gmail.com'].includes(userEmail);
+
+  useEffect(() => {
+    if (!user) return;
+    if (!searchParams.service && !searchParams.orderId) {
+      if (isDriverOrRider) {
+        navigate({ to: '/drive' as any });
+      } else if (isDispatcher) {
+        navigate({ to: '/dispatcher' as any });
+      }
+    }
+  }, [user, isDriverOrRider, isDispatcher, searchParams.service, searchParams.orderId, navigate]);
+
   const switchService = (newService: ServicePillar) => {
     setActiveService(newService);
     navigate({
@@ -1934,6 +1971,54 @@ function UnifiedCustomerPortal() {
       <div className="relative z-10 w-full lg:w-[480px] flex flex-col p-3 sm:p-4 lg:p-6 h-[100dvh] overflow-hidden pointer-events-none">
         <div className="bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-[28px] shadow-2xl flex flex-col flex-1 pointer-events-auto overflow-hidden">
           
+          {/* Driver/Rider Switcher Banner */}
+          {isDriverOrRider && (
+            <div className="px-4 py-2.5 bg-emerald-600 text-white flex items-center justify-between text-xs shrink-0 shadow-xs">
+              <div className="flex items-center gap-2">
+                <Truck className="h-4 w-4" />
+                <span className="font-bold">Logged in as Rider / Driver</span>
+              </div>
+              <Link
+                to="/drive"
+                className="px-2.5 py-1 rounded-lg bg-white text-emerald-800 font-extrabold text-[11px] shadow-xs hover:bg-emerald-50 transition-colors"
+              >
+                Go to Cockpit →
+              </Link>
+            </div>
+          )}
+
+          {/* Dispatcher Switcher Banner */}
+          {isDispatcher && !isDriverOrRider && (
+            <div className="px-4 py-2.5 bg-cyan-600 text-white flex items-center justify-between text-xs shrink-0 shadow-xs">
+              <div className="flex items-center gap-2">
+                <Radio className="h-4 w-4" />
+                <span className="font-bold">Logged in as Dispatcher</span>
+              </div>
+              <Link
+                to="/dispatcher"
+                className="px-2.5 py-1 rounded-lg bg-white text-cyan-800 font-extrabold text-[11px] shadow-xs hover:bg-cyan-50 transition-colors"
+              >
+                Go to Console →
+              </Link>
+            </div>
+          )}
+
+          {/* Admin Switcher Banner */}
+          {isAdminUser && !isDriverOrRider && !isDispatcher && (
+            <div className="px-4 py-2 bg-purple-600 text-white flex items-center justify-between text-xs shrink-0 shadow-xs">
+              <div className="flex items-center gap-2">
+                <Shield className="h-4 w-4" />
+                <span className="font-bold">Administrator</span>
+              </div>
+              <Link
+                to="/admin"
+                className="px-2.5 py-0.5 rounded-lg bg-white text-purple-800 font-extrabold text-[11px] shadow-xs hover:bg-purple-50 transition-colors"
+              >
+                Admin Portal →
+              </Link>
+            </div>
+          )}
+
           {/* Header Segmented Tabs */}
           <div className="p-4 sm:p-5 pb-3 border-b border-slate-100 space-y-3">
             <div className="flex items-center justify-between">
