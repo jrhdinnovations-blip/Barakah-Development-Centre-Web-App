@@ -59,11 +59,6 @@ export const Route = createFileRoute('/app')({
       const { data: { user } } = await sb.auth.getUser();
       if (!user) return; // Not signed in — render /app as guest landing
 
-      const SUPER_ADMIN_EMAILS = ['barakahdevcentre@gmail.com', 'barakahdevelopmentcentre@gmail.com'];
-      if (SUPER_ADMIN_EMAILS.includes(user.email?.toLowerCase() || '')) {
-        throw redirect({ to: '/admin/swift-move' as any });
-      }
-
       const { data: roleData } = await sb
         .from('user_roles')
         .select('role')
@@ -72,15 +67,12 @@ export const Route = createFileRoute('/app')({
       const metaRole = user.user_metadata?.['role'];
       const allRoles = new Set([...userRoles, metaRole].filter(Boolean));
 
-      // Route every signed-in user to their proper destination
-      if (allRoles.has('administrator') || allRoles.has('admin') || allRoles.has('swift_manager')) {
-        throw redirect({ to: '/admin/swift-move' as any });
-      } else if (allRoles.has('swift_dispatcher') || allRoles.has('dispatcher')) {
+      // Operational consoles for drivers and dispatchers; all others to customer portal /my-swift-move
+      if (allRoles.has('swift_dispatcher') || allRoles.has('dispatcher')) {
         throw redirect({ to: '/dispatcher' as any });
       } else if (allRoles.has('driver') || allRoles.has('dispatch_rider')) {
         throw redirect({ to: '/drive' as any });
       } else {
-        // Customer / registered_user → unified customer dashboard
         throw redirect({ to: '/my-swift-move' as any });
       }
     } catch (err: any) {
@@ -200,12 +192,6 @@ function SwiftMoveAppPage() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event !== 'SIGNED_IN' || !session?.user) return;
       const u = session.user;
-      const SUPER_ADMIN_EMAILS = ['barakahdevcentre@gmail.com', 'barakahdevelopmentcentre@gmail.com'];
-      if (SUPER_ADMIN_EMAILS.includes(u.email?.toLowerCase() || '')) {
-        subscription.unsubscribe();
-        navigate({ to: '/admin/swift-move' as any });
-        return;
-      }
       try {
         const { data: roleData } = await supabase.from('user_roles').select('role').eq('user_id', u.id);
         const roles = new Set([
@@ -213,14 +199,11 @@ function SwiftMoveAppPage() {
           u.user_metadata?.['role'],
         ].filter(Boolean));
         subscription.unsubscribe();
-        if (roles.has('administrator') || roles.has('admin') || roles.has('swift_manager')) {
-          navigate({ to: '/admin/swift-move' as any });
-        } else if (roles.has('swift_dispatcher') || roles.has('dispatcher')) {
+        if (roles.has('swift_dispatcher') || roles.has('dispatcher')) {
           navigate({ to: '/dispatcher' as any });
         } else if (roles.has('driver') || roles.has('dispatch_rider')) {
           navigate({ to: '/drive' as any });
         } else {
-          // Customer / registered_user → unified customer dashboard
           navigate({ to: '/my-swift-move' as any });
         }
       } catch {

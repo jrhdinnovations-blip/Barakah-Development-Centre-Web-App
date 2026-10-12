@@ -25,11 +25,11 @@ export const Route = createFileRoute('/_authenticated/$')({
       path.startsWith('/app/') ||
       isSwiftmovePath(path)
     ) {
-      throw redirect({ to: isSwiftmoveDomain() ? '/app' : '/swiftmove' });
+      throw redirect({ to: isSwiftmoveDomain() ? '/my-swift-move' : '/swiftmove' });
     }
     // On swiftmove domain, unknown catch-all routes go to the booking app
     if (isSwiftmoveDomain()) {
-      throw redirect({ to: '/app' });
+      throw redirect({ to: '/my-swift-move' });
     }
   },
   component: UnderConstructionPage,
@@ -47,7 +47,7 @@ function UnderConstructionPage() {
     path === '/swift-move'
   ) {
     if (typeof window !== 'undefined') {
-      window.location.replace(isSwiftmoveDomain() ? '/app' : '/swiftmove');
+      window.location.replace(isSwiftmoveDomain() ? '/my-swift-move' : '/swiftmove');
     }
     return null;
   }

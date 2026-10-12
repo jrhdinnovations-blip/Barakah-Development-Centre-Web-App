@@ -92,6 +92,14 @@ export function SwiftMoveLanding() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.setItem('barakah_swiftmove_mode', 'true');
+      } catch {}
+    }
+  }, []);
+
   // Mobile navigation drawer state
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -104,7 +112,7 @@ export function SwiftMoveLanding() {
     setMobileMenuOpen(false);
     if (user) {
       const serviceMap: Record<ServicePillar, string> = { ride: 'ride', send: 'parcel', track: 'track', move: 'ride' };
-      navigate({ to: '/my-swift-move' as any, search: { service: serviceMap[pillar] } });
+      navigate({ to: '/my-swift-move' as any, search: { service: serviceMap[pillar] } as any });
     } else {
       const el = document.getElementById('booking-deck');
       if (el) {
@@ -545,14 +553,14 @@ export function SwiftMoveLanding() {
             <>
               <Link
                 to="/auth"
-                search={{ mode: 'login' }}
+                search={{ mode: 'login', redirect: '/my-swift-move' }}
                 className="hidden sm:inline-block text-xs font-bold text-[#A3ADB8] hover:text-white px-3 py-1.5 rounded-lg hover:bg-white/5 transition-colors"
               >
                 Sign In
               </Link>
               <Link
                 to="/auth"
-                search={{ mode: 'signup' }}
+                search={{ mode: 'signup', redirect: '/my-swift-move' }}
                 className="inline-flex items-center gap-1 sm:gap-1.5 px-3.5 sm:px-5 py-1.5 sm:py-2 rounded-full bg-[#FF5500] hover:bg-[#e04800] text-white text-xs font-black shadow-lg shadow-[#FF5500]/25 transition-all active:scale-95"
               >
                 <span>Get Started</span>
@@ -783,7 +791,7 @@ export function SwiftMoveLanding() {
                     <>
                       <Link
                         to="/auth"
-                        search={{ mode: 'signup' }}
+                        search={{ mode: 'signup', redirect: '/my-swift-move' }}
                         className="w-full py-4 rounded-xl sm:rounded-2xl bg-[#FF5500] hover:bg-[#e04800] text-white font-black text-sm sm:text-base uppercase tracking-wider shadow-lg shadow-[#FF5500]/25 transition-all flex items-center justify-center gap-2 active:scale-[0.98] min-h-[52px]"
                       >
                         <Zap className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -792,7 +800,7 @@ export function SwiftMoveLanding() {
                       </Link>
                       <Link
                         to="/auth"
-                        search={{ mode: 'login' }}
+                        search={{ mode: 'login', redirect: '/my-swift-move' }}
                         className="w-full py-3 rounded-xl sm:rounded-2xl bg-[#121620] hover:bg-white/10 text-[#A3ADB8] hover:text-white font-bold text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-1.5 min-h-[44px] border border-white/10"
                       >
                         <span>Already have an account? Sign In</span>

@@ -1,9 +1,9 @@
-import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, redirect, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
-import { Eye, EyeOff, Info, UserCheck, Truck } from "lucide-react";
+import { Eye, EyeOff, Info, UserCheck, Truck, ArrowLeft } from "lucide-react";
 import { isSwiftmoveDomain } from "@/lib/domain-detection";
 import { detectPlatform } from "@/lib/platform-detection.server";
 
@@ -14,47 +14,67 @@ const searchSchema = z.object({
     .catch("login")
     .transform((val) => (val === "signup" ? "register" : val)),
   redirect: z.string().optional(),
+  platform: z.string().optional(),
+  app: z.string().optional(),
 });
+
+function checkIsSwift(redirectParam?: string, platform?: string, app?: string): boolean {
+  if (typeof window !== "undefined" && isSwiftmoveDomain()) return true;
+  if (typeof window !== "undefined") {
+    try {
+      if (sessionStorage.getItem("barakah_swiftmove_mode") === "true") return true;
+    } catch {}
+  }
+  if (platform === "swiftmove" || app === "swiftmove") return true;
+  const p = (redirectParam || "").toLowerCase();
+  if (
+    p.includes("swift") ||
+    p.includes("app") ||
+    p.includes("vehicle") ||
+    p.includes("history") ||
+    p.includes("drive") ||
+    p.includes("dispatcher")
+  ) {
+    return true;
+  }
+  return false;
+}
 
 export const Route = createFileRoute("/auth")({
   validateSearch: searchSchema,
   beforeLoad: async ({ search }) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      const SUPER_ADMIN_EMAILS = ['barakahdevcentre@gmail.com', 'barakahdevelopmentcentre@gmail.com'];
-      const email = user.email?.toLowerCase() || '';
-      const isSwift = isSwiftmoveDomain();
-
-      // Super admin emails always go straight to /admin
-      if (SUPER_ADMIN_EMAILS.includes(email)) {
-        throw redirect({ to: (isSwift ? '/admin/swift-move' : '/admin') as any });
-      }
-
-      // Redirect logged-in users to their correct dashboard
-      const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id);
-      const userRoles = (roleData || []).map((r: any) => r.role);
-      const metaRole = user.user_metadata?.['role'];
-      const allUserRoles = new Set([...userRoles, metaRole].filter(Boolean));
-
+      const isSwift = checkIsSwift(search.redirect, search.platform, search.app);
       let target = search.redirect;
-      // On swiftmove.ng, default customer dashboard is /my-swift-move
-      if (isSwift && (!target || target === '/my-barakah' || target === '/')) {
-        target = '/my-swift-move';
-      }
 
-      if (!target || target === '/my-swift-move' || target === '/app' || target === '/my-barakah' || target === '/' || target.includes('/auth')) {
-        // Administrator ALWAYS takes precedence over dispatcher
-        if (allUserRoles.has('administrator') || allUserRoles.has('admin') || allUserRoles.has('swift_manager')) {
-          target = isSwift ? '/admin/swift-move' : '/admin';
-        } else if (allUserRoles.has('swift_dispatcher') || allUserRoles.has('dispatcher')) {
-          target = '/dispatcher';
-        } else if (allUserRoles.has('driver') || allUserRoles.has('dispatch_rider')) {
-          target = '/drive';
+      if (!target || target === '/auth' || target.includes('/auth')) {
+        if (isSwift) {
+          target = '/my-swift-move';
         } else {
-          target = isSwift ? (search.redirect || '/my-swift-move') : (search.redirect || '/my-barakah');
+          const SUPER_ADMIN_EMAILS = ['barakahdevcentre@gmail.com', 'barakahdevelopmentcentre@gmail.com'];
+          const email = user.email?.toLowerCase() || '';
+          if (SUPER_ADMIN_EMAILS.includes(email)) {
+            target = '/admin';
+          } else {
+            const { data: roleData } = await supabase
+              .from('user_roles')
+              .select('role')
+              .eq('user_id', user.id);
+            const userRoles = (roleData || []).map((r: any) => r.role);
+            const metaRole = user.user_metadata?.['role'];
+            const allRoles = new Set([...userRoles, metaRole].filter(Boolean));
+
+            if (allRoles.has('administrator') || allRoles.has('admin') || allRoles.has('swift_manager')) {
+              target = '/admin';
+            } else if (allRoles.has('swift_dispatcher') || allRoles.has('dispatcher')) {
+              target = '/dispatcher';
+            } else if (allRoles.has('driver') || allRoles.has('dispatch_rider')) {
+              target = '/drive';
+            } else {
+              target = '/my-barakah';
+            }
+          }
         }
       }
       throw redirect({ to: target as any });
@@ -89,7 +109,7 @@ const registerSchema = loginSchema.extend({
 });
 
 function AuthPage() {
-  const { mode, redirect: redirectParam } = Route.useSearch();
+  const { mode, redirect: redirectParam, platform, app } = Route.useSearch();
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
@@ -104,46 +124,50 @@ function AuthPage() {
     consent: false,
   });
 
-  const isSwift =
-    isSwiftmoveDomain() ||
-    Boolean(
-      redirectParam?.includes("swift") ||
-      redirectParam?.includes("app") ||
-      redirectParam?.includes("vehicle") ||
-      redirectParam?.includes("history") ||
-      redirectParam?.includes("drive") ||
-      redirectParam?.includes("dispatcher")
-    );
+  const isSwift = checkIsSwift(redirectParam, platform, app);
 
   function setMode(m: "login" | "register" | "forgot") {
-    navigate({ search: (prev: any) => ({ ...prev, mode: m }) });
+    navigate({ search: ((prev: any) => ({ ...prev, mode: m })) as any });
   }
 
   // ── Role-based navigation helper (shared by email login + Google OAuth return) ──
   async function navigateByRole(user: any) {
+    let target = redirectParam;
+
+    // 1. If explicit redirect provided (and it's not /auth), honor it!
+    if (target && !target.includes('/auth')) {
+      navigate({ to: target as any });
+      return;
+    }
+
+    // 2. In SwiftMove mode or on swiftmove domain:
+    if (isSwift) {
+      // All users on SwiftMove (including admin testing rides/parcels) land on /my-swift-move
+      navigate({ to: '/my-swift-move' as any });
+      return;
+    }
+
+    // 3. For Barakah Development Centre domain:
     const SUPER_ADMIN_EMAILS = ['barakahdevcentre@gmail.com', 'barakahdevelopmentcentre@gmail.com'];
     const email = user.email?.toLowerCase() || '';
     if (SUPER_ADMIN_EMAILS.includes(email)) {
-      navigate({ to: (isSwift ? '/admin/swift-move' : '/admin') as any });
+      navigate({ to: '/admin' as any });
       return;
     }
+
     const { data: roleData } = await supabase.from('user_roles').select('role').eq('user_id', user.id);
     const userRoles = (roleData || []).map((r: any) => r.role);
     const metaRole = user.user_metadata?.['role'];
     const allRoles = new Set([...userRoles, metaRole].filter(Boolean));
 
-    let target = redirectParam;
-    if (isSwift && (!target || target === '/my-barakah' || target === '/')) target = '/my-swift-move';
-    if (!target || target === '/my-swift-move' || target === '/app' || target === '/my-barakah' || target === '/' || target.includes('/auth')) {
-      if (allRoles.has('administrator') || allRoles.has('admin') || allRoles.has('swift_manager')) {
-        target = isSwift ? '/admin/swift-move' : '/admin';
-      } else if (allRoles.has('swift_dispatcher') || allRoles.has('dispatcher')) {
-        target = '/dispatcher';
-      } else if (allRoles.has('driver') || allRoles.has('dispatch_rider')) {
-        target = '/drive';
-      } else {
-        target = isSwift ? '/my-swift-move' : (redirectParam || '/my-barakah');
-      }
+    if (allRoles.has('administrator') || allRoles.has('admin') || allRoles.has('swift_manager')) {
+      target = '/admin';
+    } else if (allRoles.has('swift_dispatcher') || allRoles.has('dispatcher')) {
+      target = '/dispatcher';
+    } else if (allRoles.has('driver') || allRoles.has('dispatch_rider')) {
+      target = '/drive';
+    } else {
+      target = '/my-barakah';
     }
     navigate({ to: target as any });
   }
@@ -174,10 +198,7 @@ function AuthPage() {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          // /app is allowlisted in Supabase (dispatchers proved this works).
-          // If Supabase falls back to the site URL, the onAuthStateChange
-          // listener above will catch the return and route the user correctly.
-          redirectTo: `${origin}/app`,
+          redirectTo: `${origin}/my-swift-move`,
         },
       });
 
@@ -191,7 +212,6 @@ function AuthPage() {
         return;
       }
 
-      // Navigate explicitly in case the Supabase SDK doesn't auto-redirect
       if (data?.url && typeof window !== "undefined") {
         window.location.href = data.url;
       }
@@ -219,45 +239,9 @@ function AuthPage() {
         return void toast.error(error.message || "Invalid email or password.");
       }
 
-      const user = data.user;
-      const SUPER_ADMIN_EMAILS = ['barakahdevcentre@gmail.com', 'barakahdevelopmentcentre@gmail.com'];
-      const userEmail = user.email?.toLowerCase() || '';
-
-      // Super admin emails always go straight to /admin
-      if (SUPER_ADMIN_EMAILS.includes(userEmail)) {
-        toast.success("Welcome back!");
-        setBusy(false);
-        navigate({ to: (isSwift ? '/admin/swift-move' : '/admin') as any });
-        return;
-      }
-
-      const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id);
-      const userRoles = (roleData || []).map((r: any) => r.role);
-      const metaRole = user.user_metadata?.['role'];
-      const allUserRoles = new Set([...userRoles, metaRole].filter(Boolean));
-
-      // Determine redirect path — administrator always takes precedence over dispatcher
-      let target = redirectParam;
-      if (isSwift && (!target || target === '/my-barakah' || target === '/')) {
-        target = '/my-swift-move';
-      }
-      if (!target || target === '/my-swift-move' || target === '/app' || target === '/my-barakah' || target === '/' || target.includes('/auth')) {
-        if (allUserRoles.has('administrator') || allUserRoles.has('admin') || allUserRoles.has('swift_manager')) {
-          target = isSwift ? '/admin/swift-move' : '/admin';
-        } else if (allUserRoles.has('swift_dispatcher') || allUserRoles.has('dispatcher')) {
-          target = '/dispatcher';
-        } else if (allUserRoles.has('driver') || allUserRoles.has('dispatch_rider')) {
-          target = '/drive';
-        } else {
-          target = isSwift ? '/my-swift-move' : (redirectParam || '/my-barakah');
-        }
-      }
       toast.success("Welcome back!");
       setBusy(false);
-      navigate({ to: target as any });
+      await navigateByRole(data.user);
     } catch (err: any) {
       setBusy(false);
       toast.error(err?.message || "Something went wrong. Please try again.");
@@ -272,9 +256,31 @@ function AuthPage() {
       return;
     }
     setBusy(true);
-    // On swiftmove.ng new users land on the SwiftMove booking/dashboard, not the Barakah dashboard
-    const defaultAfterSignup = isSwift ? "/app" : "/my-barakah";
-    const redirectUrl = `${window.location.origin}${isSwift ? "/app" : (redirectParam || defaultAfterSignup)}`;
+
+    const SUPER_ADMIN_EMAILS = ['barakahdevcentre@gmail.com', 'barakahdevelopmentcentre@gmail.com'];
+    if (SUPER_ADMIN_EMAILS.includes(parsed.data.email.toLowerCase())) {
+      // The administrator already has an active account. Seamlessly authenticate:
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email: parsed.data.email,
+        password: parsed.data.password,
+      });
+
+      if (!signInError && signInData?.user) {
+        setBusy(false);
+        toast.success("Welcome back, Administrator!");
+        await navigateByRole(signInData.user);
+        return;
+      }
+
+      setBusy(false);
+      toast.error(signInError?.message || "Invalid administrator password. Please check your credentials.");
+      setMode("login");
+      return;
+    }
+
+    const defaultAfterSignup = isSwift ? "/my-swift-move" : "/my-barakah";
+    const redirectUrl = `${window.location.origin}${isSwift ? "/my-swift-move" : (redirectParam || defaultAfterSignup)}`;
+
     const { data: signUpData, error } = await supabase.auth.signUp({
       email: parsed.data.email,
       password: parsed.data.password,
@@ -290,14 +296,63 @@ function AuthPage() {
         },
       },
     });
+
     if (error) {
+      const errMsg = (error.message || "").toLowerCase();
+      // If the user is already registered (e.g. admin or customer trying to register existing account):
+      if (
+        errMsg.includes("already registered") ||
+        errMsg.includes("already exists") ||
+        errMsg.includes("user already")
+      ) {
+        // Automatically attempt sign in with the provided password!
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: parsed.data.email,
+          password: parsed.data.password,
+        });
+
+        if (!signInError && signInData?.user) {
+          setBusy(false);
+          toast.success("Account already exists — signed in successfully!");
+          await navigateByRole(signInData.user);
+          return;
+        }
+
+        // If the password provided doesn't match:
+        setBusy(false);
+        toast.info("This account is already registered. Please sign in with your password.");
+        setMode("login");
+        return;
+      }
+
       setBusy(false);
       return void toast.error(error.message);
     }
+
+    // Check if Supabase returned a user with empty identities (meaning already registered with email confirmation enabled)
+    if (signUpData?.user && (!signUpData.user.identities || signUpData.user.identities.length === 0)) {
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email: parsed.data.email,
+        password: parsed.data.password,
+      });
+
+      if (!signInError && signInData?.user) {
+        setBusy(false);
+        toast.success("Account already exists — signed in successfully!");
+        await navigateByRole(signInData.user);
+        return;
+      }
+
+      setBusy(false);
+      toast.info("This account is already registered. Please sign in with your password.");
+      setMode("login");
+      return;
+    }
+
     setBusy(false);
     if (signUpData?.session) {
       toast.success("Account created successfully!");
-      navigate({ to: (isSwift ? "/app" : (redirectParam || defaultAfterSignup)) as any });
+      await navigateByRole(signUpData.session.user);
       return;
     }
     setRegistered(true);
@@ -511,6 +566,17 @@ function AuthPage() {
           </div>
         </div>
       )}
+
+      {/* Return Navigation Link */}
+      <div className="mt-6 text-center">
+        <Link
+          to={(isSwift ? (isSwiftmoveDomain() ? "/" : "/swiftmove") : "/") as any}
+          className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          <span>{isSwift ? "Return to SwiftMove" : "Return to Home"}</span>
+        </Link>
+      </div>
     </div>
   );
 }
