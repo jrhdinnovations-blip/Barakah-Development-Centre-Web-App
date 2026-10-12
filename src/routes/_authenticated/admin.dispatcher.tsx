@@ -9,6 +9,12 @@ export const Route = createFileRoute('/_authenticated/admin/dispatcher')({
       const { data, error } = await supabase.auth.getUser();
       const user = data?.user;
       if (error || !user) throw redirect({ to: '/auth', search: { mode: 'login' } });
+
+      // Super admins always have access
+      const SUPER_ADMIN_EMAILS = ['barakahdevcentre@gmail.com', 'barakahdevelopmentcentre@gmail.com'];
+      const email = user.email?.toLowerCase() || '';
+      if (SUPER_ADMIN_EMAILS.includes(email)) return;
+
       const { data: roleData } = await supabase
         .from('user_roles')
         .select('role')
