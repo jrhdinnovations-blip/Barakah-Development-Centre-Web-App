@@ -19,29 +19,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
+import { requireAdminRouteAccess, ADMIN_ROLES } from '@/lib/admin-auth';
+
 export const Route = createFileRoute('/_authenticated/admin/swift-move')({
   ssr: false,
   beforeLoad: async () => {
-    try {
-      const { data, error } = await supabase.auth.getUser();
-      const user = data?.user;
-      if (error || !user) throw redirect({ to: '/auth', search: { mode: 'login' } });
-      const SUPER_ADMIN_EMAILS = ['barakahdevcentre@gmail.com', 'barakahdevelopmentcentre@gmail.com'];
-      if (SUPER_ADMIN_EMAILS.includes(user.email?.toLowerCase() || '')) return;
-      const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id);
-      const userRoles = (roleData || []).map((r: any) => r.role);
-      const metaRole = user.user_metadata?.['role'];
-      const isAuthorized =
-        userRoles.some((r: string) => ['administrator', 'admin', 'swift_manager', 'swift_dispatcher', 'dispatcher'].includes(r)) ||
-        ['administrator', 'admin', 'swift_manager', 'swift_dispatcher', 'dispatcher'].includes(metaRole);
-      if (!isAuthorized) throw redirect({ to: '/my-swift-move' });
-    } catch (err: any) {
-      if (err?.isRedirect || err?.to || err?.statusCode) throw err;
-      throw redirect({ to: '/auth', search: { mode: 'login' } });
-    }
+    await requireAdminRouteAccess(ADMIN_ROLES);
   },
   component: AdminDashboard,
 });

@@ -230,12 +230,6 @@ const dispatcherNav: RoleNav = {
                     badgeColor: "bg-amber-500/20 text-amber-400",
                 },
                 {
-                    title: "SwiftMove Orders",
-                    path: "/admin/swift-move",
-                    icon: Package,
-                    description: "All logistics & ride orders",
-                },
-                {
                     title: "Dispatches History",
                     path: "/history",
                     icon: Clock,
@@ -480,11 +474,19 @@ const staffNav: RoleNav = {
 
 export function getRoleConfig(role: string, user?: any): RoleNav {
     const email = user?.email?.toLowerCase();
-    if (email === "barakahdevcentre@gmail.com" || email === "barakahdevelopmentcentre@gmail.com") {
+    const SUPER_ADMINS = [
+        "barakahdevcentre@gmail.com",
+        "barakahdevelopmentcentre@gmail.com",
+        "raymondlongdiem22@gmail.com",
+    ];
+    if (email && SUPER_ADMINS.includes(email)) {
         return adminNav;
     }
-    if (role === "driver" || role === "dispatch_rider") {
-        if (role === "dispatch_rider") {
+    const riderCat = user?.user_metadata?.["rider_category"] || user?.user_metadata?.["category"];
+    const effectiveRole = role || user?.user_metadata?.["role"] || riderCat || "registered_user";
+
+    if (effectiveRole === "driver" || effectiveRole === "dispatch_rider" || riderCat === "driver" || riderCat === "dispatch_rider") {
+        if (effectiveRole === "dispatch_rider" || riderCat === "dispatch_rider") {
             return {
                 ...driverNav,
                 roleLabel: "Dispatch Rider",
@@ -492,13 +494,13 @@ export function getRoleConfig(role: string, user?: any): RoleNav {
         }
         return driverNav;
     }
-    if (role === "swift_dispatcher" || role === "dispatcher") {
+    if (effectiveRole === "swift_dispatcher" || effectiveRole === "dispatcher") {
         return dispatcherNav;
     }
-    if (role === "administrator" || role === "admin" || role === "swift_manager") {
+    if (effectiveRole === "administrator" || effectiveRole === "admin" || effectiveRole === "swift_manager") {
         return adminNav;
     }
-    if (role === "staff" || role === "programme_officer" || role === "content_editor") {
+    if (effectiveRole === "staff" || effectiveRole === "programme_officer" || effectiveRole === "content_editor") {
         return staffNav;
     }
     return customerNav;

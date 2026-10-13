@@ -9,28 +9,12 @@ import { useDriverTelemetry } from '@/hooks/use-driver-telemetry';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
+import { requireRoleAccess, ADMIN_ROLES, DRIVER_ROLES } from '@/lib/admin-auth';
+
 export const Route = createFileRoute('/_authenticated/driver-dispatch')({
   ssr: false,
   beforeLoad: async () => {
-    try {
-      const { data, error } = await supabase.auth.getUser();
-      const user = data?.user;
-      if (error || !user) {
-        throw redirect({ to: '/auth', search: { mode: 'login' } });
-      }
-      const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      const role = roleData?.role ?? user.user_metadata?.['role'] ?? 'registered_user';
-      if (role !== 'driver' && role !== 'administrator' && role !== 'swift_manager') {
-        throw redirect({ to: '/my-swift-move' });
-      }
-    } catch (err: any) {
-      if (err?.isRedirect || err?.to || err?.statusCode) throw err;
-      throw redirect({ to: '/auth', search: { mode: 'login' } });
-    }
+    await requireRoleAccess([...ADMIN_ROLES, ...DRIVER_ROLES]);
   },
   component: DriverConsolePage,
 });

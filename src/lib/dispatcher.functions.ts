@@ -923,6 +923,11 @@ export const customerGetActiveRide = createServerFn({ method: "POST" })
       throw new Error(error.message);
     }
 
+    if (order && data.customerId && order.customer_id && order.customer_id !== data.customerId) {
+      console.warn(`[customerGetActiveRide] Access denied: customer ${data.customerId} attempted to query order ${data.orderId} owned by ${order.customer_id}`);
+      return { order: null };
+    }
+
     if (order && order.driver_id) {
       try {
         const { data: driverRow } = await admin
@@ -1384,7 +1389,7 @@ export const driverDeclineRideRequest = createServerFn({ method: "POST" })
 export interface DriverHistoryTrip {
   id: string;
   type: "ride" | "delivery";
-  status: "completed" | "declined" | "in_transit" | "accepted" | "picked_up" | "cancelled";
+  status: "completed" | "declined" | "in_transit" | "accepted" | "picked_up" | "cancelled" | "delivered";
   pickupAddress: string;
   dropoffAddress: string;
   grossFare: number;
@@ -1398,6 +1403,8 @@ export interface DriverHistoryTrip {
   customerName?: string;
   customerPhone?: string;
   pin?: string;
+  pickupPin?: string;
+  isDeclined?: boolean;
   tier?: string;
 }
 
@@ -1571,6 +1578,8 @@ export const driverGetTripHistory = createServerFn({ method: "POST" })
           customerName: customer?.name,
           customerPhone,
           pin: meta.pin,
+          pickupPin: meta.pin,
+          isDeclined,
           tier: meta.tierName || (meta.tier ? String(meta.tier).toUpperCase() : undefined),
         });
       }

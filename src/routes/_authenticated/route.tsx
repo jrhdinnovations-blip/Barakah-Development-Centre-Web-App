@@ -6,6 +6,14 @@ import { MobileNav } from '@/components/mobile-nav';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { isChunkLoadError, autoRecoverChunkError } from '@/lib/chunk-error-handler';
+import {
+  resolveUserRoles,
+  getConsoleForRoles,
+  ADMIN_ROLES,
+  DISPATCHER_ROLES,
+  DRIVER_ROLES,
+  STAFF_ROLES,
+} from '@/lib/admin-auth';
 
 export const Route = createFileRoute('/_authenticated')({
   ssr: false,
@@ -14,16 +22,71 @@ export const Route = createFileRoute('/_authenticated')({
       const { data, error } = await supabase.auth.getUser();
       const user = data?.user;
       if (error || !user) {
-        const isSwiftPath = location.pathname.includes('swift') || location.pathname.includes('drive') || location.pathname.includes('dispatch') || location.pathname.includes('app');
+        const isSwiftPath =
+          location.pathname.includes('swift') ||
+          location.pathname.includes('drive') ||
+          location.pathname.includes('dispatch') ||
+          location.pathname.includes('app');
         throw redirect({
           to: '/auth',
           search: { mode: 'login' as const, redirect: location.pathname, ...(isSwiftPath ? { app: 'swiftmove' } : {}) },
         });
       }
-      return { user };
+
+      // ─── Enforce Console Role-Level Security ───
+      const { roles, isSuperAdmin } = await resolveUserRoles(user);
+      if (!isSuperAdmin) {
+        const p = location.pathname.toLowerCase();
+
+        // 1. Dispatcher Operations Routes
+        if (p === '/dispatcher' || p.startsWith('/dispatcher/')) {
+          const isAllowed = roles.some((r) => ADMIN_ROLES.includes(r) || DISPATCHER_ROLES.includes(r));
+          if (!isAllowed) {
+            throw redirect({ to: getConsoleForRoles(roles) as any });
+          }
+        }
+
+        // 2. Driver / Rider Cockpit Routes
+        else if (p === '/drive' || p.startsWith('/drive/') || p === '/driver-dispatch' || p.startsWith('/driver-dispatch/')) {
+          const isAllowed = roles.some((r) => ADMIN_ROLES.includes(r) || DRIVER_ROLES.includes(r));
+          if (!isAllowed) {
+            throw redirect({ to: getConsoleForRoles(roles) as any });
+          }
+        }
+
+        // 3. Admin Routes
+        else if (p === '/admin' || p.startsWith('/admin/')) {
+          const isDispatcherAccessible =
+            p.startsWith('/admin/dispatcher') ||
+            p.startsWith('/admin/riders') ||
+            p.startsWith('/admin/users/permissions');
+
+          const isAllowed = isDispatcherAccessible
+            ? roles.some((r) => ADMIN_ROLES.includes(r) || DISPATCHER_ROLES.includes(r))
+            : roles.some((r) => ADMIN_ROLES.includes(r));
+
+          if (!isAllowed) {
+            throw redirect({ to: getConsoleForRoles(roles) as any });
+          }
+        }
+
+        // 4. Staff Routes
+        else if (p === '/staff' || p.startsWith('/staff/')) {
+          const isAllowed = roles.some((r) => ADMIN_ROLES.includes(r) || STAFF_ROLES.includes(r));
+          if (!isAllowed) {
+            throw redirect({ to: getConsoleForRoles(roles) as any });
+          }
+        }
+      }
+
+      return { user, roles };
     } catch (err: any) {
       if (isRedirect(err) || err?.isRedirect || err?.to || err?.statusCode) throw err;
-      const isSwiftPath2 = location.pathname.includes('swift') || location.pathname.includes('drive') || location.pathname.includes('dispatch') || location.pathname.includes('app');
+      const isSwiftPath2 =
+        location.pathname.includes('swift') ||
+        location.pathname.includes('drive') ||
+        location.pathname.includes('dispatch') ||
+        location.pathname.includes('app');
       throw redirect({
         to: '/auth',
         search: { mode: 'login' as const, redirect: location.pathname, ...(isSwiftPath2 ? { app: 'swiftmove' } : {}) },

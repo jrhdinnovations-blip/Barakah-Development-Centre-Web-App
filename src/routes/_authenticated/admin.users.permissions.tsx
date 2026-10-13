@@ -5,25 +5,12 @@ import { toast } from 'sonner';
 import { Key, CheckCircle2, XCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
+import { requireRoleAccess, ADMIN_ROLES, DISPATCHER_ROLES } from '@/lib/admin-auth';
+
 export const Route = createFileRoute('/_authenticated/admin/users/permissions')({
   ssr: false,
   beforeLoad: async () => {
-    try {
-      const { data, error } = await supabase.auth.getUser();
-      const user = data?.user;
-      if (error || !user) throw redirect({ to: '/auth', search: { mode: 'login' } });
-      const { data: roleRows } = await supabase.from('user_roles').select('role').eq('user_id', user.id);
-      const roles = (roleRows || []).map((r: any) => r.role);
-      const metaRole = user.user_metadata?.['role'];
-      if (metaRole && !roles.includes(metaRole)) roles.push(metaRole);
-      const isAuthorized = roles.some((r: string) =>
-        ['administrator', 'admin', 'swift_manager', 'swift_dispatcher', 'dispatcher'].includes(r)
-      );
-      if (!isAuthorized) throw redirect({ to: '/my-swift-move' });
-    } catch (err: any) {
-      if (err?.isRedirect || err?.to || err?.statusCode) throw err;
-      throw redirect({ to: '/auth', search: { mode: 'login' } });
-    }
+    await requireRoleAccess([...ADMIN_ROLES, ...DISPATCHER_ROLES]);
   },
   component: PermissionsPage,
 });

@@ -93,6 +93,8 @@ function OrderHistoryPage() {
     const receiptRef = useRef<HTMLDivElement>(null);
 
     const isDriverUser =
+        auth?.role === 'driver' ||
+        auth?.role === 'dispatch_rider' ||
         user?.user_metadata?.role === 'driver' ||
         user?.user_metadata?.role === 'dispatch_rider';
 
@@ -100,7 +102,7 @@ function OrderHistoryPage() {
         if (!user?.id) return;
         setIsLoading(true);
         try {
-            // 1. Fetch customer deliveries
+            // 1. Fetch customer deliveries (strictly scoped to user.id)
             const { data: deliveryData, error: delErr } = await supabase
                 .from('swift_deliveries')
                 .select('*')
@@ -111,20 +113,23 @@ function OrderHistoryPage() {
             setDeliveries(deliveryData || []);
             setVehicleBookings([]);
 
-            // 2. Fetch driver trips (elevated server query that bypasses client RLS)
-            try {
-                const driverRes = await driverGetTripHistory({ data: { driverId: user.id } });
-                if (driverRes && driverRes.trips) {
-                    setDriverTrips(driverRes.trips);
-                    if (driverRes.stats) {
-                        setDriverStats(driverRes.stats);
-                    }
-                    if (driverRes.trips.length > 0 || isDriverUser) {
+            // 2. Fetch driver trips only if the user is a registered driver/rider
+            if (isDriverUser) {
+                try {
+                    const driverRes = await driverGetTripHistory({ data: { driverId: user.id } });
+                    if (driverRes && driverRes.trips) {
+                        setDriverTrips(driverRes.trips);
+                        if (driverRes.stats) {
+                            setDriverStats(driverRes.stats);
+                        }
                         setActiveTab('driver');
                     }
+                } catch (dErr) {
+                    console.warn('Driver trip history notice:', dErr);
                 }
-            } catch (dErr) {
-                console.warn('Driver trip history notice:', dErr);
+            } else {
+                setDriverTrips([]);
+                setActiveTab('customer');
             }
         } catch (err) {
             console.error('History fetch error:', err);
@@ -136,7 +141,7 @@ function OrderHistoryPage() {
 
     useEffect(() => {
         fetchHistory();
-    }, [user?.id]);
+    }, [user?.id, isDriverUser]);
 
     // Customer history items
     const historyItems: HistoryItem[] = [
@@ -255,8 +260,8 @@ function OrderHistoryPage() {
                 </div>
             </div>
 
-            {/* TAB SELECTOR: Driver Trips vs Customer Orders */}
-            {(driverTrips.length > 0 || isDriverUser) && (
+            {/* TAB SELECTOR: Driver Trips vs Customer Orders (drivers only) */}
+            {isDriverUser && (
                 <div className="flex bg-slate-900/80 border border-slate-800 p-1.5 rounded-2xl gap-2">
                     <button
                         type="button"

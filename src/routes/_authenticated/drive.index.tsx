@@ -53,41 +53,12 @@ import {
 } from "@/lib/dispatcher.functions";
 import { isChunkLoadError, autoRecoverChunkError } from "@/lib/chunk-error-handler";
 
+import { requireRoleAccess, ADMIN_ROLES, DRIVER_ROLES } from "@/lib/admin-auth";
+
 export const Route = createFileRoute("/_authenticated/drive/")({
   ssr: false,
   beforeLoad: async () => {
-    try {
-      const { data, error } = await supabase.auth.getUser();
-      const user = data?.user;
-      if (error || !user) throw redirect({ to: "/auth", search: { mode: "login" } });
-
-      // Super admins always have access
-      const SUPER_ADMIN_EMAILS = [
-        'barakahdevcentre@gmail.com',
-        'barakahdevelopmentcentre@gmail.com',
-        'raymondlongdiem22@gmail.com',
-      ];
-      const email = user.email?.toLowerCase() || '';
-      if (SUPER_ADMIN_EMAILS.includes(email)) return;
-
-      const { data: roleData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id);
-      const userRoles = (roleData || []).map((r: any) => r.role);
-      const metaRole = user.user_metadata?.['role'];
-      const metaCategory = user.user_metadata?.['rider_category'] || user.user_metadata?.['category'];
-      const isAuthorized =
-        userRoles.some((r: string) => ["driver", "dispatch_rider", "administrator", "swift_manager"].includes(r)) ||
-        ["driver", "dispatch_rider", "administrator", "swift_manager"].includes(metaRole) ||
-        ["driver", "dispatch_rider"].includes(metaCategory);
-      if (!isAuthorized) {
-        throw redirect({ to: "/my-swift-move" });
-      }
-    } catch (err: any) {
-      if (isRedirect(err) || err?.isRedirect || err?.to || err?.statusCode) throw err;
-      throw redirect({ to: "/auth", search: { mode: "login" } });
-    }
+    await requireRoleAccess([...ADMIN_ROLES, ...DRIVER_ROLES]);
   },
   component: DriverDashboard,
   errorComponent: DriverCockpitErrorFallback,
@@ -576,7 +547,7 @@ function DriverDashboard() {
           orderId: job.id,
           driverId: userId,
           driverName,
-          driverPhone,
+          driverPhone: driverPhone || undefined,
           vehiclePlate,
           vehicleModel,
           vehicleColor: "Active",

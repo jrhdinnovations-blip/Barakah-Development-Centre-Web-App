@@ -24,9 +24,13 @@ import { calculateDriverEarnings, DRIVER_PAYOUT_PERCENT } from '@/lib/ride-prici
 import { parseOrderMetadata } from '@/lib/swift-order';
 import { driverGetWalletData, DriverWalletJob } from '@/lib/dispatcher.functions';
 import { isChunkLoadError, autoRecoverChunkError } from '@/lib/chunk-error-handler';
+import { requireRoleAccess, ADMIN_ROLES, DRIVER_ROLES } from '@/lib/admin-auth';
 
 export const Route = createFileRoute('/_authenticated/drive/wallet')({
   ssr: false,
+  beforeLoad: async () => {
+    await requireRoleAccess([...ADMIN_ROLES, ...DRIVER_ROLES]);
+  },
   component: DriverWalletScreen,
   errorComponent: DriverWalletErrorFallback,
 });

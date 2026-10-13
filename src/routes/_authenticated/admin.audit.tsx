@@ -38,29 +38,12 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 
+import { requireAdminRouteAccess } from '@/lib/admin-auth';
+
 export const Route = createFileRoute('/_authenticated/admin/audit')({
   ssr: false,
   beforeLoad: async () => {
-    try {
-      const { data, error } = await supabase.auth.getUser();
-      const user = data?.user;
-      if (error || !user) throw redirect({ to: '/auth', search: { mode: 'login' } });
-      const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id);
-      const userRoles = (roleData || []).map((r: any) => r.role);
-      const metaRole = user.user_metadata?.['role'];
-      const isAuthorized =
-        userRoles.some((r: string) => ['administrator', 'admin', 'swift_manager'].includes(r)) ||
-        ['administrator', 'admin', 'swift_manager'].includes(metaRole);
-      if (!isAuthorized) {
-        throw redirect({ to: '/my-swift-move' });
-      }
-    } catch (err: any) {
-      if (err?.isRedirect || err?.to || err?.statusCode) throw err;
-      throw redirect({ to: '/auth', search: { mode: 'login' } });
-    }
+    await requireAdminRouteAccess();
   },
   component: AdminAuditPage,
 });
