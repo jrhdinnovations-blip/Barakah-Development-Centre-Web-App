@@ -52,11 +52,8 @@ export const Route = createFileRoute("/_authenticated/my-barakah")({
         throw redirect({ to: '/drive' });
       }
 
-      // If accessed on swiftmove.ng, redirect to SwiftMove customer dashboard immediately
-      const { isSwiftmoveDomain } = await import("@/lib/domain-detection");
-      if (isSwiftmoveDomain()) {
-        throw redirect({ to: "/my-swift-move" });
-      }
+      // All customers are routed directly to SwiftMove customer dashboard
+      throw redirect({ to: "/my-swift-move" as any });
     } catch (err: any) {
       if (isRedirect(err) || err?.isRedirect || err?.to || err?.statusCode) throw err;
     }

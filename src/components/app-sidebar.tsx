@@ -8,7 +8,6 @@ import {
     Navigation2,
     BarChart3,
     Users,
-    MapPin,
     Clock,
     CreditCard,
     Car,
@@ -16,19 +15,17 @@ import {
     Activity,
     UserPlus,
     Key,
-    Building,
+    Shield,
     Briefcase,
     Mail,
-    CheckCircle2,
-    Settings,
     Radio,
     ShieldAlert,
     ChevronRight,
     Image,
+    LifeBuoy,
 } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
-import { isSwiftmoveDomain } from "@/lib/domain-detection";
 import { Button } from "@/components/ui/button";
 import {
     Accordion,
@@ -43,7 +40,7 @@ interface SidebarProps {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface NavItem {
+export interface NavItem {
     title: string;
     path: string;
     icon: React.ElementType;
@@ -52,88 +49,296 @@ interface NavItem {
     badgeColor?: string;
 }
 
-interface NavSection {
+export interface NavSection {
     title: string;
     accentColor?: string;
     items: NavItem[];
 }
 
-interface RoleNav {
+export interface RoleNav {
     roleLabel: string;
     roleColor: string;
     roleBg: string;
     roleDot: string;
+    activeItemClass: string;
+    activeIconClass: string;
+    activeIndicatorClass: string;
     sections: NavSection[];
 }
 
-// ─── Customer Nav ─────────────────────────────────────────────────────────────
+// ─── 1. SwiftMove Customer Nav ────────────────────────────────────────────────
 
 const customerNav: RoleNav = {
-    roleLabel: "Customer",
-    roleColor: "text-blue-400",
-    roleBg: "bg-blue-500/10 border-blue-500/20",
-    roleDot: "bg-blue-400",
-    sections: [
-        {
-            title: "Barakah Services",
-            items: [
-                { title: "My Dashboard", path: "/my-barakah", icon: Activity, description: "Customer overview & services" },
-                { title: "Travel & Tours", path: "/my-journey", icon: Globe2, description: "Umrah & Hajj bookings" },
-                { title: "Applications", path: "/apply", icon: FileText, description: "Track programme applications" },
-            ],
-        },
-        {
-            title: "SwiftMove Logistics & Rides",
-            items: [
-                { title: "Order a Ride", path: "/my-swift-move?service=ride", icon: Car, description: "On-demand city passenger rides" },
-                { title: "Send a Parcel", path: "/my-swift-move?service=parcel", icon: Package, description: "Send parcels & packages" },
-            ],
-        },
-        {
-            title: "My Account",
-            items: [
-                { title: "Order History", path: "/history", icon: Clock, description: "Past orders & receipts" },
-                { title: "Payments", path: "/my-payments", icon: CreditCard, description: "Invoices & billing records" },
-            ],
-        },
-    ],
-};
-
-// ─── Driver Nav ───────────────────────────────────────────────────────────────
-
-const driverNav: RoleNav = {
-    roleLabel: "Driver",
+    roleLabel: "SwiftMove Customer",
     roleColor: "text-orange-400",
     roleBg: "bg-orange-500/10 border-orange-500/20",
     roleDot: "bg-orange-400",
+    activeItemClass: "bg-orange-600/15 text-orange-300 border-orange-500/30 shadow-orange-950/20 shadow-sm",
+    activeIconClass: "bg-orange-500/20 text-orange-400",
+    activeIndicatorClass: "bg-orange-400",
     sections: [
         {
-            title: "Dispatch Operations",
+            title: "SwiftMove Services",
+            accentColor: "text-orange-400",
             items: [
-                { title: "Driver Console", path: "/drive", icon: Navigation2, description: "Accept & manage jobs" },
+                {
+                    title: "Book a Ride",
+                    path: "/my-swift-move?service=ride",
+                    icon: Car,
+                    description: "On-demand city passenger rides",
+                    badge: "Ride",
+                    badgeColor: "bg-orange-500/20 text-orange-400",
+                },
+                {
+                    title: "Send a Parcel",
+                    path: "/my-swift-move?service=parcel",
+                    icon: Package,
+                    description: "Express courier & package delivery",
+                    badge: "Delivery",
+                    badgeColor: "bg-blue-500/20 text-blue-400",
+                },
+                {
+                    title: "Track Live Order",
+                    path: "/my-swift-move?service=track",
+                    icon: Navigation2,
+                    description: "Realtime GPS delivery tracking",
+                    badge: "Live",
+                    badgeColor: "bg-emerald-500/20 text-emerald-400",
+                },
             ],
         },
         {
-            title: "Driver Hub",
+            title: "Orders & Activity",
+            accentColor: "text-amber-400",
             items: [
-                { title: "Trip History", path: "/history", icon: FileText, description: "Completed deliveries" },
-                { title: "Wallet & Payouts", path: "/drive/wallet", icon: CreditCard, description: "30% earnings & payouts" },
+                {
+                    title: "Trip & Order History",
+                    path: "/history",
+                    icon: Clock,
+                    description: "Past rides, deliveries & receipts",
+                },
+                {
+                    title: "Payments & Invoices",
+                    path: "/my-payments",
+                    icon: CreditCard,
+                    description: "Payment records & transaction receipts",
+                },
+            ],
+        },
+        {
+            title: "Support & Help",
+            accentColor: "text-cyan-400",
+            items: [
+                {
+                    title: "Customer Support",
+                    path: "/my-support",
+                    icon: LifeBuoy,
+                    description: "24/7 help desk & ride assistance",
+                },
             ],
         },
     ],
 };
 
-// ─── Admin Nav ────────────────────────────────────────────────────────────────
+// ─── 2. SwiftMove Rider / Driver Nav ──────────────────────────────────────────
+
+const driverNav: RoleNav = {
+    roleLabel: "Rider & Driver",
+    roleColor: "text-amber-400",
+    roleBg: "bg-amber-500/10 border-amber-500/20",
+    roleDot: "bg-amber-400",
+    activeItemClass: "bg-amber-600/15 text-amber-300 border-amber-500/30 shadow-amber-950/20 shadow-sm",
+    activeIconClass: "bg-amber-500/20 text-amber-400",
+    activeIndicatorClass: "bg-amber-400",
+    sections: [
+        {
+            title: "Dispatch Operations",
+            accentColor: "text-amber-400",
+            items: [
+                {
+                    title: "Driver Cockpit",
+                    path: "/drive",
+                    icon: Navigation2,
+                    description: "Live ride & parcel dispatches",
+                    badge: "LIVE",
+                    badgeColor: "bg-emerald-500/20 text-emerald-400",
+                },
+                {
+                    title: "Enterprise Dispatches",
+                    path: "/driver-dispatch",
+                    icon: Package,
+                    description: "Corporate delivery missions",
+                },
+            ],
+        },
+        {
+            title: "Earnings & Records",
+            accentColor: "text-orange-400",
+            items: [
+                {
+                    title: "Wallet & Payouts",
+                    path: "/drive/wallet",
+                    icon: CreditCard,
+                    description: "70/30 earnings & withdrawal balance",
+                    badge: "Payouts",
+                    badgeColor: "bg-orange-500/20 text-orange-400",
+                },
+                {
+                    title: "Trip History",
+                    path: "/history",
+                    icon: FileText,
+                    description: "Completed trips, logs & receipts",
+                },
+            ],
+        },
+        {
+            title: "Rider Assistance",
+            accentColor: "text-cyan-400",
+            items: [
+                {
+                    title: "Rider Support & SOS",
+                    path: "/my-support",
+                    icon: ShieldCheck,
+                    description: "Emergency & rider support",
+                },
+            ],
+        },
+    ],
+};
+
+// ─── 3. SwiftMove Dispatcher Nav ──────────────────────────────────────────────
+
+const dispatcherNav: RoleNav = {
+    roleLabel: "Swift Dispatcher",
+    roleColor: "text-cyan-400",
+    roleBg: "bg-cyan-500/10 border-cyan-500/20",
+    roleDot: "bg-cyan-400",
+    activeItemClass: "bg-cyan-600/15 text-cyan-300 border-cyan-500/30 shadow-cyan-950/20 shadow-sm",
+    activeIconClass: "bg-cyan-500/20 text-cyan-400",
+    activeIndicatorClass: "bg-cyan-400",
+    sections: [
+        {
+            title: "Live Operations",
+            accentColor: "text-cyan-400",
+            items: [
+                {
+                    title: "Dispatcher Console",
+                    path: "/dispatcher",
+                    icon: Radio,
+                    description: "Live trip control & radar",
+                    badge: "LIVE",
+                    badgeColor: "bg-amber-500/20 text-amber-400",
+                },
+                {
+                    title: "SwiftMove Orders",
+                    path: "/admin/swift-move",
+                    icon: Package,
+                    description: "All logistics & ride orders",
+                },
+                {
+                    title: "Dispatches History",
+                    path: "/history",
+                    icon: Clock,
+                    description: "Past dispatches & delivery logs",
+                },
+            ],
+        },
+        {
+            title: "Fleet & Riders",
+            accentColor: "text-orange-400",
+            items: [
+                {
+                    title: "Fleet Riders & Drivers",
+                    path: "/admin/riders",
+                    icon: Truck,
+                    description: "Fleet directory & active units",
+                },
+                {
+                    title: "Add Fleet Personnel",
+                    path: "/admin/riders/add",
+                    icon: UserPlus,
+                    description: "Onboard new rider or vehicle",
+                    badge: "Add",
+                    badgeColor: "bg-cyan-500/20 text-cyan-400",
+                },
+            ],
+        },
+        {
+            title: "Access Control",
+            accentColor: "text-purple-400",
+            items: [
+                {
+                    title: "Permissions Matrix",
+                    path: "/admin/users/permissions",
+                    icon: Key,
+                    description: "Privileges & authorization levels",
+                },
+            ],
+        },
+    ],
+};
+
+// ─── 4. SwiftMove Administrator Nav ───────────────────────────────────────────
+
 const adminNav: RoleNav = {
-    roleLabel: "Administrator",
+    roleLabel: "SwiftMove Administrator",
     roleColor: "text-purple-400",
     roleBg: "bg-purple-500/10 border-purple-500/20",
     roleDot: "bg-purple-400",
+    activeItemClass: "bg-purple-600/15 text-purple-300 border-purple-500/30 shadow-purple-950/20 shadow-sm",
+    activeIconClass: "bg-purple-500/20 text-purple-400",
+    activeIndicatorClass: "bg-purple-400",
     sections: [
         {
-            title: "Overview",
+            title: "Operations & Control",
+            accentColor: "text-purple-400",
             items: [
-                { title: "Dashboard", path: "/admin", icon: Activity, description: "System overview & operations metrics" },
+                {
+                    title: "Operations Dashboard",
+                    path: "/admin",
+                    icon: Activity,
+                    description: "System overview & live metrics",
+                },
+                {
+                    title: "Dispatcher Console",
+                    path: "/dispatcher",
+                    icon: Radio,
+                    description: "Live dispatch radar & tracking",
+                    badge: "LIVE",
+                    badgeColor: "bg-amber-500/20 text-amber-400",
+                },
+                {
+                    title: "SwiftMove Orders",
+                    path: "/admin/swift-move",
+                    icon: Package,
+                    description: "All logistics & ride orders",
+                },
+            ],
+        },
+        {
+            title: "Fleet & Drivers",
+            accentColor: "text-orange-400",
+            items: [
+                {
+                    title: "All Fleet Personnel",
+                    path: "/admin/riders",
+                    icon: Truck,
+                    description: "Fleet riders & drivers registry",
+                },
+                {
+                    title: "Add Rider / Driver",
+                    path: "/admin/riders/add",
+                    icon: UserPlus,
+                    description: "Register new rider or vehicle",
+                    badge: "Add",
+                    badgeColor: "bg-orange-500/20 text-orange-400",
+                },
+                {
+                    title: "Driver Cockpit View",
+                    path: "/drive",
+                    icon: Navigation2,
+                    description: "Live driver & rider interface",
+                },
             ],
         },
         {
@@ -150,21 +355,21 @@ const adminNav: RoleNav = {
                     title: "Add User",
                     path: "/admin/users/create",
                     icon: UserPlus,
-                    description: "Register a new user biodata",
-                    badge: "Add",
+                    description: "Register a user account",
+                    badge: "New",
                     badgeColor: "bg-blue-500/20 text-blue-400",
                 },
                 {
-                    title: "Roles",
+                    title: "System Roles",
                     path: "/admin/users/roles",
                     icon: ShieldCheck,
                     description: "Manage role assignments",
                 },
                 {
-                    title: "Permissions",
+                    title: "Permissions Matrix",
                     path: "/admin/users/permissions",
                     icon: Key,
-                    description: "Control access privileges",
+                    description: "Granular access privileges",
                 },
             ],
         },
@@ -175,116 +380,181 @@ const adminNav: RoleNav = {
                 {
                     title: "All Staff",
                     path: "/admin/staff",
-                    icon: Users,
-                    description: "Internal staff & admin directory",
+                    icon: Shield,
+                    description: "Internal operations staff",
                 },
                 {
-                    title: "Add Staff",
+                    title: "Add Staff Member",
                     path: "/admin/staff/add",
                     icon: UserPlus,
-                    description: "Onboard new staff member",
-                    badge: "Add",
+                    description: "Onboard new employee",
+                    badge: "New",
                     badgeColor: "bg-emerald-500/20 text-emerald-400",
                 },
                 {
                     title: "Company Emails",
                     path: "/admin/emails",
                     icon: Mail,
-                    description: "Domains, webmail & mailboxes",
+                    description: "Corporate mailboxes & webmail",
+                },
+                {
+                    title: "Executive Staff Portal",
+                    path: "/staff",
+                    icon: Briefcase,
+                    description: "Executive workspace",
                 },
             ],
         },
         {
-            title: "Riders & Fleet",
-            accentColor: "text-orange-400",
-            items: [
-                {
-                    title: "All Riders",
-                    path: "/admin/riders",
-                    icon: Truck,
-                    description: "Fleet riders & drivers directory",
-                },
-                {
-                    title: "Add Rider",
-                    path: "/admin/riders/add",
-                    icon: UserPlus,
-                    description: "Register new dispatch rider or driver",
-                    badge: "Add",
-                    badgeColor: "bg-orange-500/20 text-orange-400",
-                },
-            ],
-        },
-        {
-            title: "Logistics & Live Ops",
+            title: "Finance & Records",
             accentColor: "text-cyan-400",
             items: [
-                { title: "Dispatcher Console", path: "/dispatcher", icon: Radio, description: "Live dispatch ops & tracking" },
-                { title: "Swift Move Orders", path: "/admin/swift-move", icon: Package, description: "Logistics orders & deliveries" },
+                {
+                    title: "All Transactions",
+                    path: "/history",
+                    icon: BarChart3,
+                    description: "System-wide orders & trip ledger",
+                },
+                {
+                    title: "Payments & Invoices",
+                    path: "/my-payments",
+                    icon: CreditCard,
+                    description: "Payment records & receipts",
+                },
             ],
         },
         {
-            title: "Security & Logs",
-            items: [
-                { title: "Audit Logs", path: "/admin/audit", icon: ShieldAlert, description: "Security audit & activity history" },
-            ],
-        },
-        {
-            title: "Content & Media",
+            title: "System & Media",
             accentColor: "text-violet-400",
             items: [
                 {
                     title: "Media Library",
                     path: "/admin/media",
                     icon: Image,
-                    description: "Upload & manage site images and videos",
-                    badge: "Upload",
+                    description: "Upload & manage website assets",
+                    badge: "Media",
                     badgeColor: "bg-violet-500/20 text-violet-400",
+                },
+                {
+                    title: "Audit Logs",
+                    path: "/admin/audit",
+                    icon: ShieldAlert,
+                    description: "Security audit & activity history",
                 },
             ],
         },
     ],
 };
 
-// ─── Dispatcher Nav ───────────────────────────────────────────────────────────
-const dispatcherNav: RoleNav = {
-    roleLabel: "Dispatcher",
-    roleColor: "text-cyan-400",
-    roleBg: "bg-cyan-500/10 border-cyan-500/20",
-    roleDot: "bg-cyan-400",
+// ─── 5. Staff Nav Fallback ───────────────────────────────────────────────────
+
+const staffNav: RoleNav = {
+    roleLabel: "Operations Staff",
+    roleColor: "text-emerald-400",
+    roleBg: "bg-emerald-500/10 border-emerald-500/20",
+    roleDot: "bg-emerald-400",
+    activeItemClass: "bg-emerald-600/15 text-emerald-300 border-emerald-500/30 shadow-emerald-950/20 shadow-sm",
+    activeIconClass: "bg-emerald-500/20 text-emerald-400",
+    activeIndicatorClass: "bg-emerald-400",
     sections: [
         {
-            title: "Live Operations",
+            title: "Staff Operations",
+            accentColor: "text-emerald-400",
             items: [
-                { title: "Dispatcher Console", path: "/dispatcher", icon: Radio, description: "Live Ops & Trip Control" },
-                { title: "Swift Move Orders", path: "/admin/swift-move", icon: Package, description: "Logistics engine" },
+                { title: "Executive Workspace", path: "/staff", icon: Briefcase, description: "Operations portal" },
+                { title: "Company Emails", path: "/admin/emails", icon: Mail, description: "Internal mailboxes & webmail" },
             ],
         },
         {
-            title: "Fleet & Riders",
+            title: "Records & Activity",
+            accentColor: "text-cyan-400",
             items: [
-                { title: "All Riders", path: "/admin/riders", icon: Truck, description: "Fleet drivers directory" },
-                { title: "Add Rider", path: "/admin/riders/add", icon: UserPlus, description: "Onboard fleet rider" },
-            ],
-        },
-        {
-            title: "Access Control",
-            items: [
-                { title: "Permissions", path: "/admin/users/permissions", icon: Key, description: "Privilege overview" },
+                { title: "Order History", path: "/history", icon: Clock, description: "Past transactions & services" },
+                { title: "Payments", path: "/my-payments", icon: CreditCard, description: "Payment transactions" },
             ],
         },
     ],
 };
 
-// ─── Role resolver ────────────────────────────────────────────────────────────
-function getRoleConfig(role: string, user?: any): RoleNav {
+// ─── Role Resolver ────────────────────────────────────────────────────────────
+
+export function getRoleConfig(role: string, user?: any): RoleNav {
     const email = user?.email?.toLowerCase();
     if (email === "barakahdevcentre@gmail.com" || email === "barakahdevelopmentcentre@gmail.com") {
         return adminNav;
     }
-    if (role === "driver" || role === "dispatch_rider") return driverNav;
-    if (role === "swift_dispatcher" || role === "dispatcher") return dispatcherNav;
-    if (role === "administrator" || role === "admin" || role === "swift_manager") return adminNav;
+    if (role === "driver" || role === "dispatch_rider") {
+        if (role === "dispatch_rider") {
+            return {
+                ...driverNav,
+                roleLabel: "Dispatch Rider",
+            };
+        }
+        return driverNav;
+    }
+    if (role === "swift_dispatcher" || role === "dispatcher") {
+        return dispatcherNav;
+    }
+    if (role === "administrator" || role === "admin" || role === "swift_manager") {
+        return adminNav;
+    }
+    if (role === "staff" || role === "programme_officer" || role === "content_editor") {
+        return staffNav;
+    }
     return customerNav;
+}
+
+// ─── Active Nav Item Matcher ──────────────────────────────────────────────────
+
+export function isNavItemActive(
+    itemPath: string,
+    currentPath: string,
+    currentSearch: Record<string, any>,
+    allItemPaths: string[]
+): boolean {
+    const [targetPath, targetQuery] = itemPath.split("?");
+    const targetParams = targetQuery
+        ? Object.fromEntries(new URLSearchParams(targetQuery).entries())
+        : null;
+
+    // If item specifies query parameters (e.g. ?service=ride), both path and search param must match
+    if (targetParams) {
+        if (currentPath !== targetPath) return false;
+        return Object.entries(targetParams).every(
+            ([k, v]) => String(currentSearch[k] ?? "") === String(v)
+        );
+    }
+
+    // Exact path match
+    if (currentPath === targetPath) {
+        // If current URL has a query that another item targets specifically on this path, don't steal
+        const hasSpecificQueryItem = allItemPaths.some((p) => {
+            const [pPath, pQuery] = p.split("?");
+            if (pPath !== currentPath || !pQuery) return false;
+            const params = Object.fromEntries(new URLSearchParams(pQuery).entries());
+            return Object.entries(params).every(
+                ([k, v]) => String(currentSearch[k] ?? "") === String(v)
+            );
+        });
+        if (hasSpecificQueryItem) return false;
+        return true;
+    }
+
+    // Subpath prefix match: only if currentPath is under targetPath + '/'
+    if (currentPath.startsWith(targetPath + "/")) {
+        // Check if there is a more specific (longer) match among all items in this sidebar
+        const hasMoreSpecificMatch = allItemPaths.some((other) => {
+            const [otherPath] = other.split("?");
+            return (
+                otherPath !== targetPath &&
+                otherPath.length > targetPath.length &&
+                (currentPath === otherPath || currentPath.startsWith(otherPath + "/"))
+            );
+        });
+        return !hasMoreSpecificMatch;
+    }
+
+    return false;
 }
 
 // ─── Nav Item Component ───────────────────────────────────────────────────────
@@ -292,34 +562,51 @@ function getRoleConfig(role: string, user?: any): RoleNav {
 interface NavItemProps {
     item: NavItem;
     currentPath: string;
+    currentSearch: Record<string, any>;
+    allItemPaths: string[];
+    roleNav: RoleNav;
+    onItemClick?: () => void;
 }
 
-function SidebarNavItem({ item, currentPath }: NavItemProps) {
+export function SidebarNavItem({
+    item,
+    currentPath,
+    currentSearch,
+    allItemPaths,
+    roleNav,
+    onItemClick,
+}: NavItemProps) {
     const Icon = item.icon;
-    // Exact match for dashboard root, prefix match for everything else
-    const isActive =
-        currentPath === item.path ||
-        (item.path !== "/admin" && currentPath.startsWith(item.path));
+    const isActive = isNavItemActive(item.path, currentPath, currentSearch, allItemPaths);
+
+    const [pathOnly, searchStr] = item.path.split("?");
+    const searchObj = searchStr
+        ? Object.fromEntries(new URLSearchParams(searchStr).entries())
+        : undefined;
 
     return (
         <Link
-            to={item.path as any}
+            to={pathOnly as any}
+            search={searchObj as any}
+            onClick={onItemClick}
             className={`group relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 ${
                 isActive
-                    ? "bg-blue-600/15 text-blue-400 border border-blue-500/30 shadow-sm"
+                    ? roleNav.activeItemClass
                     : "text-slate-400 hover:text-white hover:bg-slate-900/80 border border-transparent hover:border-slate-800"
             }`}
         >
             {/* Active indicator bar */}
             {isActive && (
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-blue-400 rounded-full -ml-px" />
+                <span
+                    className={`absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-full -ml-px ${roleNav.activeIndicatorClass}`}
+                />
             )}
 
             {/* Icon */}
             <div
                 className={`p-1.5 rounded-lg shrink-0 transition-colors ${
                     isActive
-                        ? "bg-blue-500/20 text-blue-400"
+                        ? roleNav.activeIconClass
                         : "bg-slate-800/60 text-slate-500 group-hover:bg-slate-800 group-hover:text-slate-200"
                 }`}
             >
@@ -350,12 +637,12 @@ function SidebarNavItem({ item, currentPath }: NavItemProps) {
 export function AppSidebar({ className = "" }: SidebarProps) {
     const location = useLocation();
     const currentPath = location.pathname;
+    const currentSearch = (location.search as Record<string, any>) || {};
     const auth = useAuth() as any;
     const user = auth?.user || auth?.session?.user;
     const logout = auth?.logout || auth?.signOut;
     const role = auth?.role ?? "registered_user";
     const config = getRoleConfig(role, user);
-    const isSwift = isSwiftmoveDomain();
 
     const displayName =
         user?.user_metadata?.full_name || user?.email || "User";
@@ -366,6 +653,7 @@ export function AppSidebar({ className = "" }: SidebarProps) {
         .slice(0, 2)
         .toUpperCase();
 
+    const allItemPaths = config.sections.flatMap((s) => s.items.map((i) => i.path));
     const defaultOpenSections = config.sections.map((_, i) => `section-${i}`);
 
     return (
@@ -375,33 +663,25 @@ export function AppSidebar({ className = "" }: SidebarProps) {
             {/* ═══ SCROLLABLE BODY ═══ */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
 
-                {/* Brand logo — switches between SwiftMove and Barakah depending on domain */}
+                {/* Brand logo: Always SwiftMove */}
                 <Link
-                    to="/"
+                    to="/swiftmove"
                     className="flex items-center gap-3 hover:opacity-80 transition-opacity group"
-                    title={isSwift ? "SwiftMove Home" : "Return to Home Page"}
+                    title="SwiftMove Logistics & Ride Hailing"
                 >
-                    <div className={`h-10 w-10 shrink-0 rounded-full overflow-hidden shadow-lg group-hover:scale-105 transition-transform bg-white ${
-                        isSwift
-                            ? "ring-2 ring-orange-500/50 shadow-orange-950/30"
-                            : "ring-2 ring-amber-500/40 shadow-amber-950/30"
-                    }`}>
+                    <div className="h-10 w-10 shrink-0 rounded-full overflow-hidden shadow-lg group-hover:scale-105 transition-transform bg-white ring-2 ring-orange-500/50 shadow-orange-950/30">
                         <img
-                            src={isSwift ? "/swiftmove-logo.jpg" : "/barakah-centre-logo.png"}
-                            alt={isSwift ? "SwiftMove Logo" : "Barakah Development Centre Logo"}
+                            src="/swiftmove-logo.jpg"
+                            alt="SwiftMove Logo"
                             className="h-full w-full object-cover"
                         />
                     </div>
                     <div>
-                        <h2 className={`text-base font-black tracking-tight leading-none ${
-                            isSwift ? "text-orange-400" : "text-white"
-                        }`}>
-                            {isSwift ? "SwiftMove" : "BARAKAH"}
+                        <h2 className="text-base font-black tracking-tight leading-none text-orange-400">
+                            SwiftMove
                         </h2>
-                        <p className={`text-[9px] font-semibold mt-1 tracking-wider uppercase ${
-                            isSwift ? "text-orange-300/70" : "text-emerald-400"
-                        }`}>
-                            {isSwift ? "Logistics & Ride Hailing" : "Development Centre"}
+                        <p className="text-[9px] font-semibold mt-1 tracking-wider uppercase text-orange-300/70">
+                            Logistics & Ride Hailing
                         </p>
                     </div>
                 </Link>
@@ -448,6 +728,9 @@ export function AppSidebar({ className = "" }: SidebarProps) {
                                         key={`${item.path}-${item.title}`}
                                         item={item}
                                         currentPath={currentPath}
+                                        currentSearch={currentSearch}
+                                        allItemPaths={allItemPaths}
+                                        roleNav={config}
                                     />
                                 ))}
                             </AccordionContent>
@@ -483,8 +766,8 @@ export function AppSidebar({ className = "" }: SidebarProps) {
                         asChild
                         className="w-full justify-start text-xs text-slate-300 hover:text-white hover:bg-slate-800 gap-2 h-9"
                     >
-                        <Link to="/">
-                            <Globe2 className="h-3.5 w-3.5" /> Public Website
+                        <Link to="/swiftmove">
+                            <Globe2 className="h-3.5 w-3.5" /> SwiftMove Home
                         </Link>
                     </Button>
 

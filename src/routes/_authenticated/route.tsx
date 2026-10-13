@@ -6,7 +6,6 @@ import { MobileNav } from '@/components/mobile-nav';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { isChunkLoadError, autoRecoverChunkError } from '@/lib/chunk-error-handler';
-import { isSwiftmoveDomain, isSwiftmovePath } from '@/lib/domain-detection';
 
 export const Route = createFileRoute('/_authenticated')({
   ssr: false,
@@ -44,12 +43,38 @@ function AuthenticatedErrorFallback({ error, reset }: { error: Error; reset: () 
 
   const isChunk = isChunkLoadError(error);
   const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
-  const isSwift = isSwiftmoveDomain() || isSwiftmovePath(pathname);
+  const p = pathname.toLowerCase();
+  const showSidebar =
+    p.startsWith('/admin') ||
+    p.startsWith('/dispatcher') ||
+    p.startsWith('/drive') ||
+    p.startsWith('/driver-dispatch') ||
+    p.startsWith('/staff') ||
+    p.startsWith('/my-swift-move') ||
+    p === '/my-barakah' ||
+    p === '/my-journey' ||
+    p === '/apply' ||
+    p === '/my-payments' ||
+    p === '/my-impact' ||
+    p === '/my-support' ||
+    p === '/cart' ||
+    p === '/history';
+
+  const dashboardTarget =
+    p.startsWith('/admin')
+      ? '/admin'
+      : p.startsWith('/drive') || p.startsWith('/driver-dispatch')
+        ? '/drive'
+        : p.startsWith('/dispatcher')
+          ? '/dispatcher'
+          : p.startsWith('/staff')
+            ? '/staff'
+            : '/my-swift-move';
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-slate-950 text-slate-100 overflow-x-hidden">
-      {!isSwift && <MobileNav />}
-      {!isSwift && <AppSidebar className="hidden md:flex shrink-0" />}
+      {showSidebar && <MobileNav />}
+      {showSidebar && <AppSidebar className="hidden md:flex shrink-0" />}
       <main className="flex-1 min-w-0 p-6 flex items-center justify-center">
         <div className="max-w-md w-full text-center space-y-4 p-8 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-xl">
           <div className="inline-flex p-3 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
@@ -80,7 +105,7 @@ function AuthenticatedErrorFallback({ error, reset }: { error: Error; reset: () 
               {isChunk ? 'Refresh App' : 'Retry View'}
             </Button>
             <Link
-              to={(isSwift ? (pathname.startsWith('/admin') ? '/admin' : '/my-swift-move') : '/my-barakah') as any}
+              to={dashboardTarget as any}
               className="inline-flex items-center justify-center px-4 py-2 text-xs font-semibold rounded-lg bg-orange-600 hover:bg-orange-700 text-white transition-colors"
             >
               Go to Dashboard
@@ -95,38 +120,61 @@ function AuthenticatedErrorFallback({ error, reset }: { error: Error; reset: () 
 function AuthenticatedLayout() {
   const location = useLocation();
   const pathname = location.pathname;
-  const isSwiftDomain = isSwiftmoveDomain();
+  const p = pathname.toLowerCase();
 
-  // On SwiftMove domain, ALL routes use clean full-width layout.
-  // Admin/dispatcher dashboards are fully self-contained with their own nav.
-  // SwiftMove customer routes also use their own SwiftmoveHeader for navigation.
-  const isCleanLayout =
-    isSwiftDomain ||
-    isSwiftmovePath(pathname) ||
-    pathname === '/history';
+  // ─── Determine whether sidebar should be shown ───
+  // Dashboard routes that ALWAYS need the sidebar:
+  //   • /admin/*            — SwiftMove Admin panel
+  //   • /dispatcher         — SwiftMove Dispatcher console
+  //   • /drive/*            — SwiftMove Rider/driver console
+  //   • /driver-dispatch    — SwiftMove Driver enterprise dispatches
+  //   • /my-swift-move      — SwiftMove Customer portal
+  //   • /staff/*            — Staff portal
+  //   • /my-barakah         — Customer dashboard
+  //   • /my-payments        — Payments
+  //   • /my-support         — Support
+  //   • /history            — Order & trip history
+  const needsSidebar =
+    p.startsWith('/admin') ||
+    p.startsWith('/dispatcher') ||
+    p.startsWith('/drive') ||
+    p.startsWith('/driver-dispatch') ||
+    p.startsWith('/staff') ||
+    p.startsWith('/my-swift-move') ||
+    p === '/my-barakah' ||
+    p === '/my-journey' ||
+    p === '/apply' ||
+    p === '/my-payments' ||
+    p === '/my-impact' ||
+    p === '/my-support' ||
+    p === '/cart' ||
+    p === '/history';
 
-  // SwiftMove and SwiftMove-admin routes: clean full-width shell
-  if (isCleanLayout) {
+  // Routes that use clean full-width layout (no sidebar):
+  //   • /my-swift-move — SwiftMove booking app (has its own SwiftmoveHeader)
+  //   • /my-vehicle-hires — Vehicle hires
+  //   • Any unknown path on the SwiftMove domain
+  if (needsSidebar) {
     return (
-      <div className="flex-1 min-w-0 w-full">
-        <Outlet />
+      <div className="flex flex-col md:flex-row min-h-screen bg-slate-950 text-slate-100 overflow-x-hidden">
+        {/* Mobile Top Navbar & Drawer (< md) */}
+        <MobileNav />
+
+        {/* Sticky Desktop Sidebar (>= md) */}
+        <AppSidebar className="hidden md:flex shrink-0" />
+
+        {/* Main Workspace */}
+        <main className="flex-1 min-w-0 overflow-y-auto relative">
+          <Outlet />
+        </main>
       </div>
     );
   }
 
-  // Barakah authenticated portal uses sticky desktop sidebar and mobile drawer
+  // SwiftMove booking flow, vehicle hires, etc. — clean full-width shell
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-slate-950 text-slate-100 overflow-x-hidden">
-      {/* Mobile Top Navbar & Drawer (< md) */}
-      <MobileNav />
-
-      {/* Sticky Desktop Sidebar (>= md) */}
-      <AppSidebar className="hidden md:flex shrink-0" />
-
-      {/* Main Workspace */}
-      <main className="flex-1 min-w-0 overflow-y-auto relative">
-        <Outlet />
-      </main>
+    <div className="flex-1 min-w-0 w-full">
+      <Outlet />
     </div>
   );
 }
