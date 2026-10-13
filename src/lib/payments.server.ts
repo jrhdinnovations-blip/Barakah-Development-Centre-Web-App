@@ -58,6 +58,7 @@ export async function createPaymentIntent(
     legalEntityId?: string | null;
     programmeId?: string | null;
     callbackPath: string;
+    origin?: string | null;
   },
 ) {
   // Create the payment record directly (invoices table may not exist for swift rides/deliveries)
@@ -81,10 +82,11 @@ export async function createPaymentIntent(
     return { paymentId: payment.id as string, configured: false, authorizationUrl: null as string | null };
   }
   // Determine the site origin for Paystack callback URL
-  // Falls back to production URL if SITE_URL env var is not set
+  // Uses caller-provided origin first (e.g. current browser host), then env vars, then fallback
   const origin =
-    process.env["SITE_URL"] ??
-    process.env["VITE_SITE_URL"] ??
+    input.origin ||
+    process.env["SITE_URL"] ||
+    process.env["VITE_SITE_URL"] ||
     "https://barakah-dev-centre.web.app";
   const { data: authData } = await supabase.auth.getUser();
   const rawEmail = authData?.user?.email;
@@ -198,7 +200,23 @@ export async function finalizePayment(paymentId: string, gatewayRef: string | nu
       method: "gateway",
     });
   } else if (payment.entity_type === "swift_delivery" && payment.entity_id) {
-    await admin.from("swift_deliveries").update({ status: "pending" }).eq("id", payment.entity_id);
+    const { data: deliv } = await admin
+      .from("swift_deliveries")
+      .select("package_type")
+      .eq("id", payment.entity_id)
+      .maybeSingle();
+    let pkg = deliv?.package_type || "";
+    if (!pkg.includes("PAYMENT:confirmed")) {
+      pkg += `|||PAYMENT:confirmed|||PAY_METHOD:paystack|||TXREF:${payment.id}`;
+    }
+    await admin
+      .from("swift_deliveries")
+      .update({
+        status: "pending",
+        package_type: pkg,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", payment.entity_id);
   }
 
   await admin.rpc("notify_user", {
