@@ -349,11 +349,11 @@ export interface DriverFetchInput {
 export interface DriverAcceptInput {
   orderId: string;
   driverId: string;
-  driverName?: string;
-  driverPhone?: string;
-  vehiclePlate?: string;
-  vehicleModel?: string;
-  vehicleColor?: string;
+  driverName?: string | undefined;
+  driverPhone?: string | undefined;
+  vehiclePlate?: string | undefined;
+  vehicleModel?: string | undefined;
+  vehicleColor?: string | undefined;
 }
 
 export interface DriverUpdateStatusInput {
@@ -1394,18 +1394,18 @@ export interface DriverHistoryTrip {
   dropoffAddress: string;
   grossFare: number;
   driverPayout: number;
-  distanceKm?: number;
+  distanceKm?: number | undefined;
   createdAt: string;
-  declinedAt?: string | null;
-  declineReason?: string | null;
+  declinedAt?: string | null | undefined;
+  declineReason?: string | null | undefined;
   reference: string;
   packageType: string;
-  customerName?: string;
-  customerPhone?: string;
-  pin?: string;
-  pickupPin?: string;
-  isDeclined?: boolean;
-  tier?: string;
+  customerName?: string | undefined;
+  customerPhone?: string | undefined;
+  pin?: string | undefined;
+  pickupPin?: string | undefined;
+  isDeclined?: boolean | undefined;
+  tier?: string | undefined;
 }
 
 export interface DriverTripHistoryResponse {

@@ -9,7 +9,7 @@ export function SwiftmoveHeader() {
   const navigate = useNavigate();
 
   const userMetaRole = user?.user_metadata?.['role'];
-  const riderCat = user?.user_metadata?.['rider_category'];
+  const riderCat = user?.user_metadata?.['rider_category'] || user?.user_metadata?.['category'];
   const userEmail = user?.email?.toLowerCase() || '';
 
   const isDriver =
@@ -17,20 +17,25 @@ export function SwiftmoveHeader() {
     role === 'dispatch_rider' ||
     userMetaRole === 'driver' ||
     userMetaRole === 'dispatch_rider' ||
-    riderCat === 'dispatch_rider';
+    riderCat === 'dispatch_rider' ||
+    riderCat === 'driver';
 
   const isDispatcher =
-    role === 'swift_dispatcher' ||
-    role === 'dispatcher' ||
-    userMetaRole === 'swift_dispatcher' ||
-    userMetaRole === 'dispatcher';
+    !isDriver && (
+      role === 'swift_dispatcher' ||
+      role === 'dispatcher' ||
+      userMetaRole === 'swift_dispatcher' ||
+      userMetaRole === 'dispatcher'
+    );
 
   const isAdmin =
-    role === 'administrator' ||
-    role === 'admin' ||
-    role === 'swift_manager' ||
-    userMetaRole === 'administrator' ||
-    ['barakahdevcentre@gmail.com', 'barakahdevelopmentcentre@gmail.com', 'raymondlongdiem22@gmail.com'].includes(userEmail);
+    !isDriver && !isDispatcher && (
+      role === 'administrator' ||
+      role === 'admin' ||
+      role === 'swift_manager' ||
+      userMetaRole === 'administrator' ||
+      ['barakahdevcentre@gmail.com', 'barakahdevelopmentcentre@gmail.com'].includes(userEmail)
+    );
 
   const isSwiftDomain = isSwiftmoveDomain();
   const homePath = isSwiftDomain ? '/' : '/swiftmove';

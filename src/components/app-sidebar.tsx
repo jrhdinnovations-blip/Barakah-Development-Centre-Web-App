@@ -472,37 +472,95 @@ const staffNav: RoleNav = {
 
 // ─── Role Resolver ────────────────────────────────────────────────────────────
 
-export function getRoleConfig(role: string, user?: any): RoleNav {
-    const email = user?.email?.toLowerCase();
+export function getRoleConfig(
+    role: string,
+    user?: any,
+    currentPath = "",
+    roles: string[] = []
+): RoleNav {
+    const p = (currentPath || "").toLowerCase();
+    const metaRole = user?.user_metadata?.["role"] as string | undefined;
+    const riderCat = (user?.user_metadata?.["rider_category"] || user?.user_metadata?.["category"]) as string | undefined;
+    const email = user?.email?.toLowerCase() || "";
+    const allRoles = new Set<string>([role, metaRole, riderCat, ...roles].filter(Boolean) as string[]);
+
+    const isRiderOrDriver =
+        allRoles.has("driver") ||
+        allRoles.has("dispatch_rider") ||
+        role === "driver" ||
+        role === "dispatch_rider" ||
+        metaRole === "driver" ||
+        metaRole === "dispatch_rider" ||
+        riderCat === "driver" ||
+        riderCat === "dispatch_rider";
+
+    const isDispatchCategory =
+        role === "dispatch_rider" ||
+        metaRole === "dispatch_rider" ||
+        riderCat === "dispatch_rider" ||
+        allRoles.has("dispatch_rider");
+
+    const effectiveDriverNav: RoleNav = isDispatchCategory
+        ? { ...driverNav, roleLabel: "Dispatch Rider" }
+        : driverNav;
+
+    // 1. If currently inside driver/rider console routes, ALWAYS render driver navigation
+    if (p.startsWith("/drive") || p.startsWith("/driver-dispatch")) {
+        return effectiveDriverNav;
+    }
+
+    // 2. If the user is a registered driver or dispatch rider and NOT actively on admin/dispatcher routes
+    if (isRiderOrDriver && !p.startsWith("/admin") && !p.startsWith("/dispatcher")) {
+        return effectiveDriverNav;
+    }
+
+    // 3. Dispatcher operations
+    const isDispatcher =
+        p.startsWith("/dispatcher") ||
+        allRoles.has("swift_dispatcher") ||
+        allRoles.has("dispatcher") ||
+        role === "swift_dispatcher" ||
+        role === "dispatcher";
+
+    if (isDispatcher && !p.startsWith("/admin")) {
+        return dispatcherNav;
+    }
+
+    // 4. Administrator operations
     const SUPER_ADMINS = [
         "barakahdevcentre@gmail.com",
         "barakahdevelopmentcentre@gmail.com",
-        "raymondlongdiem22@gmail.com",
     ];
-    if (email && SUPER_ADMINS.includes(email)) {
-        return adminNav;
-    }
-    const riderCat = user?.user_metadata?.["rider_category"] || user?.user_metadata?.["category"];
-    const effectiveRole = role || user?.user_metadata?.["role"] || riderCat || "registered_user";
+    const isSuperAdmin = email && SUPER_ADMINS.includes(email);
+    const isAdmin =
+        isSuperAdmin ||
+        p.startsWith("/admin") ||
+        allRoles.has("administrator") ||
+        allRoles.has("admin") ||
+        allRoles.has("swift_manager") ||
+        role === "administrator" ||
+        role === "admin" ||
+        role === "swift_manager";
 
-    if (effectiveRole === "driver" || effectiveRole === "dispatch_rider" || riderCat === "driver" || riderCat === "dispatch_rider") {
-        if (effectiveRole === "dispatch_rider" || riderCat === "dispatch_rider") {
-            return {
-                ...driverNav,
-                roleLabel: "Dispatch Rider",
-            };
-        }
-        return driverNav;
-    }
-    if (effectiveRole === "swift_dispatcher" || effectiveRole === "dispatcher") {
-        return dispatcherNav;
-    }
-    if (effectiveRole === "administrator" || effectiveRole === "admin" || effectiveRole === "swift_manager") {
+    if (isAdmin) {
         return adminNav;
     }
-    if (effectiveRole === "staff" || effectiveRole === "programme_officer" || effectiveRole === "content_editor") {
+
+    // 5. Staff operations
+    const isStaff =
+        p.startsWith("/staff") ||
+        allRoles.has("staff") ||
+        allRoles.has("programme_officer") ||
+        allRoles.has("content_editor") ||
+        role === "staff" ||
+        role === "programme_officer" ||
+        role === "content_editor";
+
+    if (isStaff) {
         return staffNav;
     }
+
+    // 6. Default Customer navigation
     return customerNav;
 }
 
@@ -546,10 +604,10 @@ export function isNavItemActive(
     if (currentPath.startsWith(targetPath + "/")) {
         // Check if there is a more specific (longer) match among all items in this sidebar
         const hasMoreSpecificMatch = allItemPaths.some((other) => {
-            const [otherPath] = other.split("?");
+            const otherPath = other.split("?")[0] || "";
             return (
-                otherPath !== targetPath &&
-                otherPath.length > targetPath.length &&
+                otherPath !== (targetPath || "") &&
+                otherPath.length > (targetPath || "").length &&
                 (currentPath === otherPath || currentPath.startsWith(otherPath + "/"))
             );
         });
@@ -644,7 +702,8 @@ export function AppSidebar({ className = "" }: SidebarProps) {
     const user = auth?.user || auth?.session?.user;
     const logout = auth?.logout || auth?.signOut;
     const role = auth?.role ?? "registered_user";
-    const config = getRoleConfig(role, user);
+    const roles = auth?.roles ?? [];
+    const config = getRoleConfig(role, user, currentPath, roles);
 
     const displayName =
         user?.user_metadata?.full_name || user?.email || "User";

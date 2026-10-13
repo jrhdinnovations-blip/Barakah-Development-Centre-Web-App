@@ -16,9 +16,9 @@ export const STAFF_ROLES = ['staff', 'programme_officer', 'content_editor'];
  * Determine the user's primary dedicated console URL based on roles.
  */
 export function getConsoleForRoles(roles: string[]): string {
-  if (roles.some((r) => ADMIN_ROLES.includes(r))) return '/admin';
-  if (roles.some((r) => DISPATCHER_ROLES.includes(r))) return '/dispatcher';
   if (roles.some((r) => DRIVER_ROLES.includes(r))) return '/drive';
+  if (roles.some((r) => DISPATCHER_ROLES.includes(r))) return '/dispatcher';
+  if (roles.some((r) => ADMIN_ROLES.includes(r))) return '/admin';
   if (roles.some((r) => STAFF_ROLES.includes(r))) return '/staff';
   return '/my-swift-move';
 }
@@ -29,15 +29,10 @@ export function getConsoleForRoles(roles: string[]): string {
 export async function resolveUserRoles(user: any): Promise<{ roles: string[]; isSuperAdmin: boolean }> {
   if (!user) return { roles: ['registered_user'], isSuperAdmin: false };
 
-  const email = user.email?.toLowerCase() || '';
-  if (SUPER_ADMIN_EMAILS.includes(email)) {
-    return { roles: ['administrator'], isSuperAdmin: true };
-  }
-
   const roles: string[] = [];
   const metaRole = user.user_metadata?.['role'] as string | undefined;
   if (metaRole) roles.push(metaRole);
-  const riderCat = user.user_metadata?.['rider_category'] as string | undefined;
+  const riderCat = (user.user_metadata?.['rider_category'] || user.user_metadata?.['category']) as string | undefined;
   if (riderCat && !roles.includes(riderCat)) roles.push(riderCat);
 
   try {
@@ -60,10 +55,24 @@ export async function resolveUserRoles(user: any): Promise<{ roles: string[]; is
         .maybeSingle();
       if (drv?.driver_id) roles.push('driver');
     } catch {}
+    try {
+      const { data: dRow } = await supabase
+        .from('drivers')
+        .select('id')
+        .or(`user_id.eq.${user.id},id.eq.${user.id}`)
+        .maybeSingle();
+      if (dRow?.id) roles.push('driver');
+    } catch {}
+  }
+
+  const email = user.email?.toLowerCase() || '';
+  const isSuperAdmin = SUPER_ADMIN_EMAILS.includes(email);
+  if (isSuperAdmin && !roles.includes('administrator')) {
+    roles.push('administrator');
   }
 
   if (roles.length === 0) roles.push('registered_user');
-  return { roles, isSuperAdmin: false };
+  return { roles, isSuperAdmin };
 }
 
 /**

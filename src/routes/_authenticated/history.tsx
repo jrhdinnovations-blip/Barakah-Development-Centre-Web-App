@@ -96,7 +96,11 @@ function OrderHistoryPage() {
         auth?.role === 'driver' ||
         auth?.role === 'dispatch_rider' ||
         user?.user_metadata?.role === 'driver' ||
-        user?.user_metadata?.role === 'dispatch_rider';
+        user?.user_metadata?.role === 'dispatch_rider' ||
+        user?.user_metadata?.rider_category === 'driver' ||
+        user?.user_metadata?.rider_category === 'dispatch_rider' ||
+        (auth?.roles || []).includes('driver') ||
+        (auth?.roles || []).includes('dispatch_rider');
 
     const fetchHistory = async () => {
         if (!user?.id) return;

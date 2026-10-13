@@ -23,7 +23,8 @@ export function MobileNav() {
     const user = auth?.user || auth?.session?.user;
     const logout = auth?.logout || auth?.signOut;
     const role = auth?.role ?? 'registered_user';
-    const config = getRoleConfig(role, user);
+    const roles = auth?.roles ?? [];
+    const config = getRoleConfig(role, user, currentPath, roles);
 
     const displayName = user?.user_metadata?.full_name || user?.email || 'User';
     const initials = displayName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();

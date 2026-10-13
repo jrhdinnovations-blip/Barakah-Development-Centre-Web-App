@@ -218,7 +218,7 @@ function UnifiedCustomerPortal() {
   // Auto-redirect drivers, dispatchers, and admins to their respective consoles
   // if they land on /my-swift-move without an explicit service tab selected
   const metaRole = user?.user_metadata?.['role'];
-  const riderCat = user?.user_metadata?.['rider_category'];
+  const riderCat = user?.user_metadata?.['rider_category'] || user?.user_metadata?.['category'];
   const userEmail = user?.email?.toLowerCase() || '';
 
   const isDriverOrRider =
@@ -226,20 +226,27 @@ function UnifiedCustomerPortal() {
     auth?.role === 'dispatch_rider' ||
     metaRole === 'driver' ||
     metaRole === 'dispatch_rider' ||
-    riderCat === 'dispatch_rider';
+    riderCat === 'dispatch_rider' ||
+    riderCat === 'driver' ||
+    (auth?.roles || []).includes('driver') ||
+    (auth?.roles || []).includes('dispatch_rider');
 
   const isDispatcher =
-    auth?.role === 'swift_dispatcher' ||
-    auth?.role === 'dispatcher' ||
-    metaRole === 'swift_dispatcher' ||
-    metaRole === 'dispatcher';
+    !isDriverOrRider && (
+      auth?.role === 'swift_dispatcher' ||
+      auth?.role === 'dispatcher' ||
+      metaRole === 'swift_dispatcher' ||
+      metaRole === 'dispatcher'
+    );
 
   const isAdminUser =
-    auth?.role === 'administrator' ||
-    auth?.role === 'admin' ||
-    auth?.role === 'swift_manager' ||
-    metaRole === 'administrator' ||
-    ['barakahdevcentre@gmail.com', 'barakahdevelopmentcentre@gmail.com', 'raymondlongdiem22@gmail.com'].includes(userEmail);
+    !isDriverOrRider && !isDispatcher && (
+      auth?.role === 'administrator' ||
+      auth?.role === 'admin' ||
+      auth?.role === 'swift_manager' ||
+      metaRole === 'administrator' ||
+      ['barakahdevcentre@gmail.com', 'barakahdevelopmentcentre@gmail.com'].includes(userEmail)
+    );
 
   useEffect(() => {
     if (!user) return;
