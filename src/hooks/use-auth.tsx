@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { SUPER_ADMIN_EMAILS } from "@/lib/admin-auth";
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -19,7 +20,7 @@ export function useAuth() {
           .select('role')
           .eq('user_id', user.id);
         
-        const SUPER_ADMINS = ['barakahdevcentre@gmail.com', 'barakahdevelopmentcentre@gmail.com'];
+        const SUPER_ADMINS = SUPER_ADMIN_EMAILS;
         const email = user.email?.toLowerCase() || '';
 
         const userRoles = (roleRows || []).map((r: any) => r.role);
@@ -48,38 +49,31 @@ export function useAuth() {
           } catch {}
         }
 
-        if (SUPER_ADMINS.includes(email) && !userRoles.includes('administrator')) {
+        const isSuperAdmin = SUPER_ADMINS.includes(email);
+        if (isSuperAdmin && !userRoles.includes('administrator')) {
           userRoles.push('administrator');
         }
 
         setRoles(userRoles);
 
-        // If user explicitly has driver/rider metadata or category, prioritize driver identity
-        if (metaRole === 'driver' || metaRole === 'dispatch_rider') {
-          setRole(metaRole);
-        } else if (riderCat === 'dispatch_rider') {
-          setRole('dispatch_rider');
-        } else if (riderCat === 'driver') {
-          setRole('driver');
-        } else if (userRoles.includes('driver') || userRoles.includes('dispatch_rider')) {
-          setRole(userRoles.includes('dispatch_rider') ? 'dispatch_rider' : 'driver');
-        } else if (SUPER_ADMINS.includes(email)) {
+        const PRIORITY = [
+          'administrator',
+          'admin',
+          'swift_manager',
+          'swift_dispatcher',
+          'dispatcher',
+          'staff',
+          'programme_officer',
+          'content_editor',
+          'dispatch_rider',
+          'driver',
+          'registered_user',
+        ];
+
+        if (isSuperAdmin) {
           setRole('administrator');
         } else {
-          const PRIORITY = [
-            'administrator',
-            'admin',
-            'swift_manager',
-            'swift_dispatcher',
-            'dispatcher',
-            'driver',
-            'dispatch_rider',
-            'programme_officer',
-            'content_editor',
-            'staff',
-            'registered_user',
-          ];
-          const effectiveRole = PRIORITY.find(r => userRoles.includes(r)) ?? userRoles[0] ?? 'registered_user';
+          const effectiveRole = PRIORITY.find(r => userRoles.includes(r)) ?? (metaRole || riderCat || 'registered_user');
           setRole(effectiveRole);
         }
       } else {
@@ -97,7 +91,7 @@ export function useAuth() {
       const currentUser = session?.user ?? null;
       setUser(currentUser);
       if (currentUser) {
-        const SUPER_ADMINS = ['barakahdevcentre@gmail.com', 'barakahdevelopmentcentre@gmail.com'];
+        const SUPER_ADMINS = SUPER_ADMIN_EMAILS;
         const email = currentUser.email?.toLowerCase() || '';
 
         const { data: roleRows } = await supabase
@@ -130,37 +124,31 @@ export function useAuth() {
           } catch {}
         }
 
-        if (SUPER_ADMINS.includes(email) && !userRoles.includes('administrator')) {
+        const isSuperAdmin = SUPER_ADMINS.includes(email);
+        if (isSuperAdmin && !userRoles.includes('administrator')) {
           userRoles.push('administrator');
         }
 
         setRoles(userRoles);
 
-        if (metaRole === 'driver' || metaRole === 'dispatch_rider') {
-          setRole(metaRole);
-        } else if (riderCat === 'dispatch_rider') {
-          setRole('dispatch_rider');
-        } else if (riderCat === 'driver') {
-          setRole('driver');
-        } else if (userRoles.includes('driver') || userRoles.includes('dispatch_rider')) {
-          setRole(userRoles.includes('dispatch_rider') ? 'dispatch_rider' : 'driver');
-        } else if (SUPER_ADMINS.includes(email)) {
+        const PRIORITY = [
+          'administrator',
+          'admin',
+          'swift_manager',
+          'swift_dispatcher',
+          'dispatcher',
+          'staff',
+          'programme_officer',
+          'content_editor',
+          'dispatch_rider',
+          'driver',
+          'registered_user',
+        ];
+
+        if (isSuperAdmin) {
           setRole('administrator');
         } else {
-          const PRIORITY = [
-            'administrator',
-            'admin',
-            'swift_manager',
-            'swift_dispatcher',
-            'dispatcher',
-            'driver',
-            'dispatch_rider',
-            'programme_officer',
-            'content_editor',
-            'staff',
-            'registered_user',
-          ];
-          const effectiveRole = PRIORITY.find(r => userRoles.includes(r)) ?? userRoles[0] ?? 'registered_user';
+          const effectiveRole = PRIORITY.find(r => userRoles.includes(r)) ?? (metaRole || riderCat || 'registered_user');
           setRole(effectiveRole);
         }
       } else {
@@ -174,7 +162,12 @@ export function useAuth() {
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch {}
+    if (typeof window !== 'undefined') {
+      window.location.href = '/auth?mode=login';
+    }
   };
 
   return { user, role, roles, loading, isAuthenticated: !!user, logout: signOut, signOut };

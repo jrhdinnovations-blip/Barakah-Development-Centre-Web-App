@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Eye, EyeOff, Info, UserCheck, Truck, ArrowLeft } from "lucide-react";
 import { isSwiftmoveDomain } from "@/lib/domain-detection";
 import { detectPlatform } from "@/lib/platform-detection.server";
+import { resolveUserRoles } from "@/lib/admin-auth";
 
 
 const searchSchema = z.object({
@@ -69,33 +70,15 @@ export const Route = createFileRoute("/auth")({
         target === '/my-barakah';
 
       if (isGenericTarget) {
-        const SUPER_ADMIN_EMAILS = [
-          'barakahdevcentre@gmail.com',
-          'barakahdevelopmentcentre@gmail.com',
-          'raymondlongdiem22@gmail.com',
-        ];
-        const email = user.email?.toLowerCase() || '';
-        if (SUPER_ADMIN_EMAILS.includes(email)) {
+        const { roles, isSuperAdmin } = await resolveUserRoles(user);
+        if (isSuperAdmin || roles.includes('administrator') || roles.includes('admin') || roles.includes('swift_manager')) {
           target = '/admin';
+        } else if (roles.includes('swift_dispatcher') || roles.includes('dispatcher')) {
+          target = '/dispatcher';
+        } else if (roles.includes('driver') || roles.includes('dispatch_rider')) {
+          target = '/drive';
         } else {
-          const { data: roleData } = await supabase
-            .from('user_roles')
-            .select('role')
-            .eq('user_id', user.id);
-          const userRoles = (roleData || []).map((r: any) => r.role);
-          const metaRole = user.user_metadata?.['role'];
-          const riderCategory = user.user_metadata?.['rider_category'];
-          const allRoles = new Set([...userRoles, metaRole, riderCategory].filter(Boolean));
-
-          if (allRoles.has('driver') || allRoles.has('dispatch_rider')) {
-            target = '/drive';
-          } else if (allRoles.has('swift_dispatcher') || allRoles.has('dispatcher')) {
-            target = '/dispatcher';
-          } else if (allRoles.has('administrator') || allRoles.has('admin') || allRoles.has('swift_manager')) {
-            target = '/admin';
-          } else {
-            target = isSwift ? '/my-swift-move' : '/my-barakah';
-          }
+          target = isSwift ? '/my-swift-move' : '/my-barakah';
         }
       }
       throw redirect({ to: target as any });
@@ -153,19 +136,6 @@ function AuthPage() {
 
   // ── Role-based navigation helper (shared by email login + Google OAuth return) ──
   async function navigateByRole(user: any) {
-    const SUPER_ADMIN_EMAILS = [
-      'barakahdevcentre@gmail.com',
-      'barakahdevelopmentcentre@gmail.com',
-      'raymondlongdiem22@gmail.com',
-    ];
-    const email = user.email?.toLowerCase() || '';
-
-    const { data: roleData } = await supabase.from('user_roles').select('role').eq('user_id', user.id);
-    const userRoles = (roleData || []).map((r: any) => r.role);
-    const metaRole = user.user_metadata?.['role'];
-    const riderCategory = user.user_metadata?.['rider_category'];
-    const allRoles = new Set([...userRoles, metaRole, riderCategory].filter(Boolean));
-
     // 1. If explicit specific non-generic redirect provided (e.g. /cart, /admin/riders, NOT /my-swift-move), honor it!
     const isGenericTarget =
       !redirectParam ||
@@ -179,21 +149,19 @@ function AuthPage() {
     }
 
     // 2. Resolve operational role destination
-    if (SUPER_ADMIN_EMAILS.includes(email)) {
+    const { roles, isSuperAdmin } = await resolveUserRoles(user);
+    if (isSuperAdmin || roles.includes('administrator') || roles.includes('admin') || roles.includes('swift_manager')) {
       navigate({ to: '/admin' as any });
       return;
     }
 
-    if (allRoles.has('driver') || allRoles.has('dispatch_rider')) {
-      navigate({ to: '/drive' as any });
-      return;
-    }
-    if (allRoles.has('swift_dispatcher') || allRoles.has('dispatcher')) {
+    if (roles.includes('swift_dispatcher') || roles.includes('dispatcher')) {
       navigate({ to: '/dispatcher' as any });
       return;
     }
-    if (allRoles.has('administrator') || allRoles.has('admin') || allRoles.has('swift_manager')) {
-      navigate({ to: '/admin' as any });
+
+    if (roles.includes('driver') || roles.includes('dispatch_rider')) {
+      navigate({ to: '/drive' as any });
       return;
     }
 
@@ -204,17 +172,29 @@ function AuthPage() {
   // ── Catch OAuth return: if user lands back on /auth already signed in ───
   // (happens when Supabase uses the site URL fallback instead of /app)
   useEffect(() => {
+    let active = true;
+
+    // Check if session is already present (e.g. token in localStorage or hash parsed)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user && active) {
+        navigateByRole(session.user);
+      }
+    });
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user && googleBusy) {
-        subscription.unsubscribe();
+      if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session?.user && active) {
         setGoogleBusy(false);
         toast.success("Signed in successfully!");
         await navigateByRole(session.user);
       }
     });
-    return () => subscription.unsubscribe();
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [googleBusy]);
+  }, [redirectParam, isSwift]);
 
   // ── Google OAuth ─────────────────────────────────────────────────────────
   async function handleGoogle() {
@@ -224,10 +204,12 @@ function AuthPage() {
         ? window.location.origin
         : (isSwift ? "https://swiftmove.ng" : "https://barakahdevcentre.com");
 
+      const redirectTo = `${origin}/auth?mode=login${redirectParam ? `&redirect=${encodeURIComponent(redirectParam)}` : ''}`;
+
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${origin}/auth?mode=login`,
+          redirectTo,
         },
       });
 

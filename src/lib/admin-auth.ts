@@ -16,10 +16,10 @@ export const STAFF_ROLES = ['staff', 'programme_officer', 'content_editor'];
  * Determine the user's primary dedicated console URL based on roles.
  */
 export function getConsoleForRoles(roles: string[]): string {
-  if (roles.some((r) => DRIVER_ROLES.includes(r))) return '/drive';
-  if (roles.some((r) => DISPATCHER_ROLES.includes(r))) return '/dispatcher';
   if (roles.some((r) => ADMIN_ROLES.includes(r))) return '/admin';
+  if (roles.some((r) => DISPATCHER_ROLES.includes(r))) return '/dispatcher';
   if (roles.some((r) => STAFF_ROLES.includes(r))) return '/staff';
+  if (roles.some((r) => DRIVER_ROLES.includes(r))) return '/drive';
   return '/my-swift-move';
 }
 

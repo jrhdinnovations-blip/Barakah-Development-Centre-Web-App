@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
+import { SUPER_ADMIN_EMAILS } from "@/lib/admin-auth";
 import { Button } from "@/components/ui/button";
 import {
     Accordion,
@@ -527,11 +528,7 @@ export function getRoleConfig(
     }
 
     // 4. Administrator operations
-    const SUPER_ADMINS = [
-        "barakahdevcentre@gmail.com",
-        "barakahdevelopmentcentre@gmail.com",
-    ];
-    const isSuperAdmin = email && SUPER_ADMINS.includes(email);
+    const isSuperAdmin = email && SUPER_ADMIN_EMAILS.includes(email);
     const isAdmin =
         isSuperAdmin ||
         p.startsWith("/admin") ||

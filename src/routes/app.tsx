@@ -208,8 +208,16 @@ function SwiftMoveAppPage() {
           ...((roleData || []).map((r: any) => r.role)),
           u.user_metadata?.['role'],
         ].filter(Boolean));
+        const SUPER_ADMIN_EMAILS = [
+          'barakahdevcentre@gmail.com',
+          'barakahdevelopmentcentre@gmail.com',
+          'raymondlongdiem22@gmail.com',
+        ];
+        const email = u.email?.toLowerCase() || '';
         subscription.unsubscribe();
-        if (roles.has('swift_dispatcher') || roles.has('dispatcher')) {
+        if (SUPER_ADMIN_EMAILS.includes(email) || roles.has('administrator') || roles.has('admin') || roles.has('swift_manager')) {
+          navigate({ to: '/admin' as any });
+        } else if (roles.has('swift_dispatcher') || roles.has('dispatcher')) {
           navigate({ to: '/dispatcher' as any });
         } else if (roles.has('driver') || roles.has('dispatch_rider')) {
           navigate({ to: '/drive' as any });
