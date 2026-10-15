@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Mail, MapPin, Phone } from "lucide-react";
+import { Mail, MapPin, Phone, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { ORG } from "@/lib/site";
 import { submitEnquiry } from "@/lib/crm.functions";
@@ -67,8 +67,30 @@ function ContactPage() {
               <Phone className="h-5 w-5 text-accent-foreground" />
             </span>
             <div>
-              <h3 className="font-semibold text-foreground">Phone</h3>
-              <p className="mt-1 text-sm text-muted-foreground">{ORG.phones.join(" · ")}</p>
+              <h3 className="font-semibold text-foreground">Phone Hotline</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                <a href="tel:07041626545" className="text-primary hover:underline font-medium">07041626545</a>
+                <span className="mx-2 text-muted-foreground/50">·</span>
+                <a href="tel:07044223076" className="text-muted-foreground hover:underline">07044223076</a>
+              </p>
+            </div>
+          </div>
+          <div className="card-surface flex items-start gap-4 p-6">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600">
+              <MessageCircle className="h-5 w-5" />
+            </span>
+            <div>
+              <h3 className="font-semibold text-foreground">Official WhatsApp</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                <a
+                  href="https://wa.me/2347044223076"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-emerald-600 dark:text-emerald-400 font-semibold hover:underline"
+                >
+                  07044223076 (Instant Chat &amp; Payment Receipts) &rarr;
+                </a>
+              </p>
             </div>
           </div>
           <div className="card-surface flex items-start gap-4 p-6">

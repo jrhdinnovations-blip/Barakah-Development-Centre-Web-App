@@ -41,7 +41,11 @@ export async function initializePaystack(opts: {
   });
   const json: any = await res.json().catch(() => null);
   if (!res.ok || !json?.status) throw new Error(json?.message ?? "Payment gateway error");
-  return json.data.authorization_url as string;
+  return {
+    authorizationUrl: json.data?.authorization_url as string,
+    accessCode: (json.data?.access_code as string) || null,
+    reference: (json.data?.reference as string) || opts.reference,
+  };
 }
 
 export type EntityType = "booking" | "order" | "travel_instalment" | "donation" | "swift_ride" | "swift_delivery";
@@ -79,7 +83,13 @@ export async function createPaymentIntent(
 
   const key = process.env["PAYSTACK_SECRET_KEY"] || process.env["VITE_PAYSTACK_PUBLIC_KEY"];
   if (!key) {
-    return { paymentId: payment.id as string, configured: false, authorizationUrl: null as string | null };
+    return {
+      paymentId: payment.id as string,
+      configured: false,
+      authorizationUrl: null as string | null,
+      accessCode: null as string | null,
+      reference: payment.id as string,
+    };
   }
   // Determine the site origin for Paystack callback URL
   // Uses caller-provided origin first (e.g. current browser host), then env vars, then fallback
@@ -95,13 +105,19 @@ export async function createPaymentIntent(
     ? rawEmail
     : `user-${userId.slice(0, 8)}@barakahdevcentre.com`;
   const sep = input.callbackPath.includes("?") ? "&" : "?";
-  const authorizationUrl = await initializePaystack({
+  const paystackResult = await initializePaystack({
     email,
     amountKobo: input.amountKobo,
     reference: payment.id,
     callbackUrl: `${origin}${input.callbackPath}${sep}verify=${payment.id}`,
   });
-  return { paymentId: payment.id as string, configured: true, authorizationUrl };
+  return {
+    paymentId: payment.id as string,
+    configured: true,
+    authorizationUrl: paystackResult?.authorizationUrl ?? null,
+    accessCode: paystackResult?.accessCode ?? null,
+    reference: paystackResult?.reference ?? payment.id,
+  };
 }
 
 /**

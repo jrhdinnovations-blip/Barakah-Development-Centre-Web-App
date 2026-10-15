@@ -10,7 +10,23 @@ export const SWIFTMOVE_BRAND = {
   shortTagline: 'Move people. Move packages. Move business.',
   city: 'Jos, Plateau State',
   country: 'Nigeria',
-  supportPhone: '+234 800 SWIFT MOVE',
+  supportPhone: '07041626545',
+  supportPhoneDisplay: '0704 162 6545',
+  whatsappNumber: '07044223076',
+  whatsappDisplay: '0704 422 3076',
+  whatsappUrl: 'https://wa.me/2347044223076',
+  bankAccounts: [
+    {
+      bank: 'Zenith Bank',
+      accountNumber: '1310765201',
+      accountName: 'SwiftMove Logistics',
+    },
+    {
+      bank: 'Moniepoint',
+      accountNumber: '7066252731',
+      accountName: 'SwiftMove Logistics',
+    },
+  ],
   supportEmail: 'support@swiftmove.ng',
   currency: 'NGN',
   currencySymbol: '₦',
@@ -19,6 +35,41 @@ export const SWIFTMOVE_BRAND = {
   completedOrdersCount: '15,000+',
   satisfactionRating: 4.9,
 };
+
+/**
+ * Builds a formatted WhatsApp link pre-filled with the customer's parcel order receipt
+ * for submission to 07044223076 for instant payment confirmation.
+ */
+export function buildParcelWhatsAppReceipt(order: {
+  trackingId: string;
+  amount: number;
+  paymentMethod: 'paystack' | 'transfer' | string;
+  pickupAddress: string;
+  dropoffAddress: string;
+  recipientName: string;
+  recipientPhone: string;
+  reference?: string | null;
+  date?: string;
+}): string {
+  const methodLabel = order.paymentMethod === 'paystack' ? 'Paystack Gateway' : 'Direct Bank Transfer';
+  const now = order.date || new Date().toLocaleString('en-NG', { dateStyle: 'medium', timeStyle: 'short' });
+  const lines = [
+    `*SWIFTMOVE DISPATCH - PAYMENT RECEIPT*`,
+    `--------------------------------------`,
+    `📦 *Tracking ID:* ${order.trackingId}`,
+    `💰 *Amount:* ₦${order.amount.toLocaleString()}`,
+    `💳 *Payment Method:* ${methodLabel}`,
+    order.reference ? `🧾 *Reference:* ${order.reference}` : null,
+    `📅 *Date:* ${now}`,
+    `📍 *Pickup:* ${order.pickupAddress}`,
+    `🎯 *Delivery:* ${order.dropoffAddress}`,
+    `👤 *Recipient:* ${order.recipientName}${order.recipientPhone ? ` (${order.recipientPhone})` : ''}`,
+    `--------------------------------------`,
+    `Hello SwiftMove Support, I have completed payment for this parcel dispatch order. Please find my payment receipt / proof attached for verification & rider assignment. Thank you!`,
+  ].filter(Boolean) as string[];
+
+  return `https://wa.me/2347044223076?text=${encodeURIComponent(lines.join('\n'))}`;
+}
 
 export type ServicePillar = 'ride' | 'send' | 'move' | 'track';
 

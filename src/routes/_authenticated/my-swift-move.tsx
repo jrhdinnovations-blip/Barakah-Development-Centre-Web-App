@@ -89,7 +89,9 @@ import {
   type CustomerTripRecord,
   type CustomerDispatchRecord,
 } from '@/lib/dispatcher.functions';
-import { initializeSwiftPaystack } from '@/lib/payments.functions';
+import { initializeSwiftPaystack, verifyPayment } from '@/lib/payments.functions';
+import { pullPaystackPayment } from '@/lib/paystack-inline';
+import { SWIFTMOVE_BRAND, buildParcelWhatsAppReceipt } from '@/lib/swiftmove-design';
 
 // ── Search Schema ────────────────────────────────────────────────────────────
 const searchSchema = z
@@ -98,6 +100,9 @@ const searchSchema = z
     tab: z.string().optional(),
     paid: z.string().optional(),
     orderId: z.string().optional(),
+    verify: z.string().optional(),
+    reference: z.string().optional(),
+    trxref: z.string().optional(),
   })
   .catch({});
 
@@ -827,6 +832,61 @@ function UnifiedCustomerPortal() {
   const [showParcelPaymentModal, setShowParcelPaymentModal] = useState(false);
   const [isConfirmingParcelPayment, setIsConfirmingParcelPayment] = useState(false);
   const [parcelPaymentDone, setParcelPaymentDone] = useState(false);
+  const [parcelPaymentReference, setParcelPaymentReference] = useState<string>('');
+
+  // Auto-verify return from Paystack checkout (e.g. ?verify=... or ?paid=true&orderId=...)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const verifyId = params.get('verify') || params.get('reference') || params.get('trxref');
+    const orderId = params.get('orderId');
+
+    if (verifyId) {
+      toast.loading('Verifying Paystack transaction...', { id: 'verify-gateway' });
+      verifyPayment({ data: { paymentId: verifyId } })
+        .then(async (r) => {
+          if (r.status === 'completed') {
+            toast.success('Paystack payment confirmed! Dispatching courier.', { id: 'verify-gateway' });
+          } else {
+            toast.info(`Payment status: ${r.status}. You can confirm via WhatsApp.`, { id: 'verify-gateway' });
+          }
+          if (orderId) {
+            const { data } = await supabase.from('swift_deliveries').select('*').eq('id', orderId).maybeSingle();
+            if (data) {
+              setActiveParcelOrder(data);
+              setParcelPaymentMethod('paystack');
+              setParcelPaymentReference(verifyId);
+              setParcelPaymentDone(true);
+              setShowParcelPaymentModal(true);
+            }
+          }
+        })
+        .catch((err) => {
+          console.warn('Gateway verification notice:', err);
+          toast.info('Order recorded! Please send receipt on WhatsApp for instant confirmation.', { id: 'verify-gateway' });
+          if (orderId) {
+            supabase.from('swift_deliveries').select('*').eq('id', orderId).maybeSingle().then(({ data }) => {
+              if (data) {
+                setActiveParcelOrder(data);
+                setParcelPaymentMethod('paystack');
+                setParcelPaymentReference(verifyId);
+                setParcelPaymentDone(true);
+                setShowParcelPaymentModal(true);
+              }
+            });
+          }
+        });
+    } else if (params.get('paid') === 'true' && orderId) {
+      supabase.from('swift_deliveries').select('*').eq('id', orderId).maybeSingle().then(({ data }) => {
+        if (data) {
+          setActiveParcelOrder(data);
+          setParcelPaymentMethod('paystack');
+          setParcelPaymentDone(true);
+          setShowParcelPaymentModal(true);
+        }
+      });
+    }
+  }, []);
 
   // Parcel Fare Calculation
   const parcelFare = useMemo(() => {
@@ -919,21 +979,45 @@ function UnifiedCustomerPortal() {
   const handlePayParcelPaystack = async () => {
     if (!activeParcelOrder?.id) return;
     setIsConfirmingParcelPayment(true);
-    toast.loading('Connecting to Paystack...', { id: 'paystack-init' });
+    toast.loading('Pulling Paystack payment checkout...', { id: 'paystack-init' });
     try {
-      const res = await initializeSwiftPaystack({
+      const trackingCode = activeParcelOrder.tracking_code || activeParcelOrder.id;
+      const res: any = await initializeSwiftPaystack({
         data: {
           entityType: 'swift_delivery',
           entityId: activeParcelOrder.id,
           amountKobo: Math.round(parcelFare * 100),
-          description: `SwiftMove Parcel Dispatch (${activeParcelOrder.id})`,
+          description: `SwiftMove Parcel Dispatch (${trackingCode})`,
           callbackPath: `/my-swift-move?service=parcel&paid=true&orderId=${activeParcelOrder.id}`,
         },
       });
-      if (res?.authorizationUrl) {
-        window.location.href = res.authorizationUrl;
-      } else {
-        toast.error('Paystack initialization failed', { id: 'paystack-init' });
+
+      if (!res) {
+        throw new Error('Paystack gateway could not be contacted.');
+      }
+
+      const ref = res.reference || res.paymentId || activeParcelOrder.id;
+      setParcelPaymentReference(ref);
+      toast.dismiss('paystack-init');
+
+      // Attempt pulling up Paystack inline popup modal
+      const pullResult = await pullPaystackPayment({
+        accessCode: res.accessCode,
+        authorizationUrl: res.authorizationUrl,
+        onSuccess: () => {
+          setParcelPaymentDone(true);
+          toast.success('Paystack payment received! Send your receipt to WhatsApp for instant confirmation.');
+        },
+        onCancel: () => {
+          toast.info('Paystack checkout window closed.');
+        },
+      });
+
+      // Prepare the receipt confirmation view
+      setParcelPaymentDone(true);
+
+      if (pullResult.mode === 'popup' && pullResult.opened) {
+        toast.success('Paystack payment modal opened! Complete transaction on screen.', { id: 'paystack-pop' });
       }
     } catch (err: any) {
       toast.error(err.message || 'Payment failed', { id: 'paystack-init' });
@@ -950,12 +1034,34 @@ function UnifiedCustomerPortal() {
         .update({ status: 'pending', payment_method: 'bank_transfer' })
         .eq('id', activeParcelOrder.id);
       setParcelPaymentDone(true);
-      toast.success('Bank transfer recorded! Awaiting dispatcher confirmation.');
+      toast.success('Bank transfer recorded! Send your receipt to WhatsApp (07044223076) for instant confirmation.');
     } catch (e: any) {
       toast.error(e?.message || 'Failed to update order');
     } finally {
       setIsConfirmingParcelPayment(false);
     }
+  };
+
+  const handleSendParcelWhatsAppReceipt = (customOrder?: any) => {
+    const target = customOrder || activeParcelOrder;
+    if (!target) {
+      toast.error('Order details not found.');
+      return;
+    }
+    const trackingCode = target.tracking_code || target.id || 'SMD-PARCEL';
+    const fareVal = target.estimated_price || target.fare || parcelFare || 0;
+    const url = buildParcelWhatsAppReceipt({
+      trackingId: trackingCode,
+      amount: Number(fareVal),
+      paymentMethod: parcelPaymentMethod || target.payment_method || 'transfer',
+      pickupAddress: target.pickup_address || pickupText || 'Pickup Address',
+      dropoffAddress: target.dropoff_address || dropoffText || 'Dropoff Address',
+      recipientName: recipientName || target.recipient_name || 'Recipient',
+      recipientPhone: recipientPhone || target.recipient_phone || '',
+      reference: parcelPaymentReference || target.payment_reference || target.id,
+      date: target.created_at ? new Date(target.created_at).toLocaleString('en-NG') : undefined,
+    });
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   // ── 5. TRACKING TAB STATE & FUNCTIONS ─────────────────────────────────────
@@ -1860,6 +1966,35 @@ function UnifiedCustomerPortal() {
             <span className="text-slate-500">Order Fare:</span>
             <span className="font-black text-slate-900 text-sm">₦{Number(trackingResult.estimated_price).toLocaleString()}</span>
           </div>
+
+          {/* Action buttons: WhatsApp confirmation & Support call */}
+          <div className="pt-2 flex flex-col gap-2">
+            <a
+              href={buildParcelWhatsAppReceipt({
+                trackingId: trackingResult.payment_reference || trackingResult.id,
+                fare: Number(trackingResult.estimated_price || 0),
+                pickup: trackingResult.pickup_address,
+                dropoff: trackingResult.dropoff_address,
+                recipientName: trackingResult.recipient_name,
+                recipientPhone: trackingResult.recipient_phone,
+                senderPhone: user?.phone || user?.user_metadata?.phone,
+                paymentMethod: 'transfer',
+              })}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-colors"
+            >
+              <MessageCircle className="w-3.5 h-3.5" />
+              <span>Send Receipt on WhatsApp (07044223076)</span>
+            </a>
+            <a
+              href="tel:07041626545"
+              className="w-full py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
+            >
+              <PhoneCall className="w-3 h-3 text-orange-600" />
+              <span>Call Dispatch: 07041626545</span>
+            </a>
+          </div>
         </div>
       )}
     </div>
@@ -1933,7 +2068,27 @@ function UnifiedCustomerPortal() {
 
               <div className="flex items-center justify-between pt-1.5 border-t border-slate-100">
                 <span className="font-mono text-[10px] text-slate-400">{item.reference}</span>
-                <span className="font-bold text-slate-900">₦{Number(item.fare).toLocaleString()}</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-slate-900">₦{Number(item.fare).toLocaleString()}</span>
+                  {item.type === 'parcel' && (
+                    <a
+                      href={buildParcelWhatsAppReceipt({
+                        trackingId: item.reference || item.id,
+                        fare: Number(item.fare || 0),
+                        pickup: item.pickupAddress,
+                        dropoff: item.dropoffAddress,
+                        senderPhone: user?.phone || user?.user_metadata?.phone,
+                        paymentMethod: 'transfer',
+                      })}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Send Receipt to WhatsApp (07044223076)"
+                      className="p-1 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition-colors"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" />
+                    </a>
+                  )}
+                </div>
               </div>
             </div>
           ))}
@@ -2140,86 +2295,240 @@ function UnifiedCustomerPortal() {
       {/* ── Parcel Payment Modal ── */}
       {showParcelPaymentModal && activeParcelOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-sm bg-white rounded-3xl p-6 space-y-4 shadow-2xl">
-            <div className="text-center space-y-1">
-              <h3 className="text-base font-extrabold text-slate-900">Complete Parcel Payment</h3>
-              <p className="text-xs text-slate-500">Amount due: ₦{parcelFare.toLocaleString()}</p>
-            </div>
+          <div className="w-full max-w-sm bg-white rounded-3xl p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
+            {parcelPaymentDone ? (
+              /* ── Payment Done / Receipt Screen with WhatsApp Submission ── */
+              <div className="space-y-4 text-center">
+                <div className="w-14 h-14 mx-auto rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shadow-inner">
+                  <CheckCircle2 className="w-8 h-8" />
+                </div>
 
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={() => setParcelPaymentMethod('paystack')}
-                className={`w-full p-3 rounded-xl border text-left text-xs transition-all cursor-pointer ${
-                  parcelPaymentMethod === 'paystack' ? 'bg-orange-50 border-orange-500 ring-1 ring-orange-500/20' : 'bg-slate-50 border-slate-200'
-                }`}
-              >
-                <p className="font-bold text-slate-900">💳 Instant Paystack</p>
-                <p className="text-[11px] text-slate-500">Debit card, instant bank transfer, USSD</p>
-              </button>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">
+                    {parcelPaymentMethod === 'paystack' ? 'Paystack Payment Logged!' : 'Transfer Recorded!'}
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Send your receipt to our official WhatsApp line for instant verification &amp; rider assignment.
+                  </p>
+                </div>
 
-              <button
-                type="button"
-                onClick={() => setParcelPaymentMethod('transfer')}
-                className={`w-full p-3 rounded-xl border text-left text-xs transition-all cursor-pointer ${
-                  parcelPaymentMethod === 'transfer' ? 'bg-orange-50 border-orange-500 ring-1 ring-orange-500/20' : 'bg-slate-50 border-slate-200'
-                }`}
-              >
-                <p className="font-bold text-slate-900">🏦 Direct Bank Transfer</p>
-                <p className="text-[11px] text-slate-500">Zenith Bank / Moniepoint corporate accounts</p>
-              </button>
-            </div>
-
-            {parcelPaymentMethod === 'transfer' && (
-              <div className="p-3 rounded-xl bg-orange-50/80 border border-orange-200 text-xs space-y-2">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase">Zenith Bank</p>
-                    <p className="font-mono font-black text-slate-900">1310765201</p>
+                {/* Receipt Card */}
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-left space-y-2">
+                  <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase">Tracking Code</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono font-black text-orange-600 text-sm">
+                        {activeParcelOrder.tracking_code || activeParcelOrder.id?.slice(0, 8)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const code = activeParcelOrder.tracking_code || activeParcelOrder.id;
+                          navigator.clipboard.writeText(code);
+                          toast.success('Tracking code copied!');
+                        }}
+                        className="text-[10px] font-bold text-slate-500 hover:text-slate-900 p-0.5 cursor-pointer"
+                        title="Copy tracking code"
+                      >
+                        <Copy className="w-3 h-3" />
+                      </button>
+                    </div>
                   </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500">Amount Due / Paid</span>
+                    <span className="font-black text-slate-900 text-sm">₦{parcelFare.toLocaleString()}</span>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500">Payment Channel</span>
+                    <span className="font-bold text-slate-800">
+                      {parcelPaymentMethod === 'paystack' ? '💳 Paystack Gateway' : '🏦 Direct Bank Transfer'}
+                    </span>
+                  </div>
+
+                  <div className="pt-1.5 text-[11px] text-slate-600 border-t border-slate-200 space-y-0.5">
+                    <p className="truncate"><span className="font-semibold text-slate-700">From:</span> {pickupText}</p>
+                    <p className="truncate"><span className="font-semibold text-slate-700">To:</span> {dropoffText}</p>
+                    <p className="truncate"><span className="font-semibold text-slate-700">Recipient:</span> {recipientName} {recipientPhone ? `(${recipientPhone})` : ''}</p>
+                  </div>
+                </div>
+
+                {/* WhatsApp Receipt Actions */}
+                <div className="space-y-2 pt-1">
                   <button
                     type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText('1310765201');
-                      toast.success('Account number copied!');
-                    }}
-                    className="p-1 text-orange-600 hover:text-orange-800 text-[11px] font-bold"
+                    onClick={() => handleSendParcelWhatsAppReceipt()}
+                    className="w-full py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/30 transition-all cursor-pointer"
                   >
-                    Copy
+                    <MessageCircle className="w-4 h-4" />
+                    <span>Send Receipt to WhatsApp (07044223076)</span>
+                  </button>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <a
+                      href="tel:07041626545"
+                      className="py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
+                    >
+                      <PhoneCall className="w-3.5 h-3.5 text-orange-600" />
+                      <span>Call: 07041626545</span>
+                    </a>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowParcelPaymentModal(false);
+                        setParcelPaymentDone(false);
+                        const code = activeParcelOrder.tracking_code || activeParcelOrder.id;
+                        if (code) {
+                          setTrackingQueryInput(code);
+                          switchService('track');
+                          handleTrackQuery(code);
+                        }
+                      }}
+                      className="py-2.5 px-3 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-700 font-bold text-xs flex items-center justify-center gap-1.5 border border-orange-200 transition-colors cursor-pointer"
+                    >
+                      <Radio className="w-3.5 h-3.5 text-orange-600" />
+                      <span>Track Live</span>
+                    </button>
+                  </div>
+
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setShowParcelPaymentModal(false);
+                      setParcelPaymentDone(false);
+                    }}
+                    className="w-full text-xs text-slate-400 hover:text-slate-600 mt-1 cursor-pointer"
+                  >
+                    Done / Close
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              /* ── Payment Options Screen ── */
+              <div className="space-y-4">
+                <div className="text-center space-y-1">
+                  <h3 className="text-base font-extrabold text-slate-900">SwiftMove Parcel Payment</h3>
+                  <p className="text-xs text-slate-500">Amount due: <strong className="text-orange-600 text-sm">₦{parcelFare.toLocaleString()}</strong></p>
+                  <p className="text-[10px] text-slate-400 font-mono">Order ID: {activeParcelOrder.tracking_code || activeParcelOrder.id?.slice(0, 8)}</p>
+                </div>
+
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => setParcelPaymentMethod('paystack')}
+                    className={`w-full p-3 rounded-xl border text-left text-xs transition-all cursor-pointer ${
+                      parcelPaymentMethod === 'paystack' ? 'bg-orange-50 border-orange-500 ring-1 ring-orange-500/20' : 'bg-slate-50 border-slate-200'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <p className="font-bold text-slate-900">💳 Instant Paystack</p>
+                      <span className="text-[10px] font-extrabold uppercase bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">Fast</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500">ATM Debit Card, Transfer, USSD &amp; Apple Pay</p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setParcelPaymentMethod('transfer')}
+                    className={`w-full p-3 rounded-xl border text-left text-xs transition-all cursor-pointer ${
+                      parcelPaymentMethod === 'transfer' ? 'bg-orange-50 border-orange-500 ring-1 ring-orange-500/20' : 'bg-slate-50 border-slate-200'
+                    }`}
+                  >
+                    <p className="font-bold text-slate-900">🏦 Direct Bank Transfer</p>
+                    <p className="text-[11px] text-slate-500">Zenith Bank &amp; Moniepoint corporate accounts</p>
                   </button>
                 </div>
-                <p className="text-[10px] text-slate-500">Account Name: SwiftMove Logistics</p>
+
+                {/* Direct Bank Accounts Details */}
+                {parcelPaymentMethod === 'transfer' && (
+                  <div className="p-3 rounded-2xl bg-orange-50/90 border border-orange-200 text-xs space-y-2.5">
+                    <div className="text-[11px] font-bold text-slate-700 flex items-center justify-between">
+                      <span>Official SwiftMove Accounts:</span>
+                      <span className="text-[10px] text-orange-700 font-bold uppercase bg-orange-100 px-1.5 py-0.5 rounded">24/7 Verified</span>
+                    </div>
+
+                    {/* Zenith Bank */}
+                    <div className="p-2.5 rounded-xl bg-white border border-orange-200/80 shadow-2xs space-y-0.5">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Zenith Bank</p>
+                          <p className="font-mono font-black text-slate-900 text-base">1310765201</p>
+                          <p className="text-[10px] text-slate-500">Account Name: <strong className="text-slate-800">SwiftMove Logistics</strong></p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText('1310765201');
+                            toast.success('Zenith Bank account (1310765201) copied!');
+                          }}
+                          className="px-2.5 py-1.5 rounded-lg bg-orange-100 hover:bg-orange-200 text-orange-800 text-[11px] font-bold transition-colors cursor-pointer"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Moniepoint */}
+                    <div className="p-2.5 rounded-xl bg-white border border-orange-200/80 shadow-2xs space-y-0.5">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Moniepoint</p>
+                          <p className="font-mono font-black text-slate-900 text-base">7066252731</p>
+                          <p className="text-[10px] text-slate-500">Account Name: <strong className="text-slate-800">SwiftMove Logistics</strong></p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText('7066252731');
+                            toast.success('Moniepoint account (7066252731) copied!');
+                          }}
+                          className="px-2.5 py-1.5 rounded-lg bg-orange-100 hover:bg-orange-200 text-orange-800 text-[11px] font-bold transition-colors cursor-pointer"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    </div>
+
+                    <p className="text-[10px] text-slate-500 flex items-center gap-1">
+                      <Info className="w-3 h-3 text-orange-600 shrink-0" />
+                      <span>Transfer exact fare, then send proof to WhatsApp <strong>07044223076</strong>.</span>
+                    </p>
+                  </div>
+                )}
+
+                <div className="space-y-2 pt-1">
+                  {parcelPaymentMethod === 'paystack' ? (
+                    <Button
+                      onClick={handlePayParcelPaystack}
+                      disabled={isConfirmingParcelPayment}
+                      className="w-full h-11 bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs rounded-xl shadow-md cursor-pointer transition-all"
+                    >
+                      {isConfirmingParcelPayment ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CreditCard className="w-4 h-4 mr-2" />}
+                      Pull Paystack Payment · ₦{parcelFare.toLocaleString()}
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={handleConfirmParcelTransfer}
+                      disabled={isConfirmingParcelPayment}
+                      className="w-full h-11 bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs rounded-xl shadow-md cursor-pointer transition-all"
+                    >
+                      {isConfirmingParcelPayment ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
+                      I Have Completed Transfer
+                    </Button>
+                  )}
+
+                  <Button
+                    variant="ghost"
+                    onClick={() => setShowParcelPaymentModal(false)}
+                    className="w-full text-xs text-slate-500 cursor-pointer"
+                  >
+                    Cancel
+                  </Button>
+                </div>
               </div>
             )}
-
-            <div className="space-y-2 pt-2">
-              {parcelPaymentMethod === 'paystack' ? (
-                <Button
-                  onClick={handlePayParcelPaystack}
-                  disabled={isConfirmingParcelPayment}
-                  className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs rounded-xl"
-                >
-                  {isConfirmingParcelPayment ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                  Pay ₦{parcelFare.toLocaleString()} via Paystack
-                </Button>
-              ) : (
-                <Button
-                  onClick={handleConfirmParcelTransfer}
-                  disabled={isConfirmingParcelPayment}
-                  className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl"
-                >
-                  I Have Completed Transfer
-                </Button>
-              )}
-
-              <Button
-                variant="ghost"
-                onClick={() => setShowParcelPaymentModal(false)}
-                className="w-full text-xs text-slate-500"
-              >
-                Cancel
-              </Button>
-            </div>
           </div>
         </div>
       )}

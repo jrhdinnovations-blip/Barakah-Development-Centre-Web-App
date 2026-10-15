@@ -6,7 +6,7 @@ import {
   Sparkles, Search, X, Loader2, ChevronRight, Shield, Check,
   Truck, Phone, ExternalLink, ArrowUpDown, ChevronDown, CheckCircle,
   HelpCircle, UserCheck, AlertCircle, Send, Award, Compass, MessageSquare,
-  Menu, Calendar, CalendarClock
+  Menu, Calendar, CalendarClock, MessageCircle, Copy
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -18,7 +18,7 @@ import { calculateDeliveryPrice } from '@/lib/swift-pricing';
 import { VEHICLE_TIERS, calculateTierFare, VehicleTier } from '@/lib/ride-pricing';
 import { searchLocalLocations, resolveJosLocation } from '@/lib/location-suggestions';
 import { haversineKm } from '@/lib/google-maps-client';
-import { SWIFTMOVE_BRAND, POPULAR_JOS_LOCATIONS, ServicePillar } from '@/lib/swiftmove-design';
+import { SWIFTMOVE_BRAND, POPULAR_JOS_LOCATIONS, ServicePillar, buildParcelWhatsAppReceipt } from '@/lib/swiftmove-design';
 
 export const Route = createFileRoute('/swiftmove')({
   head: () => ({
@@ -886,6 +886,31 @@ export function SwiftMoveLanding() {
                       <span className="font-[Barlow_Condensed,sans-serif] font-black text-white text-lg">₦{trackingResult.price.toLocaleString()}</span>
                     </div>
                   )}
+
+                  <div className="pt-3 border-t border-white/10 space-y-2">
+                    <a
+                      href={buildParcelWhatsAppReceipt({
+                        trackingId: trackingResult.reference || trackingCode,
+                        fare: trackingResult.price || 0,
+                        pickup: trackingResult.pickup,
+                        dropoff: trackingResult.dropoff,
+                        paymentMethod: 'transfer',
+                      })}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-md"
+                    >
+                      <MessageCircle className="h-3.5 w-3.5" />
+                      <span>Send Receipt on WhatsApp ({SWIFTMOVE_BRAND.whatsappNumber})</span>
+                    </a>
+                    <a
+                      href={`tel:${SWIFTMOVE_BRAND.supportPhone}`}
+                      className="w-full py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 text-[#A3ADB8] hover:text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors border border-white/10"
+                    >
+                      <PhoneCall className="h-3 w-3 text-[#FF5500]" />
+                      <span>Call Hotline: {SWIFTMOVE_BRAND.supportPhone}</span>
+                    </a>
+                  </div>
                 </div>
               )}
             </div>
@@ -1053,11 +1078,17 @@ export function SwiftMoveLanding() {
                 Empowering urban mobility and agricultural supply chains across Plateau State, Nigeria.
               </p>
 
-              <div className="pt-2">
+              <div className="pt-2 flex flex-col gap-2">
                 <div className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-xs">
                   <span className="h-2 w-2 rounded-full bg-[#FF5500] animate-pulse shrink-0" />
                   <span className="text-[#E8ECF2] font-mono text-[11px] sm:text-xs">
                     Hotline: <a href={`tel:${SWIFTMOVE_BRAND.supportPhone}`} className="text-[#FFB800] hover:underline font-bold">{SWIFTMOVE_BRAND.supportPhone}</a>
+                  </span>
+                </div>
+                <div className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs">
+                  <MessageCircle className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                  <span className="text-[#E8ECF2] text-[11px] sm:text-xs">
+                    WhatsApp: <a href={`https://wa.me/2347044223076`} target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline font-bold">{SWIFTMOVE_BRAND.whatsappNumber}</a>
                   </span>
                 </div>
               </div>
@@ -1206,6 +1237,29 @@ export function SwiftMoveLanding() {
             </div>
           </div>
 
+          {/* Official Bank Accounts Section */}
+          <div className="mb-10 p-5 rounded-2xl bg-white/[0.03] border border-white/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black uppercase tracking-wider text-white">SwiftMove Bank Accounts</span>
+                <span className="text-[10px] bg-emerald-500/20 text-emerald-400 font-bold px-2 py-0.5 rounded-full">24/7 Verified</span>
+              </div>
+              <p className="text-xs text-[#8895A5] mt-1">Direct transfer payment accounts. Send payment proof to WhatsApp <strong className="text-white">07044223076</strong></p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="px-4 py-2.5 rounded-xl bg-black/40 border border-white/10">
+                <span className="text-[10px] text-[#8895A5] uppercase font-bold block">Zenith Bank</span>
+                <span className="font-mono font-black text-white text-sm">1310765201</span>
+                <span className="text-[10px] text-[#8895A5] block">SwiftMove Logistics</span>
+              </div>
+              <div className="px-4 py-2.5 rounded-xl bg-black/40 border border-white/10">
+                <span className="text-[10px] text-[#8895A5] uppercase font-bold block">Moniepoint</span>
+                <span className="font-mono font-black text-white text-sm">7066252731</span>
+                <span className="text-[10px] text-[#8895A5] block">SwiftMove Logistics</span>
+              </div>
+            </div>
+          </div>
+
           {/* Bottom Copyright & Legal Links */}
           <div className="pt-8 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-center sm:text-left">
             <p className="leading-relaxed">
@@ -1277,7 +1331,52 @@ export function SwiftMoveLanding() {
               )}
             </div>
 
+            {/* Direct Bank Accounts for Easy Transfer */}
+            <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2 text-xs">
+              <div className="flex items-center justify-between text-[11px] font-bold text-white">
+                <span>Official SwiftMove Accounts:</span>
+                <span className="text-[10px] text-emerald-400 font-extrabold uppercase bg-emerald-500/10 px-2 py-0.5 rounded">24/7 Verified</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="p-2.5 rounded-xl bg-black/40 border border-white/10">
+                  <p className="text-[9px] uppercase font-bold text-[#8895A5]">Zenith Bank</p>
+                  <p className="font-mono font-black text-white text-sm">1310765201</p>
+                  <p className="text-[9px] text-[#8895A5]">SwiftMove Logistics</p>
+                </div>
+                <div className="p-2.5 rounded-xl bg-black/40 border border-white/10">
+                  <p className="text-[9px] uppercase font-bold text-[#8895A5]">Moniepoint</p>
+                  <p className="font-mono font-black text-white text-sm">7066252731</p>
+                  <p className="text-[9px] text-[#8895A5]">SwiftMove Logistics</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions: Send Receipt to WhatsApp & Hotline Call */}
             <div className="space-y-2 pt-1">
+              <a
+                href={buildParcelWhatsAppReceipt({
+                  trackingId: bookingConfirmation.trackingId,
+                  fare: bookingConfirmation.fare,
+                  pickup: bookingConfirmation.pickup,
+                  dropoff: bookingConfirmation.dropoff,
+                  paymentMethod: 'transfer',
+                })}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-2 min-h-[46px]"
+              >
+                <MessageCircle className="h-4 w-4" />
+                <span>Send Receipt on WhatsApp ({SWIFTMOVE_BRAND.whatsappNumber})</span>
+              </a>
+
+              <a
+                href={`tel:${SWIFTMOVE_BRAND.supportPhone}`}
+                className="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors border border-white/10"
+              >
+                <PhoneCall className="h-3.5 w-3.5 text-[#FF5500]" />
+                <span>Call Hotline: {SWIFTMOVE_BRAND.supportPhone}</span>
+              </a>
+
               <button
                 type="button"
                 onClick={() => {
@@ -1286,15 +1385,16 @@ export function SwiftMoveLanding() {
                   setBookingConfirmation(null);
                   handleSearchTracking();
                 }}
-                className="w-full py-4 rounded-2xl bg-[#FF5500] hover:bg-[#e04800] text-white font-black text-xs uppercase tracking-wider shadow-xl shadow-[#FF5500]/25 transition-all flex items-center justify-center gap-1.5 min-h-[48px] active:scale-[0.98] cursor-pointer"
+                className="w-full py-3.5 rounded-2xl bg-[#FF5500] hover:bg-[#e04800] text-white font-black text-xs uppercase tracking-wider shadow-xl shadow-[#FF5500]/25 transition-all flex items-center justify-center gap-1.5 min-h-[46px] active:scale-[0.98] cursor-pointer"
               >
                 <Radio className="h-4 w-4" />
                 <span>Track Live on Radar</span>
               </button>
+
               <button
                 type="button"
                 onClick={() => setBookingConfirmation(null)}
-                className="w-full py-3 rounded-2xl bg-[#121620] hover:bg-white/10 text-[#A3ADB8] hover:text-white font-black text-xs uppercase tracking-wider transition-colors min-h-[44px] cursor-pointer"
+                className="w-full py-2.5 rounded-2xl bg-[#121620] hover:bg-white/10 text-[#A3ADB8] hover:text-white font-bold text-xs uppercase tracking-wider transition-colors min-h-[40px] cursor-pointer"
               >
                 Close &amp; Return
               </button>
