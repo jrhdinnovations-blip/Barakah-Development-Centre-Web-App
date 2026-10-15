@@ -71,7 +71,112 @@ export function buildParcelWhatsAppReceipt(order: {
   return `https://wa.me/2347044223076?text=${encodeURIComponent(lines.join('\n'))}`;
 }
 
-export type ServicePillar = 'ride' | 'send' | 'move' | 'track';
+export interface SwiftBusTier {
+  id: 'hiace' | 'coaster' | 'coach';
+  name: string;
+  tagline: string;
+  capacity: number;
+  seatsText: string;
+  baseFare: number;
+  perKmRate: number;
+  sampleVehicles: string;
+  description: string;
+  features: string[];
+  luggage: string;
+  icon: string;
+}
+
+export const SWIFTBUS_TIERS: SwiftBusTier[] = [
+  {
+    id: 'hiace',
+    name: 'SwiftBus Mini (14-Seater)',
+    tagline: 'Ideal for small groups, airport transfers & delegations',
+    capacity: 14,
+    seatsText: '14 Passengers',
+    baseFare: 35000,
+    perKmRate: 650,
+    sampleVehicles: 'Toyota HiAce High-Roof, Nissan Urvan',
+    description: 'Fully air-conditioned 14-seater commuter bus with professional chauffeur, ample legroom, and rear luggage compartment.',
+    features: ['14 Passenger Seats', 'Full Air Conditioning', 'Luggage Space', 'Vetted Commercial Captain'],
+    luggage: 'Up to 10 Medium Bags',
+    icon: '🚐',
+  },
+  {
+    id: 'coaster',
+    name: 'SwiftBus Medium (18-30 Seater)',
+    tagline: 'Perfect for weddings, church/mosque trips & excursions',
+    capacity: 25,
+    seatsText: '18 - 30 Passengers',
+    baseFare: 65000,
+    perKmRate: 950,
+    sampleVehicles: 'Toyota Coaster, Mitsubishi Rosa',
+    description: 'Spacious medium bus designed for large party conveyance, student excursions, church/mosque events, and inter-city delegations.',
+    features: ['25-30 Seats', 'PA Audio System', 'Dual AC Cooling', 'Overhead Parcel Racks'],
+    luggage: 'Large Luggage Compartment',
+    icon: '🚌',
+  },
+  {
+    id: 'coach',
+    name: 'SwiftBus Executive Coach (32-50 Seater)',
+    tagline: 'Premium interstate travel, mega events & conferences',
+    capacity: 45,
+    seatsText: '32 - 50 Passengers',
+    baseFare: 120000,
+    perKmRate: 1400,
+    sampleVehicles: 'Marcopolo Coach, Yutong Luxury Liner',
+    description: 'Luxury executive coach with reclining seats, high-speed climate control, entertainment screens, and premium ride stability for group long-distance conveyance.',
+    features: ['Luxury Reclining Seats', 'Under-Coach Cargo Hold', 'Entertainment Display', 'Chilled Climate Control'],
+    luggage: 'Heavy Cargo & Baggage Hold',
+    icon: '🚍',
+  },
+];
+
+/**
+ * Builds a formatted WhatsApp link pre-filled with the customer's SwiftBus booking
+ * for submission to 07044223076 for immediate charter confirmation.
+ */
+export function buildSwiftBusWhatsAppBooking(booking: {
+  bookingId: string;
+  busType: string;
+  passengers?: number;
+  tripType: string;
+  purpose?: string;
+  pickupLocation: string;
+  destination: string;
+  departureDate: string;
+  departureTime?: string;
+  contactName: string;
+  contactPhone: string;
+  estimatedFare: number;
+  paymentMethod?: string;
+  reference?: string | null;
+  notes?: string;
+}): string {
+  const methodLabel = booking.paymentMethod === 'paystack' ? 'Paystack Gateway' : 'Direct Bank Transfer / Pay on Charter';
+  const lines = [
+    `*SWIFTBUS CHARTER - BOOKING REQUEST*`,
+    `--------------------------------------`,
+    `🚌 *Booking ID:* ${booking.bookingId}`,
+    `🚐 *Bus Model:* ${booking.busType}`,
+    booking.passengers ? `👥 *Passengers:* ${booking.passengers} Seats` : null,
+    `🔄 *Trip Mode:* ${booking.tripType}`,
+    booking.purpose ? `🎯 *Purpose:* ${booking.purpose}` : null,
+    `📅 *Departure Date:* ${booking.departureDate}${booking.departureTime ? ` at ${booking.departureTime}` : ''}`,
+    `📍 *Pickup Station:* ${booking.pickupLocation}`,
+    `🏁 *Destination:* ${booking.destination}`,
+    `👤 *Contact Person:* ${booking.contactName} (${booking.contactPhone})`,
+    `💰 *Estimated Fare:* ₦${booking.estimatedFare.toLocaleString()}`,
+    `💳 *Payment Option:* ${methodLabel}`,
+    booking.reference ? `🧾 *Reference / Receipt:* ${booking.reference}` : null,
+    booking.notes ? `📝 *Special Requests:* ${booking.notes}` : null,
+    `--------------------------------------`,
+    `Hello SwiftMove Dispatcher, I would like to confirm our SwiftBus booking to convey our passengers to the destination above. Please provide driver details and payment confirmation. Thank you!`,
+  ].filter(Boolean) as string[];
+
+  return `https://wa.me/2347044223076?text=${encodeURIComponent(lines.join('\n'))}`;
+}
+
+export type ServicePillar = 'ride' | 'send' | 'bus' | 'move' | 'track';
 
 export interface ServiceDefinition {
   id: ServicePillar;
@@ -108,14 +213,25 @@ export const SERVICE_PILLARS: Record<ServicePillar, ServiceDefinition> = {
     accentColor: '#EA580C',
     bgGradient: 'from-orange-500 to-amber-600',
   },
+  bus: {
+    id: 'bus',
+    title: 'SwiftBus',
+    badge: 'Group Conveyance',
+    headline: 'Group Travel & Charter Buses',
+    tagline: 'Order 14 to 50-Seater Buses to Convey People Anywhere',
+    description: 'Safe, comfortable, and affordable bus charter services for wedding parties, religious delegations, school excursions, corporate retreats, and inter-city group travel across Plateau State and Nigeria.',
+    icon: 'Bus',
+    accentColor: '#059669',
+    bgGradient: 'from-emerald-600 to-teal-700',
+  },
   move: {
     id: 'move',
-    title: 'Move Business',
-    badge: 'Move Business',
-    headline: 'Freight & Corporate Logistics',
-    tagline: 'Consolidated Billing, Team Travel & Fleet on Demand',
-    description: 'Empower your company with multi-user logistics accounts, automated invoicing, dedicated vans, and prioritized support.',
-    icon: 'Building2',
+    title: 'SwiftBus Charter',
+    badge: 'Group Conveyance',
+    headline: 'Destination & Group Bus Services',
+    tagline: 'Charter Buses on Demand to Convey People to Any Destination',
+    description: 'Order 14, 18, and 32-seater executive buses to transport delegations, families, event guests, and groups safely.',
+    icon: 'Bus',
     accentColor: '#059669',
     bgGradient: 'from-emerald-600 to-teal-700',
   },

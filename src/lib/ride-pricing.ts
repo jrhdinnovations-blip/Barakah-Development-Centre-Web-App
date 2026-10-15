@@ -243,3 +243,26 @@ export function generateNearbyDrivers(centerLat: number, centerLng: number): Moc
 
   return drivers;
 }
+
+import { SWIFTBUS_TIERS, type SwiftBusTier } from './swiftmove-design';
+export { SWIFTBUS_TIERS, type SwiftBusTier };
+
+export function calculateBusFare(
+  tierId: 'hiace' | 'coaster' | 'coach',
+  tripType: 'one_way' | 'round_trip' | 'day_charter' = 'one_way',
+  distanceKm: number = 0
+): number {
+  const tier = SWIFTBUS_TIERS.find((t) => t.id === tierId) || SWIFTBUS_TIERS[0];
+  let multiplier = 1.0;
+  if (tripType === 'round_trip') multiplier = 1.75;
+  if (tripType === 'day_charter') multiplier = 2.2;
+
+  let distanceAddon = 0;
+  if (distanceKm > 20) {
+    distanceAddon = (distanceKm - 20) * tier.perKmRate;
+  }
+
+  const raw = tier.baseFare * multiplier + distanceAddon;
+  // Round to nearest 500 Naira
+  return Math.ceil(raw / 500) * 500;
+}

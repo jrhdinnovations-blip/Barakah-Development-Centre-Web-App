@@ -2,8 +2,8 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   Car, Package, Building2, Radio, MapPin, Clock, ShieldCheck, Zap,
-  ArrowRight, Star, PhoneCall, CheckCircle2, Navigation, Bike,
-  Sparkles, Search, X, Loader2, ChevronRight, Shield, Check,
+  ArrowRight, Star, PhoneCall, CheckCircle2, Navigation, Bike, Bus,
+  Sparkles, Search, X, Loader2, ChevronRight, Shield, Check, Users,
   Truck, Phone, ExternalLink, ArrowUpDown, ChevronDown, CheckCircle,
   HelpCircle, UserCheck, AlertCircle, Send, Award, Compass, MessageSquare,
   Menu, Calendar, CalendarClock, MessageCircle, Copy
@@ -77,13 +77,13 @@ const FIGMA_SERVICES = [
     pillar: 'ride' as const,
   },
   {
-    id: 'agri-service',
-    title: 'Farm-to-Market Transport',
-    desc: 'Farm-to-market transport across Plateau State.',
-    cta: 'Book Haulage',
+    id: 'bus-service',
+    title: 'SwiftBus Charter',
+    desc: 'Order buses to convey people to any destination.',
+    cta: 'Book SwiftBus',
     bg: 'bg-[#181D2B] border border-[#FFB800]/40 hover:border-[#FFB800]',
     text: 'text-[#E8ECF2]',
-    badge: 'Agri Network',
+    badge: 'Group Travel',
     pillar: 'move' as const,
   },
 ];
@@ -511,7 +511,7 @@ export function SwiftMoveLanding() {
               activePillar === 'move' ? 'bg-[#FF5500] text-white shadow-xs font-bold' : 'hover:bg-white/5 hover:text-white'
             }`}
           >
-            Agri &amp; Business
+            SwiftBus
           </button>
           <button
             type="button"
@@ -638,9 +638,9 @@ export function SwiftMoveLanding() {
           >
             <span className="flex items-center gap-2.5">
               <span className="h-7 w-7 rounded-lg bg-[#FFB800]/20 text-[#FFB800] flex items-center justify-center">
-                <Truck className="h-4 w-4" />
+                <Bus className="h-4 w-4" />
               </span>
-              <span>Farm Produce &amp; Corporate Haulage</span>
+              <span>SwiftBus — Group Travel & Charter</span>
             </span>
             <ChevronRight className="h-4 w-4 text-[#8895A5]" />
           </button>
@@ -709,7 +709,7 @@ export function SwiftMoveLanding() {
               </h1>
 
               <p className="text-sm sm:text-base text-[#A3ADB8] leading-relaxed font-medium max-w-md mb-8">
-                On-demand rides, parcel delivery, and agri haulage — all in one platform.
+                On-demand rides, parcel delivery, and group bus charter — all in one platform.
               </p>
 
               {/* Trust badges */}
@@ -768,10 +768,10 @@ export function SwiftMoveLanding() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2.5 p-3 rounded-xl bg-white/[0.03] border border-white/10">
-                    <Truck className="h-5 w-5 text-[#FFB800] shrink-0" />
+                    <Bus className="h-5 w-5 text-[#FFB800] shrink-0" />
                     <div>
-                      <span className="text-xs font-bold text-white block">Agri Haulage</span>
-                      <span className="text-[10px] text-[#8895A5]">Farm-to-market</span>
+                      <span className="text-xs font-bold text-white block">SwiftBus</span>
+                      <span className="text-[10px] text-[#8895A5]">Group charter</span>
                     </div>
                   </div>
                 </div>
@@ -968,11 +968,11 @@ export function SwiftMoveLanding() {
         </div>
       </section>
 
-      {/* ── 6. FIGMA AGRI HAULAGE SPOTLIGHT BANNER ─────────────────────── */}
+      {/* ── 6. SWIFTBUS GROUP CHARTER SPOTLIGHT BANNER ────────────────────── */}
       <section className="relative overflow-hidden min-h-[500px] flex items-center py-20 border-y border-white/10">
         <img
-          src="https://images.unsplash.com/photo-1562853998-55eadbffb586?w=1600&h=600&fit=crop&auto=format"
-          alt="Fresh agricultural produce for market"
+          src="https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=1600&h=600&fit=crop&auto=format"
+          alt="Comfortable group travel bus charter service"
           className="absolute inset-0 w-full h-full object-cover filter brightness-75 contrast-125"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-[#0A0D14] via-[#0A0D14]/90 to-transparent" />
@@ -980,13 +980,13 @@ export function SwiftMoveLanding() {
         <div className="relative z-10 px-8 md:px-16 max-w-6xl mx-auto w-full">
           <div className="max-w-xl">
             <span className="inline-block px-3 py-1 bg-[#FFB800]/20 border border-[#FFB800]/40 text-[#FFB800] text-xs font-black uppercase tracking-wider rounded mb-4">
-              Plateau Agricultural Network
+              SwiftBus Charter Network
             </span>
             <h2 className="font-[Barlow_Condensed,sans-serif] text-4xl sm:text-6xl font-black uppercase tracking-tight text-white leading-tight mb-4">
-              Plateau Agricultural Haulage
+              SwiftBus Group Travel
             </h2>
             <p className="text-sm text-[#E8ECF2] leading-relaxed mb-8 font-medium">
-              Farm-to-market bulk logistics across Plateau State, at competitive rates.
+              Order 14 to 50-seater buses to convey people to any destination — weddings, excursions, church trips, conferences, and more.
             </p>
             <button
               type="button"
@@ -997,7 +997,7 @@ export function SwiftMoveLanding() {
               }}
               className="px-8 py-4 bg-[#FFB800] hover:bg-[#e6a600] text-[#0A0D14] font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-xl hover:scale-105 active:scale-95 cursor-pointer"
             >
-              Book Agri Haulage Today
+              Book SwiftBus Today
             </button>
           </div>
         </div>
@@ -1075,7 +1075,7 @@ export function SwiftMoveLanding() {
               </div>
 
               <p className="text-xs text-[#8895A5] leading-relaxed max-w-sm">
-                Empowering urban mobility and agricultural supply chains across Plateau State, Nigeria.
+                Empowering urban mobility and group travel conveyance across Plateau State, Nigeria.
               </p>
 
               <div className="pt-2 flex flex-col gap-2">
@@ -1133,7 +1133,7 @@ export function SwiftMoveLanding() {
                     }}
                     className="block text-left text-[#8895A5] hover:text-[#FF5500] transition-colors py-0.5 cursor-pointer"
                   >
-                    Farm Produce Haulage
+                    SwiftBus Group Charter
                   </button>
                 </li>
                 <li>
@@ -1206,7 +1206,7 @@ export function SwiftMoveLanding() {
                     }}
                     className="block text-left text-[#8895A5] hover:text-[#FF5500] transition-colors py-0.5 cursor-pointer"
                   >
-                    Heavy Cargo Haulage Trucks
+                    SwiftBus Charter Buses
                   </button>
                 </li>
               </ul>
@@ -1466,8 +1466,8 @@ export function SwiftMoveLanding() {
               activePillar === 'move' ? 'text-[#FF5500] bg-[#FF5500]/15' : 'text-[#8895A5]'
             }`}
           >
-            <Truck className={`h-[18px] w-[18px] mb-0.5 ${activePillar === 'move' ? 'text-[#FF5500]' : 'text-[#8895A5]'}`} />
-            <span className="text-[10px] leading-tight font-black">Agri</span>
+            <Bus className={`h-[18px] w-[18px] mb-0.5 ${activePillar === 'move' ? 'text-[#FF5500]' : 'text-[#8895A5]'}`} />
+            <span className="text-[10px] leading-tight font-black">Bus</span>
           </button>
         </div>
       </div>

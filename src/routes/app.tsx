@@ -5,6 +5,8 @@ import {
   Package,
   Radio,
   Building2,
+  Bus,
+  Users,
   MapPin,
   Clock,
   ShieldCheck,
@@ -36,6 +38,7 @@ import {
   Sliders,
   DollarSign,
   Fuel,
+  MessageCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { InteractiveMap, MapDriverPoint } from '@/components/InteractiveMap';
@@ -47,6 +50,8 @@ import { JOS_LOCATIONS, resolveJosLocation, LocationSuggestion } from '@/lib/loc
 import { calculateGoogleRoute, haversineKm } from '@/lib/google-maps-client';
 import { encodeRideMetadata, encodeDispatchMetadata, parseOrderMetadata } from '@/lib/swift-order';
 import { calculateDeliveryPrice } from '@/lib/swift-pricing';
+import { SWIFTBUS_TIERS, type SwiftBusTier, buildSwiftBusWhatsAppBooking } from '@/lib/swiftmove-design';
+import { calculateBusFare } from '@/lib/ride-pricing';
 
 export const Route = createFileRoute('/app')({
   // Role-routing guard: after Google OAuth redirects back to /app,
@@ -108,9 +113,11 @@ export const Route = createFileRoute('/app')({
   component: SwiftMoveAppPage,
 });
 
-type AppPillar = 'ride' | 'send' | 'track' | 'agri';
+type AppPillar = 'ride' | 'send' | 'track' | 'bus' | 'agri';
 type RideTier = 'keke' | 'sedan' | 'executive';
 type CourierMode = 'bike' | 'van';
+type BusTripMode = 'one_way' | 'round_trip' | 'day_charter';
+type BusPurpose = 'wedding_event' | 'religious' | 'school' | 'corporate' | 'family' | 'interstate' | 'general';
 type CargoType = 'potatoes' | 'vegetables' | 'grains' | 'wholesale' | 'heavy';
 type TruckType = 'pickup' | 'canter' | 'heavy';
 
@@ -279,12 +286,22 @@ function SwiftMoveAppPage() {
   const [recipientName, setRecipientName] = useState('');
   const [recipientPhone, setRecipientPhone] = useState('');
 
-  // ── AGRI & FREIGHT STATE ────────────────────────────────────────────────
-  const [cargoType, setCargoType] = useState<CargoType>('potatoes');
-  const [truckType, setTruckType] = useState<TruckType>('canter');
-  const [cargoWeightTons, setCargoWeightTons] = useState<number>(5);
-  const [originDepot, setOriginDepot] = useState('Bokkos Farm Depot, Plateau State');
-  const [destinationMarket, setDestinationMarket] = useState('Katako Market, Jos North');
+  // ── SWIFTBUS CHARTER & GROUP CONVEYANCE STATE ───────────────────────────
+  const [busTierId, setBusTierId] = useState<'hiace' | 'coaster' | 'coach'>('hiace');
+  const [busTripMode, setBusTripMode] = useState<BusTripMode>('one_way');
+  const [busPassengers, setBusPassengers] = useState<number>(14);
+  const [busPurpose, setBusPurpose] = useState<BusPurpose>('wedding_event');
+  const [busDepartureDate, setBusDepartureDate] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().split('T')[0];
+  });
+  const [busDepartureTime, setBusDepartureTime] = useState<string>('08:00');
+  const [busOrigin, setBusOrigin] = useState('Jos Main Market / Terminus, Plateau State');
+  const [busDestination, setBusDestination] = useState('Rayfield Resort & Gardens, Jos South');
+  const [busContactName, setBusContactName] = useState('');
+  const [busContactPhone, setBusContactPhone] = useState('');
+  const [busSpecialNotes, setBusSpecialNotes] = useState('');
 
   // ── TRACKING RADAR STATE ────────────────────────────────────────────────
   const [trackingCode, setTrackingCode] = useState('');
@@ -426,12 +443,10 @@ function SwiftMoveAppPage() {
     }
   }, [distanceKm, courierMode, packageWeight]);
 
-  const agriFreightFare = useMemo(() => {
-    // Distance or flat estimation based on truck type
-    if (truckType === 'pickup') return 18000;
-    if (truckType === 'canter') return 42000;
-    return 95000;
-  }, [truckType]);
+  const busFare = useMemo(() => {
+    return calculateBusFare(busTierId, busTripMode, distanceKm);
+  }, [busTierId, busTripMode, distanceKm]);
+  const agriFreightFare = busFare;
 
   // Handle location swap
   const handleSwapLocations = () => {
@@ -616,28 +631,49 @@ function SwiftMoveAppPage() {
     }
   };
 
-  const handleBookAgriFreight = async (e: React.FormEvent) => {
+  const handleBookSwiftBus = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!busOrigin.trim()) {
+      toast.error('Please enter a pickup location for the bus');
+      return;
+    }
+    if (!busDestination.trim()) {
+      toast.error('Please enter a destination for the bus trip');
+      return;
+    }
     setIsSubmitting(true);
-    const refCode = `AGRI-${Math.floor(100000 + Math.random() * 900000)}`;
-    const randomDriver = drivers.find((d) => d.vehicleType.toLowerCase().includes('van')) || drivers[4]!;
+    const refCode = `SBUS-${Math.floor(100000 + Math.random() * 900000)}`;
+    const selectedTier = SWIFTBUS_TIERS.find((t) => t.id === busTierId) || SWIFTBUS_TIERS[0];
+    const busCaptain: MapDriverPoint = {
+      id: 'bus-captain-1',
+      name: 'Garba Danladi (Bus Captain)',
+      lat: DEFAULT_JOS_CENTER.lat + 0.005,
+      lng: DEFAULT_JOS_CENTER.lng + 0.003,
+      bearing: 90,
+      vehicleType: selectedTier.name,
+      vehicleModel: selectedTier.sampleVehicles,
+      plateNumber: 'PLA-BUS-402',
+      phone: '07041626545',
+      rating: 4.95,
+    };
 
     setTimeout(() => {
       setIsSubmitting(false);
       setConfirmedBooking({
         id: refCode,
         reference: refCode,
-        pillar: 'agri',
-        tierName: `${truckType.toUpperCase()} Truck (${cargoType.toUpperCase()})`,
-        pickup: originDepot,
-        dropoff: destinationMarket,
-        fare: agriFreightFare,
-        etaMinutes: 25,
-        driver: randomDriver,
+        pillar: 'bus',
+        tierName: `${selectedTier.name} (${busPassengers} Passengers)`,
+        pickup: busOrigin,
+        dropoff: busDestination,
+        fare: busFare,
+        etaMinutes: 30,
+        driver: busCaptain,
       });
-      toast.success('Agricultural haulage request registered!');
+      toast.success('SwiftBus charter request registered successfully!');
     }, 600);
   };
+  const handleBookAgriFreight = handleBookSwiftBus;
 
   // ── TRACKING QUERY ──────────────────────────────────────────────────────
   const handleTrackOrder = async (queryInput?: string) => {
@@ -850,17 +886,17 @@ function SwiftMoveAppPage() {
               <button
                 type="button"
                 onClick={() => {
-                  setActivePillar('agri');
+                  setActivePillar('bus');
                   setMobileSheetOpen(true);
                 }}
                 className={`py-2 px-1 rounded-lg text-xs font-black transition-all flex flex-col sm:flex-row items-center justify-center gap-1 cursor-pointer ${
-                  activePillar === 'agri'
+                  activePillar === 'bus' || activePillar === 'agri'
                     ? 'bg-[#FF5500] text-white shadow-md shadow-[#FF5500]/25'
                     : 'text-[#8895A5] hover:text-white'
                 }`}
               >
-                <Building2 className="h-4 w-4 shrink-0" />
-                <span className="text-[11px] sm:text-xs">Agri</span>
+                <Bus className="h-4 w-4 shrink-0" />
+                <span className="text-[11px] sm:text-xs">SwiftBus</span>
               </button>
             </div>
           </div>
@@ -1397,121 +1433,240 @@ function SwiftMoveAppPage() {
             )}
 
             {/* ════════════════════════════════════════════════════════════ */}
-            {/* TAB 4: AGRI & FREIGHT (PLATEAU BULK HAULAGE)                */}
+            {/* TAB 4: SWIFTBUS — GROUP CONVEYANCE & CHARTER BUSES         */}
             {/* ════════════════════════════════════════════════════════════ */}
-            {activePillar === 'agri' && (
-              <form onSubmit={handleBookAgriFreight} className="space-y-4">
+            {(activePillar === 'bus' || activePillar === 'agri') && (
+              <form onSubmit={handleBookSwiftBus} className="space-y-4">
                 <div className="p-3 rounded-xl bg-gradient-to-r from-emerald-950/40 to-slate-900 border border-emerald-500/30">
                   <span className="text-[10px] font-black uppercase text-emerald-400 tracking-wider block mb-1">
-                    Plateau State Agricultural Logistics
+                    SwiftBus — Group Travel & Charter
                   </span>
                   <p className="text-xs text-slate-300">
-                    Direct bulk transport for Irish potatoes, grains, and produce from Bokkos &amp; Mangu to Jos distribution hubs.
+                    Order comfortable, air-conditioned buses to convey your group to any destination across Plateau State and Nigeria.
                   </p>
                 </div>
 
-                {/* Truck Size Selector */}
+                {/* Bus Tier Selector */}
                 <div>
-                  <label className="text-[10px] font-bold text-[#8895A5] block mb-1">Select Truck Capacity</label>
+                  <label className="text-[10px] font-bold text-[#8895A5] block mb-1">Select Bus Size</label>
                   <div className="grid grid-cols-3 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setTruckType('pickup')}
-                      className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
-                        truckType === 'pickup'
-                          ? 'bg-emerald-500/20 border-emerald-500 text-white'
-                          : 'bg-[#181D2B] border-white/10 text-[#8895A5]'
-                      }`}
-                    >
-                      <span className="text-lg block">🛻</span>
-                      <div className="text-xs font-black">1.5 Ton</div>
-                      <div className="text-[10px] text-emerald-400">₦18,000</div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setTruckType('canter')}
-                      className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
-                        truckType === 'canter'
-                          ? 'bg-emerald-500/20 border-emerald-500 text-white'
-                          : 'bg-[#181D2B] border-white/10 text-[#8895A5]'
-                      }`}
-                    >
-                      <span className="text-lg block">🚚</span>
-                      <div className="text-xs font-black">5 Ton Canter</div>
-                      <div className="text-[10px] text-emerald-400">₦42,000</div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setTruckType('heavy')}
-                      className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
-                        truckType === 'heavy'
-                          ? 'bg-emerald-500/20 border-emerald-500 text-white'
-                          : 'bg-[#181D2B] border-white/10 text-[#8895A5]'
-                      }`}
-                    >
-                      <span className="text-lg block">🚛</span>
-                      <div className="text-xs font-black">15 Ton Haulage</div>
-                      <div className="text-[10px] text-emerald-400">₦95,000</div>
-                    </button>
+                    {SWIFTBUS_TIERS.map((tier) => (
+                      <button
+                        key={tier.id}
+                        type="button"
+                        onClick={() => {
+                          setBusTierId(tier.id);
+                          setBusPassengers(tier.capacity);
+                        }}
+                        className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
+                          busTierId === tier.id
+                            ? 'bg-emerald-500/20 border-emerald-500 text-white'
+                            : 'bg-[#181D2B] border-white/10 text-[#8895A5]'
+                        }`}
+                      >
+                        <span className="text-lg block">{tier.icon}</span>
+                        <div className="text-[10px] font-black leading-tight">{tier.seatsText}</div>
+                        <div className="text-[10px] text-emerald-400">from ₦{tier.baseFare.toLocaleString()}</div>
+                      </button>
+                    ))}
                   </div>
                 </div>
 
-                {/* Produce Type & Weight */}
+                {/* Trip Mode */}
+                <div>
+                  <label className="text-[10px] font-bold text-[#8895A5] block mb-1">Trip Mode</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {([
+                      { id: 'one_way', label: 'One Way', icon: '→' },
+                      { id: 'round_trip', label: 'Return Trip', icon: '⇄' },
+                      { id: 'day_charter', label: 'Full Day', icon: '☀️' },
+                    ] as const).map((mode) => (
+                      <button
+                        key={mode.id}
+                        type="button"
+                        onClick={() => setBusTripMode(mode.id)}
+                        className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
+                          busTripMode === mode.id
+                            ? 'bg-emerald-500/20 border-emerald-500 text-white'
+                            : 'bg-[#181D2B] border-white/10 text-[#8895A5]'
+                        }`}
+                      >
+                        <span className="text-sm block">{mode.icon}</span>
+                        <div className="text-[10px] font-black">{mode.label}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Purpose & Passengers */}
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-[10px] font-bold text-[#8895A5] block mb-1">Produce / Cargo</label>
+                    <label className="text-[10px] font-bold text-[#8895A5] block mb-1">Purpose of Trip</label>
                     <select
-                      value={cargoType}
-                      onChange={(e: any) => setCargoType(e.target.value)}
+                      value={busPurpose}
+                      onChange={(e: any) => setBusPurpose(e.target.value)}
                       className="w-full px-2.5 py-2 rounded-xl bg-[#181D2B] border border-white/10 text-xs font-bold text-white focus:outline-hidden focus:border-emerald-500"
                     >
-                      <option value="potatoes">Irish Potatoes (Bokkos)</option>
-                      <option value="vegetables">Fresh Farm Vegetables</option>
-                      <option value="grains">Maize &amp; Grains (Mangu)</option>
-                      <option value="wholesale">Merchant Wholesale Goods</option>
-                      <option value="heavy">Industrial Hardware</option>
+                      <option value="wedding_event">Wedding / Event</option>
+                      <option value="religious">Religious Trip (Mosque/Church)</option>
+                      <option value="school">School Excursion</option>
+                      <option value="corporate">Corporate / Conference</option>
+                      <option value="family">Family Travel</option>
+                      <option value="interstate">Inter-State Travel</option>
+                      <option value="general">General Group Travel</option>
                     </select>
                   </div>
-
                   <div>
-                    <label className="text-[10px] font-bold text-[#8895A5] block mb-1">Origin Farm / Depot</label>
+                    <label className="text-[10px] font-bold text-[#8895A5] block mb-1">No. of Passengers</label>
                     <input
-                      type="text"
-                      value={originDepot}
-                      onChange={(e) => setOriginDepot(e.target.value)}
+                      type="number"
+                      min={1}
+                      max={60}
+                      value={busPassengers}
+                      onChange={(e) => setBusPassengers(Number(e.target.value) || 14)}
                       className="w-full px-2.5 py-2 rounded-xl bg-[#181D2B] border border-white/10 text-xs font-bold text-white focus:outline-hidden focus:border-emerald-500"
                     />
                   </div>
                 </div>
 
+                {/* Departure Date & Time */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold text-[#8895A5] block mb-1">Departure Date</label>
+                    <input
+                      type="date"
+                      value={busDepartureDate}
+                      onChange={(e) => setBusDepartureDate(e.target.value)}
+                      className="w-full px-2.5 py-2 rounded-xl bg-[#181D2B] border border-white/10 text-xs font-bold text-white focus:outline-hidden focus:border-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-[#8895A5] block mb-1">Departure Time</label>
+                    <input
+                      type="time"
+                      value={busDepartureTime}
+                      onChange={(e) => setBusDepartureTime(e.target.value)}
+                      className="w-full px-2.5 py-2 rounded-xl bg-[#181D2B] border border-white/10 text-xs font-bold text-white focus:outline-hidden focus:border-emerald-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Pickup & Destination */}
                 <div>
-                  <label className="text-[10px] font-bold text-[#8895A5] block mb-1">Destination Market</label>
+                  <label className="text-[10px] font-bold text-[#8895A5] block mb-1">Pickup Location</label>
                   <input
                     type="text"
-                    value={destinationMarket}
-                    onChange={(e) => setDestinationMarket(e.target.value)}
+                    value={busOrigin}
+                    onChange={(e) => setBusOrigin(e.target.value)}
+                    placeholder="e.g. Jos Main Market, Terminus"
+                    className="w-full px-2.5 py-2 rounded-xl bg-[#181D2B] border border-white/10 text-xs font-bold text-white focus:outline-hidden focus:border-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-[#8895A5] block mb-1">Destination</label>
+                  <input
+                    type="text"
+                    value={busDestination}
+                    onChange={(e) => setBusDestination(e.target.value)}
+                    placeholder="e.g. Abuja, Kaduna, Rayfield Resort"
                     className="w-full px-2.5 py-2 rounded-xl bg-[#181D2B] border border-white/10 text-xs font-bold text-white focus:outline-hidden focus:border-emerald-500"
                   />
                 </div>
 
-                {/* Submit Agri Freight */}
+                {/* Contact Details */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold text-[#8895A5] block mb-1">Contact Person</label>
+                    <input
+                      type="text"
+                      value={busContactName}
+                      onChange={(e) => setBusContactName(e.target.value)}
+                      placeholder="Your full name"
+                      className="w-full px-2.5 py-2 rounded-xl bg-[#181D2B] border border-white/10 text-xs font-bold text-white focus:outline-hidden focus:border-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-[#8895A5] block mb-1">Phone Number</label>
+                    <input
+                      type="tel"
+                      value={busContactPhone}
+                      onChange={(e) => setBusContactPhone(e.target.value)}
+                      placeholder="08012345678"
+                      className="w-full px-2.5 py-2 rounded-xl bg-[#181D2B] border border-white/10 text-xs font-bold text-white focus:outline-hidden focus:border-emerald-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Special Notes */}
+                <div>
+                  <label className="text-[10px] font-bold text-[#8895A5] block mb-1">Special Requests (Optional)</label>
+                  <textarea
+                    value={busSpecialNotes}
+                    onChange={(e) => setBusSpecialNotes(e.target.value)}
+                    placeholder="e.g. Need PA system, extra luggage space, wheelchair access..."
+                    rows={2}
+                    className="w-full px-2.5 py-2 rounded-xl bg-[#181D2B] border border-white/10 text-xs font-bold text-white focus:outline-hidden focus:border-emerald-500 resize-none"
+                  />
+                </div>
+
+                {/* Fare Summary */}
+                <div className="p-3 rounded-xl bg-[#0A0D14] border border-emerald-500/20 space-y-1">
+                  <div className="flex justify-between text-[10px] text-[#8895A5]">
+                    <span>Bus Type:</span>
+                    <span className="text-white font-bold">{SWIFTBUS_TIERS.find(t => t.id === busTierId)?.name || 'Mini Bus'}</span>
+                  </div>
+                  <div className="flex justify-between text-[10px] text-[#8895A5]">
+                    <span>Trip Mode:</span>
+                    <span className="text-white font-bold">{busTripMode === 'one_way' ? 'One Way' : busTripMode === 'round_trip' ? 'Return Trip' : 'Full Day Charter'}</span>
+                  </div>
+                  <div className="flex justify-between text-xs text-emerald-400 font-black pt-1 border-t border-white/10">
+                    <span>Estimated Fare:</span>
+                    <span>₦{busFare.toLocaleString()}</span>
+                  </div>
+                </div>
+
+                {/* Submit SwiftBus Booking */}
                 <button
                   type="submit"
                   disabled={isSubmitting}
                   className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-sm uppercase tracking-wider shadow-xl shadow-emerald-600/30 transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   {isSubmitting ? (
-                    <span>Assigning Freight Logistics...</span>
+                    <span>Booking SwiftBus Charter...</span>
                   ) : (
                     <>
-                      <span>Book Farm Freight</span>
-                      <span className="font-[Barlow_Condensed,sans-serif] text-base">₦{agriFreightFare.toLocaleString()}</span>
+                      <Bus className="h-4 w-4" />
+                      <span>Book SwiftBus</span>
+                      <span className="font-[Barlow_Condensed,sans-serif] text-base">₦{busFare.toLocaleString()}</span>
                       <ArrowRight className="h-4 w-4 ml-1" />
                     </>
                   )}
                 </button>
+
+                {/* WhatsApp Booking Confirmation Link */}
+                <a
+                  href={buildSwiftBusWhatsAppBooking({
+                    bookingId: `SBUS-PREVIEW`,
+                    busType: SWIFTBUS_TIERS.find(t => t.id === busTierId)?.name || 'Mini Bus',
+                    passengers: busPassengers,
+                    tripType: busTripMode === 'one_way' ? 'One Way' : busTripMode === 'round_trip' ? 'Return Trip' : 'Full Day Charter',
+                    purpose: busPurpose.replace(/_/g, ' '),
+                    pickupLocation: busOrigin,
+                    destination: busDestination,
+                    departureDate: busDepartureDate,
+                    departureTime: busDepartureTime,
+                    contactName: busContactName || 'Customer',
+                    contactPhone: busContactPhone || '—',
+                    estimatedFare: busFare,
+                    notes: busSpecialNotes || undefined,
+                  })}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-3 px-4 rounded-xl bg-[#25D366]/20 border border-[#25D366]/40 hover:bg-[#25D366]/30 text-[#25D366] font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  <span>Confirm via WhatsApp</span>
+                </a>
               </form>
             )}
           </div>
