@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
-import { Eye, EyeOff, Info, UserCheck, Truck, ArrowLeft } from "lucide-react";
+import { Eye, EyeOff, Info, UserCheck, Truck, ArrowLeft, AlertTriangle } from "lucide-react";
 import { isSwiftmoveDomain } from "@/lib/domain-detection";
 import { detectPlatform } from "@/lib/platform-detection.server";
 import { resolveUserRoles } from "@/lib/admin-auth";
@@ -122,6 +122,7 @@ function AuthPage() {
   const [googleBusy, setGoogleBusy] = useState(false);
   const [registered, setRegistered] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [form, setForm] = useState({
     fullName: "",
     email: "",
@@ -134,42 +135,38 @@ function AuthPage() {
   const isSwift = checkIsSwift(redirectParam, platform, app);
 
   function setMode(m: "login" | "register" | "forgot") {
+    setFormError(null);
     navigate({ search: ((prev: any) => ({ ...prev, mode: m })) as any });
   }
 
   // ── Role-based navigation helper (shared by email login + Google OAuth return) ──
   async function navigateByRole(user: any) {
-    // 1. If explicit specific non-generic redirect provided (e.g. /cart, /admin/riders, NOT /my-swift-move), honor it!
     const isGenericTarget =
       !redirectParam ||
       redirectParam.includes('/auth') ||
       redirectParam === '/my-swift-move' ||
       redirectParam === '/my-barakah';
 
-    if (!isGenericTarget) {
-      navigate({ to: redirectParam as any });
-      return;
-    }
-
-    // 2. Resolve operational role destination
     const { roles, isSuperAdmin } = await resolveUserRoles(user);
-    if (isSuperAdmin || roles.includes('administrator') || roles.includes('admin') || roles.includes('swift_manager')) {
-      navigate({ to: '/admin' as any });
-      return;
+
+    let target = '/my-swift-move';
+    if (!isGenericTarget && redirectParam) {
+      target = redirectParam;
+    } else if (isSuperAdmin || roles.includes('administrator') || roles.includes('admin') || roles.includes('swift_manager')) {
+      target = '/admin';
+    } else if (roles.includes('swift_dispatcher') || roles.includes('dispatcher')) {
+      target = '/dispatcher';
+    } else if (roles.includes('driver') || roles.includes('dispatch_rider')) {
+      target = '/drive';
+    } else {
+      target = isSwift ? '/my-swift-move' : '/my-barakah';
     }
 
-    if (roles.includes('swift_dispatcher') || roles.includes('dispatcher')) {
-      navigate({ to: '/dispatcher' as any });
-      return;
+    if (typeof window !== 'undefined') {
+      window.location.href = target;
+    } else {
+      navigate({ to: target as any });
     }
-
-    if (roles.includes('driver') || roles.includes('dispatch_rider')) {
-      navigate({ to: '/drive' as any });
-      return;
-    }
-
-    // 3. Fallback for regular customers
-    navigate({ to: (isSwift ? '/my-swift-move' : '/my-barakah') as any });
   }
 
   // ── Catch OAuth return: if user lands back on /auth with code or session ───
@@ -272,6 +269,7 @@ function AuthPage() {
       return;
     }
     setBusy(true);
+    setFormError(null);
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email: parsed.data.email,
@@ -302,7 +300,9 @@ function AuthPage() {
         }
 
         setBusy(false);
-        return void toast.error(error.message || "Invalid email or password.");
+        const msg = error.message || "Invalid email or password.";
+        setFormError(msg);
+        return void toast.error(msg);
       }
 
       toast.success("Welcome back!");
@@ -310,7 +310,9 @@ function AuthPage() {
       await navigateByRole(data.user);
     } catch (err: any) {
       setBusy(false);
-      toast.error(err?.message || "Something went wrong. Please try again.");
+      const msg = err?.message || "Something went wrong. Please try again.";
+      setFormError(msg);
+      toast.error(msg);
     }
   }
 
@@ -536,6 +538,12 @@ function AuthPage() {
             }
             className="space-y-4"
           >
+            {formError && (
+              <div className="p-3.5 rounded-xl bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-semibold flex items-center gap-2.5">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-red-400" />
+                <span>{formError}</span>
+              </div>
+            )}
             {mode === "register" && (
               <>
                 <div>
