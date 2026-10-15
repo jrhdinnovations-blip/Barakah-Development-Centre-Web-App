@@ -17,6 +17,9 @@ const searchSchema = z.object({
   redirect: z.string().optional(),
   platform: z.string().optional(),
   app: z.string().optional(),
+  code: z.string().optional(),
+  error: z.string().optional(),
+  error_description: z.string().optional(),
 });
 
 function checkIsSwift(redirectParam?: string, platform?: string, app?: string): boolean {
@@ -169,10 +172,35 @@ function AuthPage() {
     navigate({ to: (isSwift ? '/my-swift-move' : '/my-barakah') as any });
   }
 
-  // ── Catch OAuth return: if user lands back on /auth already signed in ───
-  // (happens when Supabase uses the site URL fallback instead of /app)
+  // ── Catch OAuth return: if user lands back on /auth with code or session ───
   useEffect(() => {
     let active = true;
+
+    // Check query params for OAuth errors or code exchange
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const authError = urlParams.get("error_description") || urlParams.get("error");
+      if (authError) {
+        toast.error(`Authentication error: ${authError}`);
+        setGoogleBusy(false);
+      }
+
+      const authCode = urlParams.get("code");
+      if (authCode) {
+        setGoogleBusy(true);
+        supabase.auth.exchangeCodeForSession(authCode).then(({ data, error }) => {
+          if (!active) return;
+          setGoogleBusy(false);
+          if (error) {
+            console.error("Exchange code error:", error);
+            toast.error(`Google sign-in error: ${error.message}`);
+          } else if (data?.session?.user) {
+            toast.success("Signed in with Google successfully!");
+            navigateByRole(data.session.user);
+          }
+        });
+      }
+    }
 
     // Check if session is already present (e.g. token in localStorage or hash parsed)
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -210,6 +238,10 @@ function AuthPage() {
         provider: "google",
         options: {
           redirectTo,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'select_account',
+          },
         },
       });
 
@@ -245,7 +277,30 @@ function AuthPage() {
         email: parsed.data.email,
         password: parsed.data.password,
       });
+
       if (error) {
+        // If account is unconfirmed, auto-confirm via server function and retry immediately
+        if (error.message?.toLowerCase().includes("email not confirmed")) {
+          try {
+            const { publicAutoConfirmUserServerFn } = await import("@/lib/auth.functions");
+            await publicAutoConfirmUserServerFn({ data: { email: parsed.data.email } });
+
+            const retry = await supabase.auth.signInWithPassword({
+              email: parsed.data.email,
+              password: parsed.data.password,
+            });
+
+            if (!retry.error && retry.data?.user) {
+              toast.success("Welcome back!");
+              setBusy(false);
+              await navigateByRole(retry.data.user);
+              return;
+            }
+          } catch (autoErr) {
+            console.error("Auto-confirm retry error:", autoErr);
+          }
+        }
+
         setBusy(false);
         return void toast.error(error.message || "Invalid email or password.");
       }
@@ -289,34 +344,22 @@ function AuthPage() {
       return;
     }
 
-    const defaultAfterSignup = isSwift ? "/my-swift-move" : "/my-barakah";
-    const redirectUrl = `${window.location.origin}${isSwift ? "/my-swift-move" : (redirectParam || defaultAfterSignup)}`;
-
-    const { data: signUpData, error } = await supabase.auth.signUp({
-      email: parsed.data.email,
-      password: parsed.data.password,
-      options: {
-        emailRedirectTo: redirectUrl,
+    try {
+      // 1. Create or auto-confirm user through the server function with email_confirm: true
+      const { publicRegisterUserServerFn } = await import("@/lib/auth.functions");
+      const regRes = await publicRegisterUserServerFn({
         data: {
-          full_name: parsed.data.fullName,
-          phone: parsed.data.phone,
-          location: parsed.data.location,
-          role: "registered_user",
-          consent_given: true,
+          email: parsed.data.email,
+          password: parsed.data.password,
+          fullName: parsed.data.fullName,
+          phone: parsed.data.phone || undefined,
+          location: parsed.data.location || undefined,
           platform: isSwift ? "swiftmove" : "barakah",
         },
-      },
-    });
+      });
 
-    if (error) {
-      const errMsg = (error.message || "").toLowerCase();
-      // If the user is already registered (e.g. admin or customer trying to register existing account):
-      if (
-        errMsg.includes("already registered") ||
-        errMsg.includes("already exists") ||
-        errMsg.includes("user already")
-      ) {
-        // Automatically attempt sign in with the provided password!
+      if (!regRes.ok && regRes.error === "already_registered") {
+        // User already registered and confirmed — attempt sign in
         const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
           email: parsed.data.email,
           password: parsed.data.password,
@@ -329,44 +372,66 @@ function AuthPage() {
           return;
         }
 
-        // If the password provided doesn't match:
         setBusy(false);
         toast.info("This account is already registered. Please sign in with your password.");
         setMode("login");
         return;
       }
 
-      setBusy(false);
-      return void toast.error(error.message);
-    }
-
-    // Check if Supabase returned a user with empty identities (meaning already registered with email confirmation enabled)
-    if (signUpData?.user && (!signUpData.user.identities || signUpData.user.identities.length === 0)) {
+      // 2. Immediate client-side sign in with the new credentials
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email: parsed.data.email,
         password: parsed.data.password,
       });
 
-      if (!signInError && signInData?.user) {
+      if (signInError) {
         setBusy(false);
-        toast.success("Account already exists — signed in successfully!");
-        await navigateByRole(signInData.user);
+        toast.error(signInError.message);
         return;
       }
 
       setBusy(false);
-      toast.info("This account is already registered. Please sign in with your password.");
-      setMode("login");
+      toast.success(isSwift ? "Welcome to SwiftMove! Account created successfully." : "Welcome! Account created successfully.");
+      await navigateByRole(signInData.user);
       return;
-    }
+    } catch (err: any) {
+      console.warn("Server registration failed, falling back to client signup:", err);
 
-    setBusy(false);
-    if (signUpData?.session) {
-      toast.success("Account created successfully!");
-      await navigateByRole(signUpData.session.user);
-      return;
+      // Fallback to client-side signup
+      const defaultAfterSignup = isSwift ? "/my-swift-move" : "/my-barakah";
+      const redirectUrl = `${window.location.origin}${isSwift ? "/my-swift-move" : (redirectParam || defaultAfterSignup)}`;
+
+      const { data: signUpData, error } = await supabase.auth.signUp({
+        email: parsed.data.email,
+        password: parsed.data.password,
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: {
+            full_name: parsed.data.fullName,
+            phone: parsed.data.phone,
+            location: parsed.data.location,
+            role: "registered_user",
+            consent_given: true,
+            platform: isSwift ? "swiftmove" : "barakah",
+          },
+        },
+      });
+
+      if (error) {
+        setBusy(false);
+        return void toast.error(error.message);
+      }
+
+      if (signUpData?.session) {
+        setBusy(false);
+        toast.success("Account created successfully!");
+        await navigateByRole(signUpData.session.user);
+        return;
+      }
+
+      setBusy(false);
+      setRegistered(true);
     }
-    setRegistered(true);
   }
 
   async function handleForgot(e: React.FormEvent) {
