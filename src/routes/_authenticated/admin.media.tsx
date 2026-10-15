@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { requireAdminRouteAccess } from '@/lib/admin-auth';
 import { ensureMediaBucketExists } from '@/lib/admin.functions';
@@ -16,6 +16,12 @@ export const Route = createFileRoute('/_authenticated/admin/media')({
   beforeLoad: async () => {
     await requireAdminRouteAccess();
   },
+  head: () => ({
+    meta: [
+      { title: 'Media Library — SwiftMove Admin' },
+      { name: 'robots', content: 'noindex' },
+    ],
+  }),
   component: AdminMediaLibrary,
 });
 

@@ -16,7 +16,7 @@ export const Route = createFileRoute('/_authenticated/admin/riders/add')({
   },
   head: () => ({
     meta: [
-      { title: isSwiftmoveDomain() ? 'Onboard Fleet Personnel — SwiftMove Admin' : 'Onboard Fleet Personnel — Barakah Admin' },
+      { title: 'Onboard Fleet Personnel — SwiftMove Admin' },
       { name: 'robots', content: 'noindex' },
     ],
   }),

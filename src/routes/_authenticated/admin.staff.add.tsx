@@ -51,7 +51,7 @@ export const Route = createFileRoute('/_authenticated/admin/staff/add')({
   },
   head: () => ({
     meta: [
-      { title: 'Add Staff Member — Barakah Admin' },
+      { title: 'Add Staff Member — SwiftMove Admin' },
       { name: 'robots', content: 'noindex' },
     ],
   }),
@@ -292,7 +292,7 @@ function AddStaffAdminPage() {
 
     if (accountType === 'google') {
       creds = [
-        '=== Barakah Staff Access (Google Account) ===',
+        '=== SwiftMove Staff Access (Google Account) ===',
         `Employee: ${form.full_name}`,
         `Google Account: ${targetEmail}`,
         `Role: ${form.role}`,
@@ -304,7 +304,7 @@ function AddStaffAdminPage() {
       ].join('\n');
     } else {
       creds = [
-        '=== Barakah Staff Corporate Account ===',
+        '=== SwiftMove Staff Corporate Account ===',
         `Employee: ${form.full_name}`,
         `Official Email: ${targetEmail}`,
         `Temporary Password: ${form.password}`,
@@ -458,7 +458,7 @@ function AddStaffAdminPage() {
               Add Staff Member
             </h1>
             <p className="text-slate-400 text-sm mt-1">
-              Onboard a new employee or team member to Barakah Development Centre.
+              Onboard a new employee or team member to SwiftMove Logistics.
             </p>
           </div>
         </div>
@@ -510,7 +510,7 @@ function AddStaffAdminPage() {
                   <span className="text-xs font-bold text-white">Company Mailbox</span>
                 </div>
                 <p className="text-[11px] text-slate-400 leading-tight">
-                  Official @barakahdevcentre.com email with password.
+                  Official company email with login password.
                 </p>
               </button>
 

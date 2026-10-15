@@ -42,7 +42,7 @@ export const Route = createFileRoute('/_authenticated/admin/staff/')({
   },
   head: () => ({
     meta: [
-      { title: isSwiftmoveDomain() ? 'All Staff — SwiftMove Admin' : 'All Staff — Barakah Admin' },
+      { title: 'All Staff — SwiftMove Admin' },
       { name: 'robots', content: 'noindex' },
     ],
   }),

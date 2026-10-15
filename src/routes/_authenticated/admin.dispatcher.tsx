@@ -4,6 +4,9 @@ import { requireRoleAccess, ADMIN_ROLES, DISPATCHER_ROLES } from '@/lib/admin-au
 
 export const Route = createFileRoute('/_authenticated/admin/dispatcher')({
   ssr: false,
+  head: () => ({
+    meta: [{ title: 'Dispatcher Operations — SwiftMove Admin' }],
+  }),
   beforeLoad: async () => {
     await requireRoleAccess([...ADMIN_ROLES, ...DISPATCHER_ROLES]);
   },

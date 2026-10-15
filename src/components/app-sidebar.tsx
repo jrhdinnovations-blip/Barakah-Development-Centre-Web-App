@@ -705,8 +705,11 @@ export function AppSidebar({ className = "" }: SidebarProps) {
     const roles = auth?.roles ?? [];
     const config = getRoleConfig(role, user, currentPath, roles);
 
-    const displayName =
+    const rawDisplayName =
         user?.user_metadata?.full_name || user?.email || "User";
+    const displayName = rawDisplayName.toLowerCase().includes("barakah")
+        ? "SwiftMove Admin"
+        : rawDisplayName;
     const initials = displayName
         .split(" ")
         .map((n: string) => n[0])

@@ -205,7 +205,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       p.startsWith("/vehicle") ||
       p.startsWith("/dispatcher") ||
       p.startsWith("/my-swift") ||
-      p.startsWith("/my-vehicle");
+      p.startsWith("/my-vehicle") ||
+      p.startsWith("/admin");
     const isSwift = isSwiftRoute || isSwiftmoveDomain();
     return {
       meta: [
@@ -365,6 +366,7 @@ function RootComponent() {
     pathname.startsWith("/dispatcher") ||
     pathname.startsWith("/my-swift") ||
     pathname.startsWith("/my-vehicle") ||
+    pathname.startsWith("/admin") ||
     (isSwiftDomain && pathname === "/history");
 
   const isSwiftmove = isSwiftDomain || isSwiftRoute;

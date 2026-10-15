@@ -48,6 +48,12 @@ export const Route = createFileRoute('/_authenticated/admin/')({
       throw redirect({ to: '/auth', search: { mode: 'login' } });
     }
   },
+  head: () => ({
+    meta: [
+      { title: 'SwiftMove Admin Dashboard — Operations Hub' },
+      { name: 'robots', content: 'noindex' },
+    ],
+  }),
   component: CentralAdminDashboard,
 });
 
@@ -617,39 +623,26 @@ function CentralAdminDashboard() {
       <div className="relative max-w-7xl mx-auto px-6 lg:px-10 py-8 lg:py-12 space-y-10">
 
         {/* ══ HEADER ══════════════════════════════════════════════════════════ */}
-        {(() => {
-          const isSwift = isSwiftmoveDomain();
-          return (
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-              <div className="space-y-2">
-                <div className="flex items-center gap-3">
-                  <div className={`relative h-12 w-12 rounded-2xl flex items-center justify-center shrink-0 border ${
-                    isSwift
-                      ? 'bg-gradient-to-br from-orange-600/30 to-amber-600/20 border-orange-500/30'
-                      : 'bg-gradient-to-br from-blue-600/30 to-purple-600/20 border-blue-500/30'
-                  }`}>
-                    {isSwift ? (
-                      <Zap className="h-6 w-6 text-orange-400" />
-                    ) : (
-                      <ShieldCheck className="h-6 w-6 text-blue-400" />
-                    )}
-                    <span className="absolute -top-1 -right-1 h-3.5 w-3.5 rounded-full bg-[#070b14] flex items-center justify-center">
-                      <span className={`h-2 w-2 rounded-full ${isRealtimeActive ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
-                    </span>
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">{greeting}</p>
-                    <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight leading-none">
-                      {isSwift ? 'SwiftMove Admin Dashboard' : 'Admin Dashboard'}
-                    </h1>
-                  </div>
-                </div>
-                <p className="text-[13px] text-slate-500 max-w-lg pl-1">
-                  {isSwift
-                    ? 'SwiftMove Logistics Operations Hub — monitor live deliveries, fleet activity, and dispatch in real time.'
-                    : 'Centralised operations hub — monitor live orders, manage your fleet, and oversee system access in real time.'}
-                </p>
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <div className="relative h-12 w-12 rounded-2xl flex items-center justify-center shrink-0 border bg-gradient-to-br from-orange-600/30 to-amber-600/20 border-orange-500/30">
+                <Zap className="h-6 w-6 text-orange-400" />
+                <span className="absolute -top-1 -right-1 h-3.5 w-3.5 rounded-full bg-[#070b14] flex items-center justify-center">
+                  <span className={`h-2 w-2 rounded-full ${isRealtimeActive ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                </span>
               </div>
+              <div>
+                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">{greeting}</p>
+                <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight leading-none">
+                  SwiftMove Admin Dashboard
+                </h1>
+              </div>
+            </div>
+            <p className="text-[13px] text-slate-500 max-w-lg pl-1">
+              SwiftMove Logistics Operations Hub — monitor live deliveries, fleet activity, and dispatch in real time.
+            </p>
+          </div>
 
               {/* Header actions */}
               <div className="flex flex-wrap items-center gap-2.5 shrink-0">
@@ -695,21 +688,19 @@ function CentralAdminDashboard() {
                 </Link>
 
                 {/* Customer App shortcut (SwiftMove) */}
-                {isSwift && (
-                  <Link
-                    to="/my-swift-move"
-                    className="flex items-center gap-2 h-10 px-3.5 rounded-xl bg-slate-900/80 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 hover:bg-slate-800 text-[12px] font-bold transition-all active:scale-95"
-                  >
-                    <Car className="h-3.5 w-3.5 text-emerald-400" />
-                    <span className="hidden sm:inline">Customer App</span>
-                  </Link>
-                )}
+                <Link
+                  to="/my-swift-move"
+                  className="flex items-center gap-2 h-10 px-3.5 rounded-xl bg-slate-900/80 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 hover:bg-slate-800 text-[12px] font-bold transition-all active:scale-95"
+                >
+                  <Car className="h-3.5 w-3.5 text-emerald-400" />
+                  <span className="hidden sm:inline">Customer App</span>
+                </Link>
 
                 {/* Sign Out */}
                 <button
                   onClick={async () => {
                     await supabase.auth.signOut();
-                    window.location.href = isSwift ? '/' : '/auth';
+                    window.location.href = '/swiftmove';
                   }}
                   className="h-10 px-3 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center gap-1.5 text-slate-400 hover:text-red-400 hover:border-red-500/30 hover:bg-slate-800 transition-all text-[12px] font-bold active:scale-95"
                   title="Sign Out"
@@ -719,8 +710,6 @@ function CentralAdminDashboard() {
                 </button>
               </div>
             </div>
-          );
-        })()}
 
         {/* ══ LOADING STATE ══════════════════════════════════════════════════ */}
         {isLoading && (
@@ -908,7 +897,7 @@ function CentralAdminDashboard() {
         <div className="flex items-center justify-between pt-4 border-t border-slate-800/40">
           <div className="flex items-center gap-2 text-[11px] text-slate-600">
             <Database className="h-3 w-3" />
-            <span>{isSwiftmoveDomain() ? 'SwiftMove' : 'Barakah Development Centre'} · Admin Console</span>
+            <span>SwiftMove · Admin Console</span>
           </div>
           <div className="text-[11px] text-slate-700 font-mono">
             Synced {lastSync.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

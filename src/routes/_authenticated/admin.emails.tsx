@@ -66,7 +66,7 @@ export const Route = createFileRoute('/_authenticated/admin/emails')({
   },
   head: () => ({
     meta: [
-      { title: 'Company Emails & Domains — Barakah Admin' },
+      { title: 'Company Emails & Domains — SwiftMove Admin' },
       { name: 'robots', content: 'noindex' },
     ],
   }),
@@ -95,7 +95,7 @@ function AdminCompanyEmailsPage() {
   const [newMailboxDomain, setNewMailboxDomain] = useState(() => getPrimaryCompanyDomain());
   const [newMailboxDept, setNewMailboxDept] = useState('Operations');
   const [newMailboxRole, setNewMailboxRole] = useState('Staff');
-  const [newMailboxPassword, setNewMailboxPassword] = useState('Barakah@' + new Date().getFullYear());
+  const [newMailboxPassword, setNewMailboxPassword] = useState('SwiftMove@' + new Date().getFullYear());
   const [newMailboxRecovery, setNewMailboxRecovery] = useState('');
   const [isSubmittingMailbox, setIsSubmittingMailbox] = useState(false);
 
@@ -520,7 +520,7 @@ function AdminCompanyEmailsPage() {
                                 size="sm"
                                 variant="ghost"
                                 onClick={() => {
-                                  const creds = `=== Barakah Staff Account ===\nEmployee: ${box.fullName}\nOfficial Email: ${box.email}\nDepartment: ${box.department}\nWebmail: https://mail.google.com\n============================`;
+                                  const creds = `=== SwiftMove Staff Account ===\nEmployee: ${box.fullName}\nOfficial Email: ${box.email}\nDepartment: ${box.department}\nWebmail: https://mail.google.com\n============================`;
                                   copyToClipboard(creds, `cred-${box.id}`);
                                 }}
                                 className="h-8 text-xs text-slate-300 hover:text-white"
@@ -654,7 +654,7 @@ function AdminCompanyEmailsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/60 font-mono">
-                    {getDnsRecordsForDomain(primaryDomain?.domain || 'barakah.ng', primaryDomain?.mailProvider || 'google_workspace').map((rec, i) => (
+                    {getDnsRecordsForDomain(primaryDomain?.domain || 'swiftmove.ng', primaryDomain?.mailProvider || 'google_workspace').map((rec, i) => (
                       <tr key={i} className="hover:bg-slate-900/40">
                         <td className="p-4">
                           <Badge variant="outline" className="bg-slate-800 text-slate-300 font-bold">
@@ -819,7 +819,7 @@ function AdminCompanyEmailsPage() {
               Add Corporate Email Domain
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-400">
-              Attach a new email domain for Barakah staff mailboxes.
+              Attach a new email domain for SwiftMove staff mailboxes.
             </DialogDescription>
           </DialogHeader>
 
@@ -831,7 +831,7 @@ function AdminCompanyEmailsPage() {
                 <Input
                   value={newDomainName}
                   onChange={(e) => setNewDomainName(e.target.value)}
-                  placeholder="barakahcentre.org"
+                  placeholder="swiftmove.ng"
                   className="pl-7 bg-slate-900 border-slate-700 h-10 font-mono text-xs"
                 />
               </div>

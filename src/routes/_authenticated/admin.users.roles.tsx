@@ -9,6 +9,9 @@ import { Input } from '@/components/ui/input';
 
 export const Route = createFileRoute('/_authenticated/admin/users/roles')({
   ssr: false,
+  head: () => ({
+    meta: [{ title: 'System Roles — SwiftMove Admin' }],
+  }),
   beforeLoad: async () => {
     await requireAdminRouteAccess();
   },

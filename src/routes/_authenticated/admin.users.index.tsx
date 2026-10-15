@@ -38,6 +38,9 @@ import { DirectoryTabs } from "@/components/admin/directory-tabs";
 
 export const Route = createFileRoute("/_authenticated/admin/users/")({
   ssr: false,
+  head: () => ({
+    meta: [{ title: "All Users — SwiftMove Admin" }],
+  }),
   beforeLoad: async () => {
     await requireAdminRouteAccess();
   },

@@ -728,9 +728,9 @@ function SwiftMoveAppPage() {
 
           {/* 24/7 Hotline Call */}
           <a
-            href="tel:+234800BARAKAH"
+            href="tel:07041626545"
             className="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-[#FF5500]/15 hover:bg-[#FF5500]/25 border border-[#FF5500]/30 text-xs font-bold text-[#FF5500] transition-all flex items-center gap-1.5"
-            title="Call Support Hotline"
+            title="Call Support Hotline: 07041626545"
           >
             <PhoneCall className="h-4 w-4" />
             <span className="hidden md:inline">Hotline</span>

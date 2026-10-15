@@ -23,6 +23,9 @@ import { requireAdminRouteAccess, ADMIN_ROLES } from '@/lib/admin-auth';
 
 export const Route = createFileRoute('/_authenticated/admin/swift-move')({
   ssr: false,
+  head: () => ({
+    meta: [{ title: 'SwiftMove Operations Radar — SwiftMove Admin' }],
+  }),
   beforeLoad: async () => {
     await requireAdminRouteAccess(ADMIN_ROLES);
   },

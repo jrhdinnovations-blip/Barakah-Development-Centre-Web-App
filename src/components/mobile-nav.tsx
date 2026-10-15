@@ -26,7 +26,10 @@ export function MobileNav() {
     const roles = auth?.roles ?? [];
     const config = getRoleConfig(role, user, currentPath, roles);
 
-    const displayName = user?.user_metadata?.full_name || user?.email || 'User';
+    const rawDisplayName = user?.user_metadata?.full_name || user?.email || 'User';
+    const displayName = rawDisplayName.toLowerCase().includes('barakah')
+        ? 'SwiftMove Admin'
+        : rawDisplayName;
     const initials = displayName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
 
     const allItemPaths = config.sections.flatMap((s) => s.items.map((i) => i.path));
