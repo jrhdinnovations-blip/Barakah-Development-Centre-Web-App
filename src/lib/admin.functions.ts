@@ -212,8 +212,13 @@ export const createUserAdmin = createServerFn({ method: "POST" })
           login_method: data.login_method || "password",
         },
       };
-      if (data.login_method !== "google" && data.password) {
+      if (data.password) {
         createUserPayload.password = data.password;
+      } else {
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+        let r = '';
+        for (let i = 0; i < 8; i++) r += chars.charAt(Math.floor(Math.random() * chars.length));
+        createUserPayload.password = `Fleet@${r}!26`;
       }
 
       let authUser: any = null;
@@ -239,7 +244,7 @@ export const createUserAdmin = createServerFn({ method: "POST" })
                 ...createUserPayload.user_metadata,
               },
             };
-            if (data.login_method !== "google" && data.password) {
+            if (data.password) {
               updatePayload.password = data.password;
             }
             await supabaseAdmin.auth.admin.updateUserById(existing.id, updatePayload);
@@ -359,8 +364,13 @@ export const createStaffAdmin = createServerFn({ method: "POST" })
           login_method: data.login_method || "password",
         },
       };
-      if (data.login_method !== "google" && data.password) {
+      if (data.password) {
         createStaffPayload.password = data.password;
+      } else {
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+        let r = '';
+        for (let i = 0; i < 8; i++) r += chars.charAt(Math.floor(Math.random() * chars.length));
+        createStaffPayload.password = `Staff@${r}!26`;
       }
 
       let authUser: any = null;
@@ -386,7 +396,7 @@ export const createStaffAdmin = createServerFn({ method: "POST" })
                 ...createStaffPayload.user_metadata,
               },
             };
-            if (data.login_method !== "google" && data.password) {
+            if (data.password) {
               updatePayload.password = data.password;
             }
             await supabaseAdmin.auth.admin.updateUserById(existing.id, updatePayload);

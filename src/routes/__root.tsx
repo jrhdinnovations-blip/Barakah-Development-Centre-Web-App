@@ -14,7 +14,6 @@ import { AlertTriangle, RefreshCw, LogIn, Home, RotateCcw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 import appCss from "../styles.css?url";
-import { reportLovableError } from "../lib/lovable-error-reporting";
 import { SiteHeader } from "@/components/site/Header";
 import { SiteFooter } from "@/components/site/Footer";
 import { SwiftmoveHeader } from "@/components/SwiftmoveHeader";
@@ -56,7 +55,6 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   const isChunkError = isChunkLoadError(error);
 
   useEffect(() => {
-    reportLovableError(error, { boundary: "tanstack_root_error_component" });
     if (isChunkError) {
       autoRecoverChunkError();
     }

@@ -36,18 +36,18 @@ function AddRiderPage() {
   const [showPass, setShowPass] = useState(false);
   const [done, setDone] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [loginMethod, setLoginMethod] = useState<'google' | 'password'>('google');
-  const [form, setForm] = useState({
+  const [loginMethod, setLoginMethod] = useState<'password' | 'google'>('password');
+  const [form, setForm] = useState(() => ({
     full_name: '',
     email: '',
     phone: '',
-    password: '',
+    password: generatePassword(),
     category: 'driver' as 'dispatch_rider' | 'driver',
     vehicle_type: 'Sedan',
     vehicle_make: '',
     plate_number: '',
     vehicle_color: 'Silver',
-  });
+  }));
 
   const handleCategorySelect = (category: 'dispatch_rider' | 'driver') => {
     setForm(prev => ({
@@ -189,7 +189,7 @@ function AddRiderPage() {
                   variant="outline"
                   className="border-slate-700 text-slate-300 hover:text-white text-xs gap-1.5"
                   onClick={() => {
-                    setForm({ full_name: '', email: '', phone: '', password: '', category: 'driver', vehicle_type: 'Sedan', vehicle_make: '', plate_number: '', vehicle_color: 'Silver' });
+                    setForm({ full_name: '', email: '', phone: '', password: generatePassword(), category: 'driver', vehicle_type: 'Sedan', vehicle_make: '', plate_number: '', vehicle_color: 'Silver' });
                     setDone(false);
                   }}
                 >
@@ -297,6 +297,23 @@ function AddRiderPage() {
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
+                onClick={() => setLoginMethod('password')}
+                className={`p-3 rounded-xl border text-left transition-all ${
+                  loginMethod === 'password'
+                    ? 'border-amber-500 bg-amber-500/10 ring-1 ring-amber-500/30'
+                    : 'border-slate-800 bg-slate-900/60 hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <Lock className="h-4 w-4 text-amber-400" />
+                  <span className="text-xs font-bold text-white">Password Account</span>
+                  <span className="text-[10px] bg-amber-500/20 text-amber-300 px-1.5 py-0.2 rounded font-semibold">Recommended</span>
+                </div>
+                <p className="text-[11px] text-slate-400">Direct email &amp; driver password</p>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setLoginMethod('google')}
                 className={`p-3 rounded-xl border text-left transition-all ${
                   loginMethod === 'google'
@@ -314,22 +331,6 @@ function AddRiderPage() {
                   <span className="text-xs font-bold text-white">Google Account</span>
                 </div>
                 <p className="text-[11px] text-slate-400">Sign in with Google OAuth</p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setLoginMethod('password')}
-                className={`p-3 rounded-xl border text-left transition-all ${
-                  loginMethod === 'password'
-                    ? 'border-amber-500 bg-amber-500/10 ring-1 ring-amber-500/30'
-                    : 'border-slate-800 bg-slate-900/60 hover:border-slate-700'
-                }`}
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <Lock className="h-4 w-4 text-amber-400" />
-                  <span className="text-xs font-bold text-white">Password Account</span>
-                </div>
-                <p className="text-[11px] text-slate-400">Email &amp; temporary password</p>
               </button>
             </div>
 
