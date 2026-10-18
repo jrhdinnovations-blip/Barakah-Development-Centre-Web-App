@@ -25,7 +25,10 @@ export function useAuth() {
 
         const userRoles = (roleRows || []).map((r: any) => r.role);
         const metaRole = user.user_metadata?.['role'] as string | undefined;
-        if (metaRole && !userRoles.includes(metaRole)) userRoles.push(metaRole);
+        const PRIVILEGED = ['administrator', 'admin', 'swift_manager', 'swift_dispatcher', 'dispatcher'];
+        if (metaRole && (!PRIVILEGED.includes(metaRole) || SUPER_ADMINS.includes(email)) && !userRoles.includes(metaRole)) {
+          userRoles.push(metaRole);
+        }
         const riderCat = (user.user_metadata?.['rider_category'] || user.user_metadata?.['category']) as string | undefined;
         if (riderCat && !userRoles.includes(riderCat)) userRoles.push(riderCat);
 
@@ -101,7 +104,10 @@ export function useAuth() {
         
         const userRoles = (roleRows || []).map((r: any) => r.role);
         const metaRole = currentUser.user_metadata?.['role'] as string | undefined;
-        if (metaRole && !userRoles.includes(metaRole)) userRoles.push(metaRole);
+        const PRIVILEGED = ['administrator', 'admin', 'swift_manager', 'swift_dispatcher', 'dispatcher'];
+        if (metaRole && (!PRIVILEGED.includes(metaRole) || SUPER_ADMINS.includes(email)) && !userRoles.includes(metaRole)) {
+          userRoles.push(metaRole);
+        }
         const riderCat = (currentUser.user_metadata?.['rider_category'] || currentUser.user_metadata?.['category']) as string | undefined;
         if (riderCat && !userRoles.includes(riderCat)) userRoles.push(riderCat);
 

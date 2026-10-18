@@ -3,6 +3,7 @@ import { LogOut, Radio, Shield, Truck, Package, Car, Clock, LayoutDashboard, Sea
 import { useAuth } from '@/hooks/use-auth';
 import { isSwiftmoveDomain } from '@/lib/domain-detection';
 import { SwiftmoveLogo } from '@/components/SwiftmoveLogo';
+import { SUPER_ADMIN_EMAILS } from '@/lib/admin-auth';
 
 export function SwiftmoveHeader() {
   const { user, role, logout } = useAuth();
@@ -34,7 +35,7 @@ export function SwiftmoveHeader() {
       role === 'admin' ||
       role === 'swift_manager' ||
       userMetaRole === 'administrator' ||
-      ['barakahdevcentre@gmail.com', 'barakahdevelopmentcentre@gmail.com'].includes(userEmail)
+      SUPER_ADMIN_EMAILS.includes(userEmail)
     );
 
   const isSwiftDomain = isSwiftmoveDomain();

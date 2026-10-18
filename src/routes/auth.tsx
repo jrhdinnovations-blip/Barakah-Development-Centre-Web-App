@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Eye, EyeOff, Info, UserCheck, Truck, ArrowLeft, AlertTriangle } from "lucide-react";
 import { isSwiftmoveDomain } from "@/lib/domain-detection";
 import { detectPlatform } from "@/lib/platform-detection.server";
-import { resolveUserRoles } from "@/lib/admin-auth";
+import { resolveUserRoles, SUPER_ADMIN_EMAILS } from "@/lib/admin-auth";
 
 
 const searchSchema = z.object({
@@ -325,7 +325,6 @@ function AuthPage() {
     }
     setBusy(true);
 
-    const SUPER_ADMIN_EMAILS = ['barakahdevcentre@gmail.com', 'barakahdevelopmentcentre@gmail.com'];
     if (SUPER_ADMIN_EMAILS.includes(parsed.data.email.toLowerCase())) {
       // The administrator already has an active account. Seamlessly authenticate:
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({

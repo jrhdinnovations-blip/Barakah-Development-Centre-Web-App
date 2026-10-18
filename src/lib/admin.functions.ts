@@ -2,11 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-
-const SUPER_ADMIN_EMAILS = [
-  "barakahdevcentre@gmail.com",
-  "barakahdevelopmentcentre@gmail.com",
-];
+import { SUPER_ADMIN_EMAILS } from "@/lib/admin-auth";
 
 async function checkAdminPermissions(supabase: any, userId: string, user?: any) {
   const email = user?.email?.toLowerCase();
@@ -14,16 +10,7 @@ async function checkAdminPermissions(supabase: any, userId: string, user?: any) 
     return { isAdmin: true, isManager: true, isDispatcher: true };
   }
 
-  const metaRole = user?.user_metadata?.['role'];
-  if (metaRole === "administrator" || metaRole === "admin") {
-    return { isAdmin: true, isManager: true, isDispatcher: true };
-  }
-  if (metaRole === "swift_manager") {
-    return { isAdmin: false, isManager: true, isDispatcher: true };
-  }
-  if (metaRole === "swift_dispatcher" || metaRole === "dispatcher") {
-    return { isAdmin: false, isManager: false, isDispatcher: true };
-  }
+  // For non-super-admins, permissions MUST come from the verified user_roles table, never untrusted metadata
 
   let rolesList: string[] = [];
 
@@ -1321,13 +1308,9 @@ export const ensureMediaBucketExists = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const { supabase, userId, user } = context;
 
-    // Lightweight admin check
-    const SUPER = ["barakahdevcentre@gmail.com", "barakahdevelopmentcentre@gmail.com"];
     const email = user?.email?.toLowerCase();
-    const isSuper = email && SUPER.includes(email);
-    const metaRole = user?.user_metadata?.["role"];
-    const isAdminMeta = ["administrator", "admin", "swift_manager"].includes(metaRole || "");
-    if (!isSuper && !isAdminMeta) {
+    const isSuper = email && SUPER_ADMIN_EMAILS.includes(email);
+    if (!isSuper) {
       const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
       const roleList = (roles || []).map((r: any) => r.role);
       if (!roleList.some((r: string) => ["administrator", "admin", "swift_manager"].includes(r))) {

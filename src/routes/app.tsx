@@ -52,6 +52,7 @@ import { encodeRideMetadata, encodeDispatchMetadata, parseOrderMetadata } from '
 import { calculateDeliveryPrice } from '@/lib/swift-pricing';
 import { SWIFTBUS_TIERS, type SwiftBusTier, buildSwiftBusWhatsAppBooking } from '@/lib/swiftmove-design';
 import { calculateBusFare } from '@/lib/ride-pricing';
+import { SUPER_ADMIN_EMAILS } from '@/lib/admin-auth';
 
 export const Route = createFileRoute('/app')({
   // Role-routing guard: after Google OAuth redirects back to /app,
@@ -73,12 +74,6 @@ export const Route = createFileRoute('/app')({
       const riderCategory = user.user_metadata?.['rider_category'];
       const allRoles = new Set([...userRoles, metaRole, riderCategory].filter(Boolean));
       const email = user.email?.toLowerCase() || '';
-
-      const SUPER_ADMIN_EMAILS = [
-        'barakahdevcentre@gmail.com',
-        'barakahdevelopmentcentre@gmail.com',
-        'raymondlongdiem22@gmail.com',
-      ];
 
       // Operational consoles for drivers, dispatchers, and admins
       if (SUPER_ADMIN_EMAILS.includes(email) || allRoles.has('administrator') || allRoles.has('admin') || allRoles.has('swift_manager')) {
@@ -215,11 +210,6 @@ function SwiftMoveAppPage() {
           ...((roleData || []).map((r: any) => r.role)),
           u.user_metadata?.['role'],
         ].filter(Boolean));
-        const SUPER_ADMIN_EMAILS = [
-          'barakahdevcentre@gmail.com',
-          'barakahdevelopmentcentre@gmail.com',
-          'raymondlongdiem22@gmail.com',
-        ];
         const email = u.email?.toLowerCase() || '';
         subscription.unsubscribe();
         if (SUPER_ADMIN_EMAILS.includes(email) || roles.has('administrator') || roles.has('admin') || roles.has('swift_manager')) {

@@ -43,6 +43,7 @@ import { useJsApiLoader } from '@react-google-maps/api';
 
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
+import { SUPER_ADMIN_EMAILS } from '@/lib/admin-auth';
 import { Button } from '@/components/ui/button';
 import { InteractiveMap } from '@/components/InteractiveMap';
 import {
@@ -250,7 +251,7 @@ function UnifiedCustomerPortal() {
       auth?.role === 'admin' ||
       auth?.role === 'swift_manager' ||
       metaRole === 'administrator' ||
-      ['barakahdevcentre@gmail.com', 'barakahdevelopmentcentre@gmail.com'].includes(userEmail)
+      SUPER_ADMIN_EMAILS.includes(userEmail)
     );
 
   useEffect(() => {

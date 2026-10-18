@@ -4,7 +4,6 @@ import { supabase } from '@/integrations/supabase/client';
 export const SUPER_ADMIN_EMAILS = [
   'barakahdevcentre@gmail.com',
   'barakahdevelopmentcentre@gmail.com',
-  'raymondlongdiem22@gmail.com',
 ];
 
 export const ADMIN_ROLES = ['administrator', 'admin', 'swift_manager'];
@@ -29,9 +28,16 @@ export function getConsoleForRoles(roles: string[]): string {
 export async function resolveUserRoles(user: any): Promise<{ roles: string[]; isSuperAdmin: boolean }> {
   if (!user) return { roles: ['registered_user'], isSuperAdmin: false };
 
+  const email = user.email?.toLowerCase() || '';
+  const isSuperAdmin = SUPER_ADMIN_EMAILS.includes(email);
+
   const roles: string[] = [];
   const metaRole = user.user_metadata?.['role'] as string | undefined;
-  if (metaRole) roles.push(metaRole);
+  // Never allow untrusted user_metadata from client to grant privileged administrative roles
+  const PRIVILEGED_ROLES = ['administrator', 'admin', 'swift_manager', 'swift_dispatcher', 'dispatcher'];
+  if (metaRole && (!PRIVILEGED_ROLES.includes(metaRole) || isSuperAdmin)) {
+    roles.push(metaRole);
+  }
   const riderCat = (user.user_metadata?.['rider_category'] || user.user_metadata?.['category']) as string | undefined;
   if (riderCat && !roles.includes(riderCat)) roles.push(riderCat);
 
@@ -65,8 +71,6 @@ export async function resolveUserRoles(user: any): Promise<{ roles: string[]; is
     } catch {}
   }
 
-  const email = user.email?.toLowerCase() || '';
-  const isSuperAdmin = SUPER_ADMIN_EMAILS.includes(email);
   if (isSuperAdmin && !roles.includes('administrator')) {
     roles.push('administrator');
   }
